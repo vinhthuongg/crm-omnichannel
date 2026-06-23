@@ -1,0 +1,172 @@
+<?php
+
+namespace App\Actions\Web;
+
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Models\Tag;
+use Modules\Customer\Models\Customer;
+use Modules\Message\Models\Message;
+
+class GetDashboardChartDataAction
+{
+    public function execute(User $user, array $filters = []): array
+    {
+        $period = in_array(($filters['period'] ?? 'week'), ['week', 'month', 'year'], true)
+            ? (string) $filters['period']
+            : 'week';
+
+        return [
+            'closure' => $this->closureData($user),
+            'messages' => $this->dailyMessages($user, 14),
+            'conversation_status' => $this->conversationStatus($user, $period),
+            'trend' => $this->yearTrend($user),
+            'tags' => $this->tagAllocation($user),
+            'channels' => $this->channelMessages($user),
+            'customer_activity' => $this->topCustomerActivity($user),
+        ];
+    }
+
+    private function visibleConversations(User $user): Builder
+    {
+        $query = Conversation::query();
+
+        if (! $user->can('conversation.view_all')) {
+            $query->where('assigned_to', $user->id);
+        }
+
+        return $query;
+    }
+
+    private function visibleMessages(User $user): Builder
+    {
+        return Message::query()->whereHas('conversation', function (Builder $query) use ($user): void {
+            if (! $user->can('conversation.view_all')) {
+                $query->where('assigned_to', $user->id);
+            }
+        });
+    }
+
+    private function closureData(User $user): array
+    {
+        return collect(['open', 'pending', 'closed'])->map(fn (string $status): array => [
+            'label' => ucfirst($status),
+            'value' => (clone $this->visibleConversations($user))->where('status', $status)->count(),
+        ])->all();
+    }
+
+    private function dailyMessages(User $user, int $days): array
+    {
+        return collect(range($days - 1, 0))->map(function (int $offset) use ($user): array {
+            $day = today()->subDays($offset);
+
+            return [
+                'date' => $day->toDateString(),
+                'value' => $this->visibleMessages($user)->whereDate('created_at', $day)->count(),
+            ];
+        })->all();
+    }
+
+    private function conversationStatus(User $user, string $period): array
+    {
+        $buckets = match ($period) {
+            'month' => collect(range(3, 0))->map(function (int $offset): array {
+                $start = today()->subWeeks($offset)->startOfWeek();
+
+                return ['label' => $start->format('j M'), 'start' => $start, 'end' => $start->copy()->endOfWeek()];
+            }),
+            'year' => collect(range(11, 0))->map(function (int $offset): array {
+                $start = today()->subMonthsNoOverflow($offset)->startOfMonth();
+
+                return ['label' => $start->format('M'), 'start' => $start, 'end' => $start->copy()->endOfMonth()];
+            }),
+            default => collect(range(6, 0))->map(function (int $offset): array {
+                $day = today()->subDays($offset);
+
+                return ['label' => $day->format('D, j M'), 'start' => $day->copy()->startOfDay(), 'end' => $day->copy()->endOfDay()];
+            }),
+        };
+
+        return $buckets->map(function (array $bucket) use ($user): array {
+            return [
+                'period' => $bucket['label'],
+                'open' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', 'open')->count(),
+                'pending' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', 'pending')->count(),
+                'closed' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', 'closed')->count(),
+            ];
+        })->all();
+    }
+
+    private function yearTrend(User $user): array
+    {
+        return collect(range((int) now()->subYears(4)->format('Y'), (int) now()->format('Y')))
+            ->map(fn (int $year): array => [
+                'year' => (string) $year,
+                'value' => (clone $this->visibleConversations($user))->whereYear('created_at', $year)->count(),
+            ])
+            ->all();
+    }
+
+    private function tagAllocation(User $user): array
+    {
+        return Tag::query()
+            ->withCount(['conversations' => function (Builder $query) use ($user): void {
+                if (! $user->can('conversation.view_all')) {
+                    $query->where('assigned_to', $user->id);
+                }
+            }])
+            ->orderByDesc('conversations_count')
+            ->limit(5)
+            ->get()
+            ->map(fn (Tag $tag): array => [
+                'tag' => $tag->name,
+                'value' => (int) $tag->conversations_count,
+            ])
+            ->all();
+    }
+
+    private function channelMessages(User $user): array
+    {
+        return $this->visibleMessages($user)
+            ->selectRaw('channel, count(*) as value')
+            ->groupBy('channel')
+            ->orderBy('channel')
+            ->get()
+            ->map(fn (Message $message): array => [
+                'label' => ucfirst($message->channel),
+                'value' => (int) $message->value,
+            ])
+            ->all();
+    }
+
+    private function topCustomerActivity(User $user): array
+    {
+        $customer = Customer::query()
+            ->withCount(['conversations' => function (Builder $query) use ($user): void {
+                if (! $user->can('conversation.view_all')) {
+                    $query->where('assigned_to', $user->id);
+                }
+            }])
+            ->orderByDesc('conversations_count')
+            ->first();
+
+        if (! $customer) {
+            return [];
+        }
+
+        return collect(range(9, 0))->map(function (int $offset) use ($customer, $user): array {
+            $day = today()->subDays($offset);
+
+            return [
+                'date' => $day->format('j M'),
+                'value' => $this->visibleMessages($user)
+                    ->whereHas('conversation', fn (Builder $query): Builder => $query->where('customer_id', $customer->id))
+                    ->whereDate('created_at', $day)
+                    ->count(),
+            ];
+        })->all();
+    }
+}

@@ -1,0 +1,69 @@
+<?php
+
+namespace Modules\Message\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class MessageResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'conversation_id' => $this->conversation_id,
+            'conversation_url' => route('crm.conversations.show', $this->conversation_id),
+            'conversation_customer_name' => $this->conversation?->customer?->name,
+            'conversation_customer_avatar' => $this->conversation?->customer?->avatar,
+            'sender_type' => $this->sender_type,
+            'sender_id' => $this->sender_id,
+            'sender_name' => $this->senderName(),
+            'sender_avatar' => $this->sender_type === 'customer' ? $this->sender?->avatar : null,
+            'channel' => $this->channel,
+            'content' => $this->content,
+            'message_type' => $this->message_type,
+            'attachments' => $this->normalizedAttachments(),
+            'external_message_id' => $this->external_message_id,
+            'client_message_id' => $this->client_message_id,
+            'outbound_status' => $this->outbound_status,
+            'status' => $this->outbound_status && $this->outbound_status !== 'sent' ? $this->outbound_status : null,
+            'created_at' => $this->created_at?->toISOString(),
+        ];
+    }
+
+    private function normalizedAttachments(): array
+    {
+        return collect($this->attachments ?? [])
+            ->map(function (array $attachment): array {
+                $mimeType = (string) data_get($attachment, 'mime_type', '');
+                $type = (string) data_get($attachment, 'type', '');
+                $type = $type !== '' ? $type : $this->attachmentType($mimeType);
+                $url = (string) (data_get($attachment, 'url') ?: data_get($attachment, 'payload.url', ''));
+                $name = (string) data_get($attachment, 'name', '');
+
+                if ($name === '' && $url !== '') {
+                    $name = basename((string) parse_url($url, PHP_URL_PATH));
+                }
+
+                return array_merge($attachment, [
+                    'name' => $name ?: ucfirst($type),
+                    'url' => $url,
+                    'type' => $type,
+                ]);
+            })
+            ->filter(fn (array $attachment): bool => $attachment['url'] !== '')
+            ->unique('url')
+            ->values()
+            ->all();
+    }
+
+    private function attachmentType(string $mimeType): string
+    {
+        return match (true) {
+            str_starts_with($mimeType, 'image/') => 'image',
+            str_starts_with($mimeType, 'video/') => 'video',
+            str_starts_with($mimeType, 'audio/') => 'audio',
+            default => 'file',
+        };
+    }
+}
