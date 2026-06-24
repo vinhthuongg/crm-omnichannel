@@ -12,7 +12,11 @@ echo "==> Installing PHP dependencies"
 $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction
 
 echo "==> Installing frontend dependencies"
-$NPM_BIN ci
+if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+    $NPM_BIN ci
+else
+    $NPM_BIN install
+fi
 
 echo "==> Building frontend assets"
 $NPM_BIN run build
