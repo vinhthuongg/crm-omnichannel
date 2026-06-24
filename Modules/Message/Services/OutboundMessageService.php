@@ -6,7 +6,10 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Conversation\Models\Conversation;
+use Modules\Facebook\Models\FacebookPage;
+use Modules\Facebook\Repositories\FacebookPageRepository;
 use Modules\Facebook\Services\FacebookMessengerService;
+use Modules\Facebook\Services\FacebookTokenValidationService;
 use Modules\Zalo\Services\ZaloOaService;
 use RuntimeException;
 
@@ -17,6 +20,8 @@ class OutboundMessageService
     public function __construct(
         private readonly FacebookMessengerService $facebook,
         private readonly ZaloOaService $zalo,
+        private readonly FacebookTokenValidationService $tokens,
+        private readonly FacebookPageRepository $facebookPages,
     ) {
     }
 
@@ -31,7 +36,7 @@ class OutboundMessageService
         }
 
         $response = match ($channel) {
-            'facebook' => $this->sendFacebook($customerChannel->external_id, $content, $attachments),
+            'facebook' => $this->sendFacebook($customerChannel->external_id, $content, $attachments, $this->facebookPageToken($conversation)),
             'zalo' => $this->sendZalo($customerChannel->external_id, $content, $attachments),
             default => throw new RuntimeException("Unsupported message channel [{$channel}]."),
         };
@@ -57,10 +62,10 @@ class OutboundMessageService
         return $this->send($conversation, $channel, $content);
     }
 
-    private function sendFacebook(string $recipientId, string $content, array $attachments): array
+    private function sendFacebook(string $recipientId, string $content, array $attachments, ?string $pageAccessToken = null): array
     {
         $response = $content !== ''
-            ? $this->facebook->sendText($recipientId, $content)
+            ? $this->facebook->sendText($recipientId, $content, $pageAccessToken)
             : [];
         $sentAttachments = [];
 
@@ -72,6 +77,7 @@ class OutboundMessageService
                     $recipientId,
                     (string) $attachment['facebook_attachment_id'],
                     $type,
+                    $pageAccessToken,
                 );
 
                 continue;
@@ -86,6 +92,7 @@ class OutboundMessageService
                     $type,
                     (string) ($attachment['mime_type'] ?? ''),
                     (string) ($attachment['name'] ?? basename($localPath)),
+                    $pageAccessToken,
                 );
 
                 if (! empty($response['facebook_attachment_id'])) {
@@ -101,6 +108,7 @@ class OutboundMessageService
                 $recipientId,
                 (string) $attachment['url'],
                 $type,
+                $pageAccessToken,
             );
         }
 
@@ -118,6 +126,34 @@ class OutboundMessageService
             ->implode("\n");
 
         return $this->zalo->sendText($userId, trim($content."\n".$links));
+    }
+
+    private function facebookPageToken(Conversation $conversation): ?string
+    {
+        $pageId = (string) $conversation->facebook_page_id;
+
+        if ($pageId === '') {
+            return null;
+        }
+
+        $page = FacebookPage::query()
+            ->where('page_id', $pageId)
+            ->first();
+
+        if (! $page) {
+            return null;
+        }
+
+        try {
+            $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
+            $debugToken = $this->tokens->validatePageToken($page->page_access_token);
+            $this->facebookPages->markValid($page, $debugToken);
+        } catch (\Throwable $exception) {
+            $this->facebookPages->markInvalid($page, $exception->getMessage());
+            throw new RuntimeException('Facebook page token khong hop le. Vui long reconnect fanpage: '.$exception->getMessage(), previous: $exception);
+        }
+
+        return $page->page_access_token;
     }
 
     private function facebookAttachmentType(string $mimeType): string

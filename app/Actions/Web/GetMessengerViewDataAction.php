@@ -6,9 +6,16 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Services\WorkShiftService;
 
 class GetMessengerViewDataAction
 {
+    private const INITIAL_MESSAGE_LIMIT = 10;
+
+    public function __construct(private readonly WorkShiftService $shifts)
+    {
+    }
+
     public function execute(User $user, ?Conversation $selectedConversation = null, array $filters = []): array
     {
         $search = trim((string) ($filters['search'] ?? ''));
@@ -28,11 +35,12 @@ class GetMessengerViewDataAction
         $messages = $activeConversation
             ? $this->messageTimeline($activeConversation, $user)
             : collect();
+        $oldestMessageId = (int) ($messages->first()['id'] ?? 0);
 
         return [
             'currentUser' => $user,
             'activeSection' => 'conversations',
-            'navItems' => $this->navItems(),
+            'navItems' => $this->navItems($user),
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
@@ -40,15 +48,18 @@ class GetMessengerViewDataAction
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
             'messages' => $messages,
+            'hasOlderMessages' => $activeConversation && $oldestMessageId > 0
+                ? $activeConversation->messages()->where('id', '<', $oldestMessageId)->exists()
+                : false,
             'activeChannel' => $activeConversation?->messages()->latest()->value('channel')
                 ?? $activeConversation?->customer?->channels?->first()?->channel
                 ?? 'facebook',
         ];
     }
 
-    private function navItems(): array
+    private function navItems(User $user): array
     {
-        return [
+        $items = [
             ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'D'],
             ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'C'],
             ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'K'],
@@ -59,6 +70,17 @@ class GetMessengerViewDataAction
             ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'N'],
             ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'S'],
         ];
+
+        if ($user->can('user.manage')) {
+            array_splice($items, 4, 0, [[
+                'section' => 'work_shifts',
+                'label' => 'Shifts',
+                'route' => 'work-shifts.index',
+                'icon' => 'T',
+            ]]);
+        }
+
+        return $items;
     }
 
     private function visibleConversations(User $user): Builder
@@ -66,7 +88,18 @@ class GetMessengerViewDataAction
         $query = Conversation::query();
 
         if (! $user->can('conversation.view_all')) {
-            $query->where('assigned_to', $user->id);
+            $currentShift = $this->shifts->currentShiftFor($user);
+
+            $query->where(function (Builder $query) use ($user, $currentShift): void {
+                $query->where('assigned_to', $user->id);
+
+                if ($currentShift) {
+                    $query->orWhere(function (Builder $query) use ($currentShift): void {
+                        $query->whereNull('assigned_to')
+                            ->where('work_shift_id', $currentShift->id);
+                    });
+                }
+            });
         }
 
         return $query;
@@ -75,7 +108,7 @@ class GetMessengerViewDataAction
     private function resolveActiveConversation(User $user, ?Conversation $selectedConversation, Collection $conversations): ?Conversation
     {
         if ($selectedConversation) {
-            abort_unless($user->can('conversation.view_all') || $selectedConversation->assigned_to === $user->id, 403);
+            abort_unless($this->canViewConversation($user, $selectedConversation), 403);
 
             return $selectedConversation->load(['customer.channels', 'assignee']);
         }
@@ -83,9 +116,24 @@ class GetMessengerViewDataAction
         return $conversations->first()?->load(['customer.channels', 'assignee']);
     }
 
+    private function canViewConversation(User $user, Conversation $conversation): bool
+    {
+        if ($user->can('conversation.view_all') || $conversation->assigned_to === $user->id) {
+            return true;
+        }
+
+        return ! $conversation->assigned_to
+            && $this->shifts->userIsInCurrentShift($user, $conversation->work_shift_id);
+    }
+
     private function messageTimeline(Conversation $conversation, User $currentUser): Collection
     {
-        $messages = $conversation->messages()->oldest()->get();
+        $messages = $conversation->messages()
+            ->latest()
+            ->limit(self::INITIAL_MESSAGE_LIMIT)
+            ->get()
+            ->reverse()
+            ->values();
         $userIds = $messages->where('sender_type', 'user')->pluck('sender_id')->filter()->unique();
         $users = User::query()->whereIn('id', $userIds)->get()->keyBy('id');
 
@@ -103,9 +151,11 @@ class GetMessengerViewDataAction
                 'sender_avatar' => $message->sender_type === 'customer' ? $conversation->customer?->avatar : null,
                 'is_mine' => $message->sender_type === 'user' && (int) $message->sender_id === (int) $currentUser->id,
                 'channel' => $message->channel,
-                'content' => $message->content,
+                'content' => $message->recalled_at ? null : $message->content,
                 'message_type' => $message->message_type,
-                'attachments' => $this->normalizedAttachments($message->attachments ?? []),
+                'attachments' => $message->recalled_at ? [] : $this->normalizedAttachments($message->attachments ?? []),
+                'is_recalled' => (bool) $message->recalled_at,
+                'recalled_at' => $message->recalled_at,
                 'created_at' => $message->created_at,
             ];
         });

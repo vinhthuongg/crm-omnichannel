@@ -40,6 +40,10 @@ class SendOutboundMessageJob implements ShouldQueue
             return;
         }
 
+        if ($message->recalled_at || $message->trashed()) {
+            return;
+        }
+
         if ($message->outbound_status !== 'queued') {
             return;
         }
@@ -50,6 +54,18 @@ class SendOutboundMessageJob implements ShouldQueue
                 'outbound_error' => null,
             ])->save();
             event(new MessageUpdatedEvent($message));
+
+            $message->refresh();
+
+            if ($message->recalled_at || $message->trashed()) {
+                $message->forceFill([
+                    'outbound_status' => 'cancelled',
+                    'outbound_error' => 'Tin nhan da duoc thu hoi truoc khi gui sang Facebook.',
+                ])->save();
+                event(new MessageUpdatedEvent($message));
+
+                return;
+            }
 
             $externalMessageId = $outbound->send(
                 $message->conversation,

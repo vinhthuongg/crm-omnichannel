@@ -11,12 +11,14 @@ use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
+use Modules\Conversation\Services\WorkShiftService;
 
 class MessageService
 {
     public function __construct(
         private readonly MessageRepository $repository,
         private readonly OutboundMessageService $outbound,
+        private readonly WorkShiftService $shifts,
     ) {
     }
 
@@ -35,11 +37,22 @@ class MessageService
         }
 
         $message = DB::transaction(function () use ($data): Message {
+            $facebookPageId = (string) data_get($data->metadata, 'facebook_page_id', '');
             $channel = CustomerChannel::query()->where('channel', $data->channel)->where('external_id', $data->externalCustomerId)->first();
             $customer = $channel?->customer ?? Customer::query()->create(['name' => $data->customerName, 'avatar' => $data->customerAvatar]);
             $this->refreshCustomerProfile($customer, $data);
             $customer->channels()->updateOrCreate(['channel' => $data->channel, 'external_id' => $data->externalCustomerId], ['metadata' => $data->metadata]);
-            $conversation = Conversation::query()->firstOrCreate(['customer_id' => $customer->id, 'status' => 'open'], ['last_message_at' => now()]);
+            $conversation = Conversation::query()->firstOrCreate(
+                ['customer_id' => $customer->id, 'status' => 'open', 'facebook_page_id' => $facebookPageId !== '' ? $facebookPageId : null],
+                [
+                    'last_message_at' => now(),
+                    'work_shift_id' => $this->shifts->currentShift()?->id,
+                ],
+            );
+
+            if (! $conversation->assigned_to && ! $conversation->work_shift_id) {
+                $conversation->forceFill(['work_shift_id' => $this->shifts->currentShift()?->id])->save();
+            }
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id, 'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType, 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
             return $message;

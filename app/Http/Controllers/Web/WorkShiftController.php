@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Modules\Conversation\Models\WorkShift;
+
+class WorkShiftController extends Controller
+{
+    public function index(Request $request): View
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        return view('work_shifts.index', [
+            'shifts' => WorkShift::query()->with('agents')->latest('starts_at')->limit(50)->get(),
+            'agents' => User::role(['CSKH', 'User'])->where('is_active', true)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $validated = $this->validated($request);
+        $shift = WorkShift::query()->create([
+            'name' => $validated['name'] ?? null,
+            'starts_at' => $validated['starts_at'],
+            'ends_at' => $validated['ends_at'],
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+        $shift->agents()->sync($validated['agent_ids']);
+
+        return back()->with('status', 'Da tao ca truc.');
+    }
+
+    public function update(Request $request, WorkShift $workShift): RedirectResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $validated = $this->validated($request);
+        $workShift->update([
+            'name' => $validated['name'] ?? null,
+            'starts_at' => $validated['starts_at'],
+            'ends_at' => $validated['ends_at'],
+            'is_active' => $request->boolean('is_active'),
+        ]);
+        $workShift->agents()->sync($validated['agent_ids']);
+
+        return back()->with('status', 'Da cap nhat ca truc.');
+    }
+
+    public function destroy(Request $request, WorkShift $workShift): RedirectResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $workShift->delete();
+
+        return back()->with('status', 'Da xoa ca truc.');
+    }
+
+    private function validated(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'agent_ids' => ['required', 'array', 'size:2'],
+            'agent_ids.*' => ['integer', 'exists:users,id'],
+        ]);
+    }
+}

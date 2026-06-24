@@ -4,7 +4,10 @@ namespace Modules\Facebook\Actions;
 
 use Illuminate\Support\Facades\Log;
 use Modules\Facebook\DTO\FacebookWebhookMessageData;
+use Modules\Facebook\Models\FacebookPage;
+use Modules\Facebook\Repositories\FacebookPageRepository;
 use Modules\Facebook\Services\FacebookMessengerService;
+use Modules\Facebook\Services\FacebookTokenValidationService;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\MessageService;
 
@@ -13,6 +16,8 @@ class HandleFacebookWebhookAction
     public function __construct(
         private readonly MessageService $messages,
         private readonly FacebookMessengerService $facebook,
+        private readonly FacebookTokenValidationService $tokens,
+        private readonly FacebookPageRepository $pages,
     )
     {
     }
@@ -36,15 +41,38 @@ class HandleFacebookWebhookAction
             }
 
             $senderId = (string) data_get($event, 'sender.id');
+            $pageId = (string) data_get($event, 'recipient.id');
 
             if ($senderId === '') {
                 $skipped++;
                 continue;
             }
 
+            $page = $pageId !== ''
+                ? FacebookPage::query()->where('page_id', $pageId)->first()
+                : null;
+            $pageToken = $page?->page_access_token;
+            $profile = [];
+
+            if ($page && $pageToken) {
+                try {
+                    $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
+                    $debugToken = $this->tokens->validatePageToken($pageToken);
+                    $this->pages->markValid($page, $debugToken);
+                    $profile = $this->facebook->profile($senderId, $pageToken);
+                } catch (\Throwable $exception) {
+                    $this->pages->markInvalid($page, $exception->getMessage());
+                    Log::warning('Facebook webhook profile lookup skipped because page token is invalid', [
+                        'page_id' => $pageId,
+                        'sender_id' => $senderId,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+
             $lastMessage = $this->messages->storeInbound(FacebookWebhookMessageData::fromMessagingEvent(
                 $event,
-                $this->facebook->profile($senderId),
+                $profile,
             ));
             $stored++;
         }
@@ -53,6 +81,12 @@ class HandleFacebookWebhookAction
             'events' => count($events),
             'stored_messages' => $stored,
             'skipped_events' => $skipped,
+            'page_ids' => collect($events)
+                ->map(fn (array $event): string => (string) data_get($event, 'recipient.id'))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
             'sender_ids' => collect($events)
                 ->map(fn (array $event): string => (string) data_get($event, 'sender.id'))
                 ->filter()

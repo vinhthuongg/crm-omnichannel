@@ -16,6 +16,6 @@ class UpdateUserRequest extends FormRequest
     public function rules(): array
     {
         $userId = $this->route('user')?->id;
-        return ['name' => ['sometimes', 'string', 'max:255'], 'email' => ['sometimes', 'email', Rule::unique('users', 'email')->ignore($userId)], 'password' => ['sometimes', Password::defaults()], 'role' => ['sometimes', 'in:Admin,User'], 'is_active' => ['sometimes', 'boolean']];
+        return ['name' => ['sometimes', 'string', 'max:255'], 'email' => ['sometimes', 'email', Rule::unique('users', 'email')->ignore($userId)], 'password' => ['sometimes', Password::defaults()], 'role' => ['sometimes', 'in:Admin,CSKH,User'], 'is_active' => ['sometimes', 'boolean']];
     }
 }

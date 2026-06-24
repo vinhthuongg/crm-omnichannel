@@ -17,6 +17,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public WebSocket Endpoint
+    |--------------------------------------------------------------------------
+    |
+    | The Reverb server can listen on an internal host/port while browsers
+    | connect through Nginx, a load balancer, or another HTTPS proxy.
+    |
+    */
+
+    'public' => [
+        'host' => env('REVERB_PUBLIC_HOST'),
+        'port' => env('REVERB_PUBLIC_PORT'),
+        'scheme' => env('REVERB_PUBLIC_SCHEME', 'wss'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Reverb Servers
     |--------------------------------------------------------------------------
     |

@@ -40,7 +40,7 @@ class DemoCrmDashboardSeeder extends Seeder
                 'password' => '12345678',
                 'is_active' => true,
             ]);
-            $user->assignRole('User');
+            $user->assignRole('CSKH');
 
             return $user;
         });

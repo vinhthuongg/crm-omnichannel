@@ -7,7 +7,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Conversation\Models\Conversation;
+use Modules\Facebook\Models\FacebookAccount;
+use Modules\Facebook\Models\FacebookPage;
 use Modules\Message\Models\Message;
+use Modules\Conversation\Models\WorkShift;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -37,5 +40,20 @@ class User extends Authenticatable
     public function sentMessages(): HasMany
     {
         return $this->hasMany(Message::class, 'sender_id')->where('sender_type', 'user');
+    }
+
+    public function facebookAccounts(): HasMany
+    {
+        return $this->hasMany(FacebookAccount::class);
+    }
+
+    public function facebookPages(): HasMany
+    {
+        return $this->hasMany(FacebookPage::class);
+    }
+
+    public function workShifts()
+    {
+        return $this->belongsToMany(WorkShift::class, 'work_shift_user')->withTimestamps();
     }
 }

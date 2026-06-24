@@ -22,6 +22,35 @@ class ConversationService
         return $conversation->load(['customer.channels', 'assignee', 'tags']);
     }
 
+    public function claim(Conversation $conversation, User $actor): Conversation
+    {
+        if ($conversation->assigned_to && (int) $conversation->assigned_to !== (int) $actor->id) {
+            throw new \RuntimeException('Hoi thoai da co nhan vien khac nhan xu ly.');
+        }
+
+        $updated = Conversation::query()
+            ->whereKey($conversation->id)
+            ->where(function ($query) use ($actor): void {
+                $query->whereNull('assigned_to')->orWhere('assigned_to', $actor->id);
+            })
+            ->update([
+                'assigned_to' => $actor->id,
+                'claimed_at' => now(),
+                'status' => 'open',
+                'updated_at' => now(),
+            ]);
+
+        if (! $updated) {
+            throw new \RuntimeException('Hoi thoai da co nhan vien khac nhan xu ly.');
+        }
+
+        $conversation = $conversation->refresh();
+        $this->activityLog->record($actor, 'conversation.claimed', $conversation, ['assigned_to' => $actor->id]);
+        event(new ConversationAssignedEvent($conversation, $actor));
+
+        return $conversation->load(['customer.channels', 'assignee', 'tags']);
+    }
+
     public function close(Conversation $conversation, User $actor): Conversation
     {
         $conversation->forceFill(['status' => 'closed', 'closed_at' => now()])->save();

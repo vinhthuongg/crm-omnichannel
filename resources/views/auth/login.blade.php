@@ -35,6 +35,9 @@
 
             <button type="submit">Vào dashboard</button>
         </form>
+
+        <div class="login-divider"><span>hoac</span></div>
+        <a class="facebook-login-button" href="{{ route('facebook.redirect') }}">Dang nhap bang Facebook</a>
     </section>
 
     <aside class="login-insight">
@@ -49,7 +52,7 @@
             </div>
             <div>
                 <dt>Roles</dt>
-                <dd>Admin, User</dd>
+                <dd>Admin, CSKH</dd>
             </div>
         </dl>
     </aside>

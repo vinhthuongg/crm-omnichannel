@@ -12,11 +12,11 @@ use Modules\Message\Models\Message;
 
 class Conversation extends Model
 {
-    protected $fillable = ['customer_id', 'assigned_to', 'status', 'last_message_at', 'closed_at'];
+    protected $fillable = ['customer_id', 'facebook_page_id', 'external_conversation_id', 'assigned_to', 'work_shift_id', 'claimed_at', 'status', 'last_message_at', 'closed_at'];
 
     protected function casts(): array
     {
-        return ['last_message_at' => 'datetime', 'closed_at' => 'datetime'];
+        return ['last_message_at' => 'datetime', 'claimed_at' => 'datetime', 'closed_at' => 'datetime'];
     }
 
     public function customer(): BelongsTo
@@ -27,6 +27,11 @@ class Conversation extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function workShift(): BelongsTo
+    {
+        return $this->belongsTo(WorkShift::class);
     }
 
     public function messages(): HasMany

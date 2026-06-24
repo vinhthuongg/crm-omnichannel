@@ -6,7 +6,17 @@ return [
     'resend' => ['key' => env('RESEND_KEY')],
     'slack' => ['notifications' => ['bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'), 'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL')]],
     'facebook' => [
-        'page_access_token' => env('FACEBOOK_PAGE_ACCESS_TOKEN'),
+        'graph_version' => env('FACEBOOK_GRAPH_VERSION', 'v25.0'),
+        'client_id' => env('FACEBOOK_CLIENT_ID', env('FACEBOOK_APP_ID')),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET', env('FACEBOOK_APP_SECRET')),
+        'redirect' => env('FACEBOOK_REDIRECT_URI'),
+        'login_config_id' => env('FACEBOOK_LOGIN_CONFIG_ID'),
+        'scopes' => array_values(array_filter(array_map('trim', explode(',', env(
+            'FACEBOOK_LOGIN_SCOPES',
+            'email,public_profile'
+        ))))),
+        'messenger_app_id' => env('MESSENGER_APP_ID', env('FACEBOOK_CLIENT_ID', env('FACEBOOK_APP_ID'))),
+        'messenger_app_secret' => env('MESSENGER_APP_SECRET', env('FACEBOOK_CLIENT_SECRET', env('FACEBOOK_APP_SECRET'))),
         'verify_token' => env('FACEBOOK_VERIFY_TOKEN'),
         'app_secret' => env('FACEBOOK_APP_SECRET'),
     ],

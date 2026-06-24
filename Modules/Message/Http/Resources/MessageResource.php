@@ -20,13 +20,16 @@ class MessageResource extends JsonResource
             'sender_name' => $this->senderName(),
             'sender_avatar' => $this->sender_type === 'customer' ? $this->sender?->avatar : null,
             'channel' => $this->channel,
-            'content' => $this->content,
+            'content' => $this->recalled_at ? null : $this->content,
             'message_type' => $this->message_type,
-            'attachments' => $this->normalizedAttachments(),
+            'attachments' => $this->recalled_at ? [] : $this->normalizedAttachments(),
             'external_message_id' => $this->external_message_id,
             'client_message_id' => $this->client_message_id,
             'outbound_status' => $this->outbound_status,
             'status' => $this->outbound_status && $this->outbound_status !== 'sent' ? $this->outbound_status : null,
+            'is_recalled' => (bool) $this->recalled_at,
+            'facebook_recalled' => false,
+            'recalled_at' => $this->recalled_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

@@ -13,13 +13,13 @@ class FacebookMessengerService
     {
     }
 
-    public function sendText(string $recipientId, string $message): array
+    public function sendText(string $recipientId, string $message, ?string $pageAccessToken = null): array
     {
         $response = $this->http
             ->connectTimeout(10)
             ->timeout(30)
-            ->withToken((string) config('services.facebook.page_access_token'))
-            ->post('https://graph.facebook.com/v20.0/me/messages', [
+            ->withToken($this->token($pageAccessToken))
+            ->post($this->graphUrl('/me/messages'), [
                 'messaging_type' => 'RESPONSE',
                 'recipient' => ['id' => $recipientId],
                 'message' => ['text' => $message],
@@ -28,7 +28,7 @@ class FacebookMessengerService
         return $response->json();
     }
 
-    public function profile(string $psid): array
+    public function profile(string $psid, ?string $pageAccessToken = null): array
     {
         if ($psid === '') {
             return [];
@@ -38,8 +38,8 @@ class FacebookMessengerService
             $response = $this->http
                 ->connectTimeout(5)
                 ->timeout(10)
-                ->withToken((string) config('services.facebook.page_access_token'))
-                ->get("https://graph.facebook.com/v20.0/{$psid}", [
+                ->withToken($this->token($pageAccessToken))
+                ->get($this->graphUrl("/{$psid}"), [
                     'fields' => 'first_name,last_name,profile_pic',
                 ]);
 
@@ -64,7 +64,7 @@ class FacebookMessengerService
         }
     }
 
-    public function sendAttachment(string $recipientId, string $url, string $type = 'file'): array
+    public function sendAttachment(string $recipientId, string $url, string $type = 'file', ?string $pageAccessToken = null): array
     {
         if (! in_array($type, ['image', 'audio', 'video', 'file'], true)) {
             throw new RuntimeException("Unsupported Facebook attachment type [{$type}].");
@@ -98,8 +98,8 @@ class FacebookMessengerService
             $response = $this->http
                 ->connectTimeout(10)
                 ->timeout(60)
-                ->withToken((string) config('services.facebook.page_access_token'))
-                ->post('https://graph.facebook.com/v20.0/me/messages', $payload);
+                ->withToken($this->token($pageAccessToken))
+                ->post($this->graphUrl('/me/messages'), $payload);
         } catch (ConnectionException $exception) {
             if (! str_contains($exception->getMessage(), 'cURL error 28')) {
                 throw $exception;
@@ -123,7 +123,7 @@ class FacebookMessengerService
         return $response->json();
     }
 
-    public function sendLocalAttachment(string $recipientId, string $path, string $type = 'file', ?string $mimeType = null, ?string $filename = null): array
+    public function sendLocalAttachment(string $recipientId, string $path, string $type = 'file', ?string $mimeType = null, ?string $filename = null, ?string $pageAccessToken = null): array
     {
         if (! in_array($type, ['image', 'audio', 'video', 'file'], true)) {
             throw new RuntimeException("Unsupported Facebook attachment type [{$type}].");
@@ -136,7 +136,7 @@ class FacebookMessengerService
         [$uploadPath, $uploadMimeType, $removeAfterUpload] = $this->prepareUploadFile($path, $type, $mimeType);
 
         try {
-            $attachmentId = $this->uploadReusableAttachment($uploadPath, $type, $uploadMimeType, $filename);
+            $attachmentId = $this->uploadReusableAttachment($uploadPath, $type, $uploadMimeType, $filename, $pageAccessToken);
         } finally {
             if ($removeAfterUpload) {
                 @unlink($uploadPath);
@@ -146,8 +146,8 @@ class FacebookMessengerService
         $response = $this->http
             ->connectTimeout(10)
             ->timeout(30)
-            ->withToken((string) config('services.facebook.page_access_token'))
-            ->post('https://graph.facebook.com/v20.0/me/messages', [
+            ->withToken($this->token($pageAccessToken))
+            ->post($this->graphUrl('/me/messages'), [
                 'messaging_type' => 'RESPONSE',
                 'recipient' => ['id' => $recipientId],
                 'message' => [
@@ -166,7 +166,7 @@ class FacebookMessengerService
         ]);
     }
 
-    public function sendAttachmentId(string $recipientId, string $attachmentId, string $type = 'file'): array
+    public function sendAttachmentId(string $recipientId, string $attachmentId, string $type = 'file', ?string $pageAccessToken = null): array
     {
         if (! in_array($type, ['image', 'audio', 'video', 'file'], true)) {
             throw new RuntimeException("Unsupported Facebook attachment type [{$type}].");
@@ -175,8 +175,8 @@ class FacebookMessengerService
         $response = $this->http
             ->connectTimeout(10)
             ->timeout(30)
-            ->withToken((string) config('services.facebook.page_access_token'))
-            ->post('https://graph.facebook.com/v20.0/me/messages', [
+            ->withToken($this->token($pageAccessToken))
+            ->post($this->graphUrl('/me/messages'), [
                 'messaging_type' => 'RESPONSE',
                 'recipient' => ['id' => $recipientId],
                 'message' => [
@@ -234,7 +234,7 @@ class FacebookMessengerService
         return [$tmpPath, 'image/jpeg', true];
     }
 
-    private function uploadReusableAttachment(string $path, string $type, ?string $mimeType, ?string $filename): string
+    private function uploadReusableAttachment(string $path, string $type, ?string $mimeType, ?string $filename, ?string $pageAccessToken = null): string
     {
         $handle = fopen($path, 'r');
 
@@ -246,9 +246,9 @@ class FacebookMessengerService
             $response = $this->http
                 ->connectTimeout(10)
                 ->timeout(60)
-                ->withToken((string) config('services.facebook.page_access_token'))
+                ->withToken($this->token($pageAccessToken))
                 ->attach('filedata', $handle, $filename ?: basename($path), $mimeType ? ['Content-Type' => $mimeType] : [])
-                ->post('https://graph.facebook.com/v20.0/me/message_attachments', [
+                ->post($this->graphUrl('/me/message_attachments'), [
                     'message' => json_encode([
                         'attachment' => [
                             'type' => $type,
@@ -276,5 +276,19 @@ class FacebookMessengerService
         ]);
 
         return (string) $attachmentId;
+    }
+
+    private function token(?string $pageAccessToken = null): string
+    {
+        if (! $pageAccessToken) {
+            throw new RuntimeException('Facebook page access token is missing for this conversation.');
+        }
+
+        return $pageAccessToken;
+    }
+
+    private function graphUrl(string $path): string
+    {
+        return 'https://graph.facebook.com/'.config('services.facebook.graph_version', 'v25.0').$path;
     }
 }

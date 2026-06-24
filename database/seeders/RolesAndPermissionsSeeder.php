@@ -27,11 +27,14 @@ class RolesAndPermissionsSeeder extends Seeder
         }
 
         Role::findOrCreate('Admin', 'web')->syncPermissions($permissions);
-        Role::findOrCreate('User', 'web')->syncPermissions([
+        $cskhPermissions = [
             'conversation.view_assigned',
             'conversation.reply',
             'conversation.close',
             'conversation.tag',
-        ]);
+        ];
+
+        Role::findOrCreate('CSKH', 'web')->syncPermissions($cskhPermissions);
+        Role::findOrCreate('User', 'web')->syncPermissions($cskhPermissions);
     }
 }

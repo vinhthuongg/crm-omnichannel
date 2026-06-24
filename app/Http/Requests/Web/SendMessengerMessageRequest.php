@@ -3,12 +3,30 @@
 namespace App\Http\Requests\Web;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Conversation\Models\Conversation;
 
 class SendMessengerMessageRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('conversation.reply') ?? false;
+        $user = $this->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        $conversation = $this->route('conversation');
+
+        if (! $conversation instanceof Conversation) {
+            return false;
+        }
+
+        if ($user->can('conversation.view_all')) {
+            return true;
+        }
+
+        return $user->can('conversation.reply')
+            && (int) $conversation->assigned_to === (int) $user->id;
     }
 
     public function rules(): array

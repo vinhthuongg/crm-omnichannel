@@ -49,7 +49,7 @@
             @forelse($conversations as $conversation)
                 @php($lastMessage = $conversation->messages->first())
                 @php($isActive = $activeConversation?->id === $conversation->id)
-                <a class="messenger-thread {{ $isActive ? 'active' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}">
+                <a class="messenger-thread {{ $isActive ? 'active' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}">
                     <span class="thread-avatar">
                         @if($conversation->customer?->avatar)
                             <img src="{{ $conversation->customer->avatar }}" alt="{{ $conversation->customer?->name ?? 'Customer' }}">
@@ -72,16 +72,18 @@
     <section class="messenger-chat">
         @if($activeConversation)
             @php($reverb = config('broadcasting.connections.reverb'))
-            @php($reverbPublicHost = env('REVERB_PUBLIC_HOST'))
-            @php($reverbPublicPort = env('REVERB_PUBLIC_PORT'))
-            @php($reverbPublicScheme = match (env('REVERB_PUBLIC_SCHEME')) {
+            @php($reverbPublicHost = config('reverb.public.host'))
+            @php($reverbPublicPort = config('reverb.public.port'))
+            @php($reverbPublicScheme = match (config('reverb.public.scheme')) {
                 'https' => 'wss',
                 'http' => 'ws',
-                default => env('REVERB_PUBLIC_SCHEME'),
+                default => config('reverb.public.scheme'),
             })
+            @php($canReply = $currentUser->can('conversation.view_all') || (int) $activeConversation->assigned_to === (int) $currentUser->id)
+            @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userIsInCurrentShift($currentUser, $activeConversation->work_shift_id))
             <header class="messenger-chat-head">
                 <div class="chat-contact">
-                    <span class="thread-avatar large">
+                    <span class="thread-avatar large" data-chat-avatar>
                         @if($activeConversation->customer?->avatar)
                             <img src="{{ $activeConversation->customer->avatar }}" alt="{{ $activeConversation->customer?->name ?? 'Customer' }}">
                         @else
@@ -89,16 +91,20 @@
                         @endif
                     </span>
                     <div>
-                        <h2>{{ $activeConversation->customer?->name ?? 'Customer' }}</h2>
-                        <p>{{ $activeConversation->assignee?->name ? 'Phu trach: '.$activeConversation->assignee->name : 'Chua gan nhan vien' }}</p>
+                        <h2 data-chat-customer-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h2>
+                        <p data-chat-assignee>{{ $activeConversation->assignee?->name ? 'Phu trach: '.$activeConversation->assignee->name : 'Chua gan nhan vien' }}</p>
                     </div>
                 </div>
                 <nav class="chat-actions" aria-label="Conversation actions">
                     <a href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}">Info</a>
-                    <a href="{{ route('crm.channels', ['channel' => $activeChannel]) }}">{{ ucfirst($activeChannel) }}</a>
+                <a href="{{ route('crm.channels', ['channel' => $activeChannel]) }}" data-chat-channel>{{ ucfirst($activeChannel) }}</a>
                     <a href="{{ route('dashboard') }}">Dashboard</a>
                 </nav>
             </header>
+            <div class="conversation-claim-bar {{ $canClaim || ! $canReply ? '' : 'is-hidden' }}" data-claim-bar>
+                <span data-claim-status>{{ $canClaim ? 'Hoi thoai moi trong ca truc cua ban.' : 'Ban can nhan xu ly truoc khi tra loi.' }}</span>
+                <button type="button" data-claim-button data-claim-url="{{ route('crm.conversations.claim', $activeConversation) }}" {{ $canClaim ? '' : 'disabled' }}>Nhan xu ly</button>
+            </div>
 
             <section
                 class="messenger-timeline"
@@ -107,6 +113,8 @@
                 data-conversation-id="{{ $activeConversation->id }}"
                 data-current-user-id="{{ $currentUser->id }}"
                 data-last-message-id="{{ $messages->last()['id'] ?? 0 }}"
+                data-oldest-message-id="{{ $messages->first()['id'] ?? 0 }}"
+                data-has-older-messages="{{ $hasOlderMessages ? '1' : '0' }}"
                 data-poll-url="{{ route('crm.conversations.messages.index', $activeConversation) }}"
                 data-stream-url="{{ route('crm.conversations.messages.stream', $activeConversation) }}"
                 data-broadcast-channel="private-crm.conversation.{{ $activeConversation->id }}"
@@ -122,7 +130,7 @@
                 </div>
 
                 @foreach($messages as $message)
-                    @continue(blank($message['content']) && empty($message['attachments']))
+                    @continue(empty($message['is_recalled']) && blank($message['content']) && empty($message['attachments']))
                     <article class="message-row {{ $message['is_mine'] ? 'mine' : 'theirs' }}" data-message-id="{{ $message['id'] }}" data-client-message-id="{{ $message['client_message_id'] ?? '' }}">
                         @unless($message['is_mine'])
                             <span class="thread-avatar mini">
@@ -135,13 +143,17 @@
                         @endunless
 
                         <div class="message-stack">
-                            @if(filled($message['content']))
+                            @if(! empty($message['is_recalled']))
+                                <div class="message-bubble is-recalled">
+                                    <p>Tin nhan da duoc thu hoi</p>
+                                </div>
+                            @elseif(filled($message['content']))
                                 <div class="message-bubble">
                                     <span class="message-sender">{{ $message['sender_name'] }}</span>
                                     <p>{{ $message['content'] }}</p>
                                 </div>
                             @endif
-                            @if(! empty($message['attachments']))
+                            @if(empty($message['is_recalled']) && ! empty($message['attachments']))
                                 <div class="message-attachments">
                                     @foreach($message['attachments'] as $attachment)
                                         @php($attachmentType = strtolower((string) ($attachment['type'] ?? '')))
@@ -169,15 +181,15 @@
                 @endforeach
             </section>
 
-            <form class="messenger-composer" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer>
+            <form class="messenger-composer {{ $canReply ? '' : 'is-disabled' }}" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer data-can-reply="{{ $canReply ? '1' : '0' }}">
                 @csrf
                 <input type="hidden" name="channel" value="{{ $activeChannel }}">
                 <label class="composer-file-button" title="Tai file len">
                     +
                     <input type="file" name="attachments[]" multiple data-composer-files>
                 </label>
-                <input type="text" name="content" placeholder="Aa" autocomplete="off">
-                <button type="submit">Send</button>
+                <input type="text" name="content" placeholder="Aa" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>
+                <button type="submit" {{ $canReply ? '' : 'disabled' }}>Send</button>
                 <div class="composer-file-list" data-composer-file-list></div>
             </form>
             @error('content')
@@ -199,14 +211,30 @@
         document.querySelector('[data-crm-shell]')?.classList.toggle('sidebar-collapsed');
     });
 
-    const timeline = document.querySelector('[data-messenger-timeline]');
-    const composer = document.querySelector('[data-messenger-composer]');
+    document.querySelector('.messenger-thread-list')?.addEventListener('click', function (event) {
+        const thread = event.target.closest('.messenger-thread');
+
+        if (!thread || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+            return;
+        }
+
+        event.preventDefault();
+        loadConversation(thread.dataset.conversationUrl || thread.href);
+    });
+
+    window.addEventListener('popstate', function () {
+        loadConversation(window.location.href);
+    });
+
+    let timeline = document.querySelector('[data-messenger-timeline]');
+    let composer = document.querySelector('[data-messenger-composer]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     let attachmentUpload = {
         files: [],
         promise: Promise.resolve([]),
         uploaded: [],
     };
+    let olderMessagesLoading = false;
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, function (character) {
@@ -268,6 +296,32 @@
         timeline.scrollTop = timeline.scrollHeight;
     }
 
+    function prependMessage(message) {
+        if (!timeline || !message?.id || !hasRenderableMessage(message)) {
+            return null;
+        }
+
+        const existing = timeline.querySelector(`[data-message-id="${message.id}"]`);
+
+        if (existing) {
+            updateMessageRow(existing, message);
+            return existing;
+        }
+
+        const currentUserId = Number(timeline.dataset.currentUserId);
+        const isMine = message.sender_type === 'user' && Number(message.sender_id) === currentUserId;
+        const row = document.createElement('article');
+        row.className = `message-row ${isMine ? 'mine' : 'theirs'}`;
+        row.dataset.messageId = message.id;
+        row.dataset.clientMessageId = message.client_message_id || '';
+        row.innerHTML = messageRowHtml(message, isMine);
+
+        const firstMessage = timeline.querySelector('.message-row');
+        timeline.insertBefore(row, firstMessage);
+
+        return row;
+    }
+
     function matchingPendingMessage(message) {
         const pendingMessages = Array.from(timeline?.querySelectorAll('[data-pending-message-id]') || []);
         const clientMessageId = String(message.client_message_id || '');
@@ -325,12 +379,14 @@
         const avatar = isMine ? '' : `<span class="thread-avatar mini">${avatarHtml(message.sender_avatar, message.sender_name || 'C')}</span>`;
         const status = messageStatusText(message);
         const content = String(message.content || '').trim();
-        const attachments = Array.isArray(message.attachments) && message.attachments.length
+        const attachments = !message.is_recalled && Array.isArray(message.attachments) && message.attachments.length
             ? `<div class="message-attachments">${message.attachments.map(function (attachment) {
                 return attachmentHtml(attachment);
             }).join('')}</div>`
             : '';
-        const textBubble = content
+        const textBubble = message.is_recalled
+            ? `<div class="message-bubble is-recalled"><p>Tin nhan da duoc thu hoi</p></div>`
+            : content
             ? `<div class="message-bubble">
                     <span class="message-sender">${escapeHtml(message.sender_name || 'Unknown')}</span>
                     <p>${escapeHtml(content)}</p>
@@ -355,11 +411,187 @@
         return escapeHtml((name || 'C').slice(0, 1).toUpperCase());
     }
 
+    function renderMessages(messages) {
+        if (!timeline) {
+            return;
+        }
+
+        timeline.querySelectorAll('.message-row').forEach((row) => row.remove());
+        (messages || []).forEach(function (message) {
+            if (!hasRenderableMessage(message)) {
+                return;
+            }
+
+            const currentUserId = Number(timeline.dataset.currentUserId);
+            const isMine = message.sender_type === 'user' && Number(message.sender_id) === currentUserId;
+            const row = document.createElement('article');
+            row.className = `message-row ${isMine ? 'mine' : 'theirs'}`;
+            row.dataset.messageId = message.id;
+            row.dataset.clientMessageId = message.client_message_id || '';
+            row.innerHTML = messageRowHtml(message, isMine);
+            timeline.appendChild(row);
+        });
+
+        timeline.scrollTop = timeline.scrollHeight;
+    }
+
+    function renderConversation(conversation, url) {
+        if (!timeline || !composer || !conversation) {
+            window.location.href = url;
+            return;
+        }
+
+        document.querySelectorAll('.messenger-thread.active').forEach((thread) => thread.classList.remove('active'));
+        document.querySelector(`[data-thread-conversation-id="${conversation.id}"]`)?.classList.add('active');
+
+        const customerName = conversation.customer_name || 'Customer';
+        const chatAvatar = document.querySelector('[data-chat-avatar]');
+        const chatName = document.querySelector('[data-chat-customer-name]');
+        const chatAssignee = document.querySelector('[data-chat-assignee]');
+        const chatChannel = document.querySelector('[data-chat-channel]');
+
+        if (chatAvatar) {
+            chatAvatar.innerHTML = avatarHtml(conversation.customer_avatar, customerName);
+        }
+
+        if (chatName) {
+            chatName.textContent = customerName;
+        }
+
+        if (chatAssignee) {
+            chatAssignee.textContent = conversation.assignee_name ? `Phu trach: ${conversation.assignee_name}` : 'Chua gan nhan vien';
+        }
+
+        if (chatChannel) {
+            chatChannel.textContent = (conversation.active_channel || 'facebook').replace(/^./, (char) => char.toUpperCase());
+            chatChannel.href = `/channels?channel=${encodeURIComponent(conversation.active_channel || 'facebook')}`;
+        }
+
+        timeline.dataset.conversationId = conversation.id;
+        timeline.dataset.pollUrl = conversation.messages_url;
+        timeline.dataset.streamUrl = conversation.stream_url;
+        timeline.dataset.broadcastChannel = conversation.broadcast_channel;
+        timeline.dataset.lastMessageId = String(conversation.meta?.last_message_id || 0);
+        timeline.dataset.oldestMessageId = String(conversation.meta?.oldest_message_id || 0);
+        timeline.dataset.hasOlderMessages = conversation.meta?.has_older_messages ? '1' : '0';
+
+        composer.action = conversation.send_url;
+        composer.dataset.uploadUrl = conversation.attachments_url;
+        const channelInput = composer.querySelector('input[name="channel"]');
+
+        if (channelInput) {
+            channelInput.value = conversation.active_channel || 'facebook';
+        }
+
+        updateClaimState(conversation);
+
+        renderMessages(conversation.messages || []);
+        window.history.pushState({conversationUrl: url}, '', url);
+        startRealtime();
+    }
+
+    async function loadConversation(url) {
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            window.location.href = url;
+            return;
+        }
+
+        const payload = await response.json();
+        renderConversation(payload.data, url);
+    }
+
+    function updateClaimState(conversation) {
+        const claimBar = document.querySelector('[data-claim-bar]');
+        const claimStatus = document.querySelector('[data-claim-status]');
+        const claimButton = document.querySelector('[data-claim-button]');
+        const contentInput = composer?.querySelector('input[name="content"]');
+        const sendButton = composer?.querySelector('button[type="submit"]');
+        const fileInput = composer?.querySelector('[data-composer-files]');
+        const canReply = Boolean(conversation.can_reply);
+        const canClaim = Boolean(conversation.can_claim);
+
+        composer?.classList.toggle('is-disabled', !canReply);
+        if (composer) {
+            composer.dataset.canReply = canReply ? '1' : '0';
+        }
+
+        [contentInput, sendButton, fileInput].forEach(function (element) {
+            if (element) {
+                element.disabled = !canReply;
+            }
+        });
+
+        if (!claimBar || !claimButton || !claimStatus) {
+            return;
+        }
+
+        claimBar.classList.toggle('is-hidden', canReply && !canClaim);
+        claimButton.disabled = !canClaim;
+        claimButton.dataset.claimUrl = conversation.claim_url || '';
+        claimStatus.textContent = canClaim
+            ? 'Hoi thoai moi trong ca truc cua ban.'
+            : (canReply ? 'Ban dang phu trach hoi thoai nay.' : 'Ban can nhan xu ly truoc khi tra loi.');
+    }
+
+    document.querySelector('[data-claim-button]')?.addEventListener('click', async function () {
+        const button = this;
+        const url = button.dataset.claimUrl;
+
+        if (!url || button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.message || 'Khong nhan duoc hoi thoai.');
+            }
+
+            const conversation = {
+                id: timeline?.dataset.conversationId,
+                can_claim: false,
+                can_reply: true,
+                claim_url: url,
+            };
+            updateClaimState(conversation);
+
+            const assignee = document.querySelector('[data-chat-assignee]');
+            if (assignee && payload.data?.assignee_name) {
+                assignee.textContent = `Phu trach: ${payload.data.assignee_name}`;
+            }
+        } catch (error) {
+            const status = document.querySelector('[data-claim-status]');
+            if (status) {
+                status.textContent = error.message;
+            }
+            button.disabled = false;
+        }
+    });
+
     function hasRenderableMessage(message) {
         const content = String(message?.content || '').trim();
         const attachments = Array.isArray(message?.attachments) ? message.attachments : [];
 
-        return Boolean(content || attachments.length);
+        return Boolean(message?.is_recalled || content || attachments.length);
     }
 
     function messageStatusText(message) {
@@ -521,7 +753,7 @@
         const meta = thread.querySelector('[data-thread-meta]');
 
         if (preview) {
-            preview.textContent = message.content || '';
+            preview.textContent = message.is_recalled ? 'Tin nhan da duoc thu hoi' : (message.content || '');
         }
 
         if (meta) {
@@ -543,6 +775,7 @@
             thread.className = 'messenger-thread';
             thread.href = message.conversation_url || `/conversations/${encodeURIComponent(message.conversation_id)}`;
             thread.dataset.threadConversationId = message.conversation_id;
+            thread.dataset.conversationUrl = thread.href;
             const customerName = message.conversation_customer_name || message.sender_name || 'Customer';
             const customerAvatar = message.conversation_customer_avatar || message.sender_avatar;
             thread.innerHTML = `
@@ -597,6 +830,56 @@
         (payload.data || []).forEach(appendMessage);
     }
 
+    async function loadOlderMessages() {
+        if (
+            !timeline?.dataset.pollUrl ||
+            olderMessagesLoading ||
+            timeline.dataset.hasOlderMessages !== '1'
+        ) {
+            return;
+        }
+
+        const beforeId = Number(timeline.dataset.oldestMessageId || 0);
+
+        if (!beforeId) {
+            return;
+        }
+
+        olderMessagesLoading = true;
+        const previousScrollHeight = timeline.scrollHeight;
+        const previousScrollTop = timeline.scrollTop;
+
+        try {
+            const url = new URL(timeline.dataset.pollUrl, window.location.origin);
+            url.searchParams.set('before_id', String(beforeId));
+            url.searchParams.set('limit', '10');
+
+            const response = await fetch(url, {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json();
+            const messages = Array.isArray(payload.data) ? payload.data : [];
+
+            messages.forEach(prependMessage);
+
+            const meta = payload.meta || {};
+            const oldestId = Number(meta.oldest_id || messages[0]?.id || beforeId);
+            timeline.dataset.oldestMessageId = String(oldestId || beforeId);
+            timeline.dataset.hasOlderMessages = meta.has_more ? '1' : '0';
+            timeline.scrollTop = timeline.scrollHeight - previousScrollHeight + previousScrollTop;
+        } finally {
+            olderMessagesLoading = false;
+        }
+    }
+
     let messageSocket = null;
     let pollingTimer = null;
     let fallbackTimer = null;
@@ -645,6 +928,36 @@
         if (String(message.conversation_id) === String(timeline?.dataset.conversationId)) {
             appendMessage(message);
         }
+    }
+
+    function removeMessageRows(messageIds) {
+        (messageIds || []).forEach(function (messageId) {
+            timeline?.querySelector(`[data-message-id="${messageId}"]`)?.remove();
+        });
+    }
+
+    function handleDeletedMessages(payload) {
+        if (String(payload?.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        if (payload.clear_all) {
+            timeline?.querySelectorAll('.message-row').forEach((row) => row.remove());
+            timeline.dataset.oldestMessageId = '0';
+            timeline.dataset.lastMessageId = '0';
+            timeline.dataset.hasOlderMessages = '0';
+            updateThreadPreview({
+                conversation_id: payload.conversation_id,
+                content: 'Da xoa toan bo tin nhan',
+            });
+            return;
+        }
+
+        removeMessageRows(payload.message_ids || []);
+        updateThreadPreview({
+            conversation_id: payload.conversation_id,
+            content: 'Da xoa tin nhan',
+        });
     }
 
     async function runPollingLoop() {
@@ -745,6 +1058,10 @@
                     const data = parsePusherData(payload.data);
                     handleRealtimeMessage(data.message || data);
                 }
+
+                if (payload.event === 'message.deleted') {
+                    handleDeletedMessages(parsePusherData(payload.data));
+                }
             } catch (error) {
                 console.warn('CRM messenger websocket message failed:', error);
                 closeMessageSocket();
@@ -810,6 +1127,11 @@
 
     if (timeline) {
         timeline.scrollTop = timeline.scrollHeight;
+        timeline.addEventListener('scroll', function () {
+            if (timeline.scrollTop <= 80) {
+                loadOlderMessages();
+            }
+        });
         startRealtime();
 
         document.addEventListener('visibilitychange', function () {
@@ -833,6 +1155,11 @@
 
     composer?.addEventListener('submit', async function (event) {
         event.preventDefault();
+
+        if (composer.dataset.canReply !== '1') {
+            document.querySelector('[data-claim-status]')?.scrollIntoView({block: 'center'});
+            return;
+        }
 
         const input = composer.querySelector('input[name="content"]');
         const button = composer.querySelector('button[type="submit"]');
