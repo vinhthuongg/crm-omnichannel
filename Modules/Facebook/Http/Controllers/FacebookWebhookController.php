@@ -14,11 +14,17 @@ class FacebookWebhookController extends ApiController
 {
     public function verify(Request $request): Response
     {
-        $mode = $request->query('hub_mode') ?? $request->query('hub.mode');
-        $token = $request->query('hub_verify_token') ?? $request->query('hub.verify_token');
-        $challenge = $request->query('hub_challenge') ?? $request->query('hub.challenge');
+        $mode = $request->query('hub.mode') ?? $request->query('hub_mode');
+        $token = $request->query('hub.verify_token') ?? $request->query('hub_verify_token');
+        $challenge = $request->query('hub.challenge') ?? $request->query('hub_challenge');
 
-        abort_unless($mode === 'subscribe' && $token === config('services.facebook.verify_token'), 403);
+        if ($mode === null && $token === null && $challenge === null) {
+            return response('OK', 200)->header('Content-Type', 'text/plain');
+        }
+
+        $verifyToken = (string) config('services.facebook.verify_token');
+
+        abort_unless($mode === 'subscribe' && $verifyToken !== '' && is_string($token) && is_string($challenge) && hash_equals($verifyToken, $token), 403);
 
         return response((string) $challenge, 200)->header('Content-Type', 'text/plain');
     }
