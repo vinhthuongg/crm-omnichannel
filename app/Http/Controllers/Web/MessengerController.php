@@ -159,7 +159,9 @@ class MessengerController extends Controller
                 'customer_phone' => $conversation->customer?->phone,
                 'customer_email' => $conversation->customer?->email,
                 'facebook_profile_url' => $this->facebookProfileUrl($conversation),
+                'customer_contact' => $this->customerContactPayload($conversation),
                 'customer_public_details' => $this->customerPublicDetails($conversation),
+                'customer_update_url' => route('crm.conversations.customer.update', $conversation),
                 'customer_notes_url' => route('crm.conversations.customer-notes.store', $conversation),
                 'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
                 'customer_notes' => $this->customerNotesPayload($conversation),
@@ -319,6 +321,40 @@ class MessengerController extends Controller
                 'id' => (int) $conversation->id,
                 'unread_messages_count' => (int) $conversation->unread_messages_count,
                 'is_unread' => false,
+            ],
+        ]);
+    }
+
+    public function updateCustomer(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+        $conversation->loadMissing('customer.channels');
+        abort_unless($conversation->customer, 404);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        $conversation->customer->forceFill([
+            'name' => trim($validated['name']),
+            'phone' => filled($validated['phone'] ?? null) ? trim($validated['phone']) : null,
+            'email' => filled($validated['email'] ?? null) ? trim($validated['email']) : null,
+        ])->save();
+
+        $conversation->load(['customer.channels', 'customer.notes.user', 'customer.tags', 'tags']);
+
+        return response()->json([
+            'data' => [
+                'id' => (int) $conversation->id,
+                'customer_name' => $conversation->customer?->name ?? 'Customer',
+                'customer_avatar' => $conversation->customer?->avatar,
+                'customer_phone' => $conversation->customer?->phone,
+                'customer_email' => $conversation->customer?->email,
+                'facebook_profile_url' => $this->facebookProfileUrl($conversation),
+                'customer_contact' => $this->customerContactPayload($conversation),
+                'customer_public_details' => $this->customerPublicDetails($conversation),
             ],
         ]);
     }
@@ -591,34 +627,32 @@ class MessengerController extends Controller
             return $profileUrl;
         }
 
-        $pageId = (string) ($conversation->facebook_page_id ?: data_get($metadata, 'facebook_page_id', ''));
-        $selectedId = (string) ($conversation->external_conversation_id ?: $facebookChannel?->external_id ?: '');
-
-        if ($pageId !== '' && $selectedId !== '') {
-            return 'https://business.facebook.com/latest/inbox/messenger?'.http_build_query([
-                'asset_id' => $pageId,
-                'selected_item_id' => $selectedId,
-            ]);
-        }
-
-        if (filled($customer?->name)) {
-            return 'https://www.facebook.com/search/people/?q='.rawurlencode((string) $customer->name);
-        }
-
         return '#';
+    }
+
+    private function customerContactPayload(Conversation $conversation): array
+    {
+        $customer = $conversation->customer;
+        $primaryChannel = $customer?->channels?->first();
+
+        return [
+            'name' => $customer?->name ?? '',
+            'phone' => $customer?->phone ?? '',
+            'email' => $customer?->email ?? '',
+            'channel' => $primaryChannel?->channel ? ucfirst($primaryChannel->channel) : '',
+        ];
     }
 
     private function customerPublicDetails(Conversation $conversation): array
     {
         $customer = $conversation->customer;
-        $facebookChannel = $customer?->channels?->firstWhere('channel', 'facebook');
+        $primaryChannel = $customer?->channels?->first();
 
         return collect([
             ['label' => 'Ten cong khai', 'value' => $customer?->name],
             ['label' => 'So dien thoai', 'value' => $customer?->phone],
             ['label' => 'Email', 'value' => $customer?->email],
-            ['label' => 'Facebook PSID', 'value' => $facebookChannel?->external_id],
-            ['label' => 'Kenh', 'value' => $facebookChannel?->channel ? ucfirst($facebookChannel->channel) : null],
+            ['label' => 'Kenh', 'value' => $primaryChannel?->channel ? ucfirst($primaryChannel->channel) : null],
         ])
             ->filter(fn (array $detail): bool => filled($detail['value']))
             ->values()

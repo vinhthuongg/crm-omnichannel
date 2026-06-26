@@ -200,6 +200,12 @@ class GetMessengerViewDataAction
         if (! $conversation?->customer) {
             return [
                 'facebook_profile_url' => '#',
+                'contact' => [
+                    'name' => '',
+                    'phone' => '',
+                    'email' => '',
+                    'channel' => '',
+                ],
                 'details' => [],
                 'notes' => [],
                 'tags' => [],
@@ -207,16 +213,21 @@ class GetMessengerViewDataAction
         }
 
         $customer = $conversation->customer;
-        $facebookChannel = $customer->channels?->firstWhere('channel', 'facebook');
+        $primaryChannel = $customer->channels?->first();
 
         return [
             'facebook_profile_url' => $this->facebookProfileUrl($conversation),
+            'contact' => [
+                'name' => $customer->name ?? '',
+                'phone' => $customer->phone ?? '',
+                'email' => $customer->email ?? '',
+                'channel' => $primaryChannel?->channel ? ucfirst($primaryChannel->channel) : '',
+            ],
             'details' => collect([
                 ['label' => 'Ten cong khai', 'value' => $customer->name],
                 ['label' => 'So dien thoai', 'value' => $customer->phone],
                 ['label' => 'Email', 'value' => $customer->email],
-                ['label' => 'Facebook PSID', 'value' => $facebookChannel?->external_id],
-                ['label' => 'Kenh', 'value' => $facebookChannel ? ucfirst($facebookChannel->channel) : null],
+                ['label' => 'Kenh', 'value' => $primaryChannel?->channel ? ucfirst($primaryChannel->channel) : null],
             ])
                 ->filter(fn (array $detail): bool => filled($detail['value']))
                 ->values()
@@ -256,20 +267,6 @@ class GetMessengerViewDataAction
 
         if (filter_var($profileUrl, FILTER_VALIDATE_URL)) {
             return $profileUrl;
-        }
-
-        $pageId = (string) ($conversation->facebook_page_id ?: data_get($metadata, 'facebook_page_id', ''));
-        $selectedId = (string) ($conversation->external_conversation_id ?: $facebookChannel?->external_id ?: '');
-
-        if ($pageId !== '' && $selectedId !== '') {
-            return 'https://business.facebook.com/latest/inbox/messenger?'.http_build_query([
-                'asset_id' => $pageId,
-                'selected_item_id' => $selectedId,
-            ]);
-        }
-
-        if (filled($customer?->name)) {
-            return 'https://www.facebook.com/search/people/?q='.rawurlencode((string) $customer->name);
         }
 
         return '#';

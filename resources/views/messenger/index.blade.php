@@ -335,23 +335,40 @@
                 </span>
                 <div>
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
-                    <a href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" data-profile-link>Xem trang ca nhan</a>
+                    @if($profilePanel['facebook_profile_url'] !== '#')
+                        <a href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" data-profile-link>Xem trang ca nhan</a>
+                    @else
+                        <a href="#" target="_blank" rel="noopener" data-profile-link hidden>Xem trang ca nhan</a>
+                    @endif
                 </div>
                 <button type="button" aria-label="More profile actions">...</button>
-                <a class="profile-next" href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" aria-label="Open profile">&gt;</a>
+                <a class="profile-next" href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" aria-label="Open profile" @if($profilePanel['facebook_profile_url'] === '#') hidden @endif>&gt;</a>
             </header>
 
-            <section class="profile-section profile-details">
-                <h4>Chi tiet khach hang</h4>
-                <div class="profile-detail-list" data-profile-details>
-                    @if(count($profilePanel['details']) === 0)
-                        <p>Chua co thong tin cong khai.</p>
-                    @endif
-                    @foreach($profilePanel['details'] as $detail)
-                        <span>{{ $detail['label'] }}</span>
-                        <strong>{{ $detail['value'] }}</strong>
-                    @endforeach
-                </div>
+            <section class="profile-section profile-details" data-contact-section data-contact-url="{{ route('crm.conversations.customer.update', $activeConversation) }}">
+                <h4>Chi tiet lien he</h4>
+                <form class="profile-contact-form" data-contact-form>
+                    <label>
+                        <span>Ten khach hang</span>
+                        <input type="text" name="name" value="{{ $profilePanel['contact']['name'] }}" autocomplete="name" required>
+                    </label>
+                    <label>
+                        <span>So dien thoai</span>
+                        <input type="tel" name="phone" value="{{ $profilePanel['contact']['phone'] }}" autocomplete="tel">
+                    </label>
+                    <label>
+                        <span>Email</span>
+                        <input type="email" name="email" value="{{ $profilePanel['contact']['email'] }}" autocomplete="email">
+                    </label>
+                    <label>
+                        <span>Kenh lien he</span>
+                        <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chua co kenh' }}" data-contact-channel disabled>
+                    </label>
+                    <div class="profile-contact-actions">
+                        <button type="submit">Save</button>
+                        <small data-contact-status></small>
+                    </div>
+                </form>
             </section>
 
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
@@ -430,6 +447,13 @@
     document.querySelector('[data-profile-panel]')?.addEventListener('input', function (event) {
         if (event.target.matches('[data-customer-tag-input]')) {
             renderCustomerTagOptions(event.target.value);
+        }
+    });
+
+    document.querySelector('[data-profile-panel]')?.addEventListener('submit', function (event) {
+        if (event.target.matches('[data-contact-form]')) {
+            event.preventDefault();
+            saveCustomerContact(event.target);
         }
     });
 
@@ -668,7 +692,9 @@
         const name = panel.querySelector('[data-profile-name]');
         const link = panel.querySelector('[data-profile-link]');
         const next = panel.querySelector('.profile-next');
-        const profileUrl = conversation.facebook_profile_url || link?.href || '#';
+        const hasProfileField = Object.prototype.hasOwnProperty.call(conversation, 'facebook_profile_url');
+        const profileUrl = conversation.facebook_profile_url || '#';
+        const hasProfileUrl = profileUrl !== '#';
 
         if (avatar) {
             avatar.innerHTML = avatarHtml(customerAvatar, customerName);
@@ -678,18 +704,25 @@
             name.textContent = customerName;
         }
 
-        if (link) {
+        if (link && hasProfileField) {
             link.href = profileUrl;
-            link.toggleAttribute('aria-disabled', profileUrl === '#');
+            link.hidden = !hasProfileUrl;
+            link.toggleAttribute('aria-disabled', !hasProfileUrl);
         }
 
-        if (next) {
+        if (next && hasProfileField) {
             next.href = profileUrl;
-            next.toggleAttribute('aria-disabled', profileUrl === '#');
+            next.hidden = !hasProfileUrl;
+            next.toggleAttribute('aria-disabled', !hasProfileUrl);
         }
 
-        if (Array.isArray(conversation.customer_public_details)) {
-            renderProfileDetails(conversation.customer_public_details);
+        if (conversation.customer_contact || Object.prototype.hasOwnProperty.call(conversation, 'customer_email')) {
+            renderCustomerContact(conversation.customer_contact || {
+                name: customerName,
+                phone: conversation.customer_phone || '',
+                email: conversation.customer_email || '',
+                channel: conversation.active_channel || '',
+            });
         }
 
         if (Array.isArray(conversation.customer_notes)) {
@@ -702,6 +735,7 @@
 
         const notes = panel.querySelector('[data-customer-notes]');
         const tags = panel.querySelector('[data-customer-tags]');
+        const contact = panel.querySelector('[data-contact-section]');
 
         if (notes && conversation.customer_notes_url) {
             notes.dataset.notesUrl = conversation.customer_notes_url;
@@ -710,23 +744,133 @@
         if (tags && conversation.customer_tags_url) {
             tags.dataset.tagsUrl = conversation.customer_tags_url;
         }
+
+        if (contact && conversation.customer_update_url) {
+            contact.dataset.contactUrl = conversation.customer_update_url;
+        }
     }
 
-    function renderProfileDetails(details) {
-        const container = document.querySelector('[data-profile-details]');
+    function renderCustomerContact(contact) {
+        const form = document.querySelector('[data-contact-form]');
 
-        if (!container) {
+        if (!form) {
             return;
         }
 
-        if (!details.length) {
-            container.innerHTML = '<p>Chua co thong tin cong khai.</p>';
+        const fields = {
+            name: contact?.name || '',
+            phone: contact?.phone || '',
+            email: contact?.email || '',
+        };
+
+        Object.entries(fields).forEach(function ([field, value]) {
+            const input = form.querySelector(`[name="${field}"]`);
+
+            if (input) {
+                input.value = value;
+            }
+        });
+
+        const channel = form.querySelector('[data-contact-channel]');
+
+        if (channel) {
+            channel.value = contact?.channel || 'Chua co kenh';
+        }
+    }
+
+    async function saveCustomerContact(form) {
+        const section = form.closest('[data-contact-section]');
+        const status = section?.querySelector('[data-contact-status]');
+        const submit = form.querySelector('button[type="submit"]');
+        const url = section?.dataset.contactUrl;
+
+        if (!url) {
             return;
         }
 
-        container.innerHTML = details.map(function (detail) {
-            return `<span>${escapeHtml(detail.label)}</span><strong>${escapeHtml(detail.value)}</strong>`;
-        }).join('');
+        if (status) {
+            status.textContent = 'Dang luu...';
+        }
+
+        if (submit) {
+            submit.disabled = true;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+                body: JSON.stringify(Object.fromEntries(new FormData(form))),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.message || 'Khong luu duoc thong tin.');
+            }
+
+            applyCustomerContact(payload.data || {});
+
+            if (status) {
+                status.textContent = 'Da luu';
+            }
+        } catch (error) {
+            if (status) {
+                status.textContent = error.message || 'Luu that bai';
+            }
+        } finally {
+            if (submit) {
+                submit.disabled = false;
+            }
+        }
+    }
+
+    function applyCustomerContact(conversation) {
+        const customerName = conversation.customer_name || 'Customer';
+        const customerAvatar = conversation.customer_avatar || '';
+        const chatAvatar = document.querySelector('[data-chat-avatar]');
+        const chatName = document.querySelector('[data-chat-customer-name]');
+        const chatPhone = document.querySelector('[data-chat-customer-phone]');
+        const profileName = document.querySelector('[data-profile-name]');
+        const thread = document.querySelector(`[data-thread-conversation-id="${conversation.id}"]`);
+        const threadName = thread?.querySelector('.thread-body strong');
+        const threadAvatar = thread?.querySelector('.thread-avatar');
+
+        renderCustomerContact(conversation.customer_contact || {
+            name: customerName,
+            phone: conversation.customer_phone || '',
+            email: conversation.customer_email || '',
+            channel: '',
+        });
+
+        if (chatAvatar) {
+            chatAvatar.innerHTML = avatarHtml(customerAvatar, customerName);
+        }
+
+        if (chatName) {
+            chatName.textContent = customerName;
+        }
+
+        if (chatPhone) {
+            chatPhone.textContent = conversation.customer_phone || 'Chua co so dien thoai';
+        }
+
+        if (profileName) {
+            profileName.textContent = customerName;
+        }
+
+        if (threadName) {
+            threadName.textContent = customerName;
+        }
+
+        if (threadAvatar) {
+            threadAvatar.innerHTML = avatarHtml(customerAvatar, customerName);
+        }
     }
 
     function renderCustomerNotes(notes) {
