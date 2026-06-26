@@ -71,8 +71,31 @@
 
         <div class="messenger-thread-list">
             @forelse($conversations as $conversation)
-                @php($lastMessage = $conversation->messages->first())
-                @php($lastMessagePreview = $lastMessage && (($lastMessage->message_type ?? '') === 'whisper' || ($lastMessage->channel ?? '') === 'internal') ? 'Thi tham: '.$lastMessage->content : ($lastMessage?->content ?? 'Chua co tin nhan'))
+                @php
+                    $lastMessage = $conversation->messages->first();
+                    $lastAttachments = collect($lastMessage?->attachments ?? []);
+                    $lastAttachment = $lastAttachments->first();
+                    $lastAttachmentType = strtolower((string) data_get($lastAttachment, 'type', ''));
+                    $lastAttachmentMime = strtolower((string) data_get($lastAttachment, 'mime_type', ''));
+                    $lastAttachmentPayload = data_get($lastAttachment, 'payload', []);
+                    $lastAttachmentPreview = match (true) {
+                        $lastAttachmentType === 'sticker' || filled(data_get($lastAttachmentPayload, 'sticker_id')) => '[Emoji]',
+                        $lastAttachmentType === 'image' || str_starts_with($lastAttachmentMime, 'image/') || filled(data_get($lastAttachmentPayload, 'image_data.url')) => '[Hinh anh]',
+                        $lastAttachmentType === 'video' || str_starts_with($lastAttachmentMime, 'video/') || filled(data_get($lastAttachmentPayload, 'video_data.url')) => '[Video]',
+                        $lastAttachmentType === 'audio' || str_starts_with($lastAttachmentMime, 'audio/') || filled(data_get($lastAttachmentPayload, 'audio_data.url')) => '[Audio]',
+                        filled($lastAttachment) => '[Tep dinh kem]',
+                        default => null,
+                    };
+                    $lastMessagePreview = filled($lastMessage?->content) ? $lastMessage->content : ($lastAttachmentPreview ?? 'Chua co tin nhan');
+
+                    if ($lastMessage?->is_recalled) {
+                        $lastMessagePreview = 'Tin nhan da duoc thu hoi';
+                    } elseif ($lastMessage && (($lastMessage->message_type ?? '') === 'whisper' || ($lastMessage->channel ?? '') === 'internal')) {
+                        $lastMessagePreview = 'Thi tham: '.$lastMessagePreview;
+                    } elseif (($lastMessage?->sender_type ?? '') === 'user') {
+                        $lastMessagePreview = 'Bạn: '.$lastMessagePreview;
+                    }
+                @endphp
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 <a class="messenger-thread {{ $isActive ? 'active' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}">
                     <span class="thread-avatar">
@@ -888,6 +911,62 @@
         }
     }
 
+    function attachmentPreviewText(attachments) {
+        const first = Array.isArray(attachments) ? attachments[0] : null;
+
+        if (!first) {
+            return '';
+        }
+
+        const type = String(first.type || '').toLowerCase();
+        const mime = String(first.mime_type || '').toLowerCase();
+        const payload = first.payload || {};
+
+        if (type === 'sticker' || payload.sticker_id) {
+            return '[Emoji]';
+        }
+
+        if (type === 'image' || mime.startsWith('image/') || payload.image_data?.url) {
+            return '[Hinh anh]';
+        }
+
+        if (type === 'video' || mime.startsWith('video/') || payload.video_data?.url) {
+            return '[Video]';
+        }
+
+        if (type === 'audio' || mime.startsWith('audio/') || payload.audio_data?.url) {
+            return '[Audio]';
+        }
+
+        return '[Tep dinh kem]';
+    }
+
+    function messagePreviewText(message) {
+        let content = String(message?.content || '').trim();
+
+        if (!content) {
+            content = attachmentPreviewText(message?.attachments || []);
+        }
+
+        if (!content) {
+            content = 'Chua co tin nhan';
+        }
+
+        if (message?.is_recalled) {
+            content = 'Tin nhan da duoc thu hoi';
+        }
+
+        if (message?.message_type === 'whisper' || message?.channel === 'internal') {
+            return `Thi tham: ${content}`;
+        }
+
+        if (message?.sender_type === 'user') {
+            return `Bạn: ${content}`;
+        }
+
+        return content;
+    }
+
     function updateThreadPreview(message) {
         const thread = document.querySelector(`[data-thread-conversation-id="${message.conversation_id}"]`);
 
@@ -899,8 +978,7 @@
         const meta = thread.querySelector('[data-thread-meta]');
 
         if (preview) {
-            const isWhisper = message.message_type === 'whisper' || message.channel === 'internal';
-            preview.textContent = message.is_recalled ? 'Tin nhan da duoc thu hoi' : `${isWhisper ? 'Thi tham: ' : ''}${message.content || ''}`;
+            preview.textContent = messagePreviewText(message);
         }
 
         if (meta) {
