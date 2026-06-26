@@ -28,7 +28,10 @@ class ModuleServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Relation::enforceMorphMap([
+            'activity_log' => ActivityLog::class,
+            'conversation' => Conversation::class,
             'customer' => Customer::class,
+            'message' => Message::class,
             'user' => User::class,
         ]);
 
