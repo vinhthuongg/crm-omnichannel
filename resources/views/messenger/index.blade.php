@@ -278,6 +278,25 @@
     </section>
     <aside class="messenger-profile-panel" data-profile-panel>
         @if($activeConversation)
+            <section class="profile-notes-full" data-notes-full hidden>
+                <header>
+                    <button type="button" data-notes-back>&lt;</button>
+                    <h4>Tat ca ghi chu</h4>
+                </header>
+                <div class="profile-note-list is-full" data-note-list-full>
+                    @if(count($profilePanel['notes']) === 0)
+                        <p class="profile-empty">Chua co ghi chu nao.</p>
+                    @endif
+                    @foreach($profilePanel['notes'] as $note)
+                        <article data-note-item>
+                            <p>{{ $note['body'] }}</p>
+                            <time>{{ $note['author'] }} - {{ $note['created_at'] }}</time>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+
+            <div class="profile-panel-main" data-profile-main>
             <header class="profile-card-head">
                 <span class="thread-avatar" data-profile-avatar>
                     @if($activeConversation->customer?->avatar)
@@ -341,6 +360,7 @@
                     @endforeach
                 </div>
             </section>
+            </div>
         @else
             <section class="profile-section is-empty">
                 <h4>Thong tin khach hang</h4>
@@ -393,11 +413,17 @@
 
     document.querySelector('[data-profile-panel]')?.addEventListener('click', function (event) {
         const toggle = event.target.closest('[data-notes-toggle]');
+        const back = event.target.closest('[data-notes-back]');
         const selectedTag = event.target.closest('[data-select-customer-tag]');
 
         if (toggle) {
             event.preventDefault();
-            document.querySelector('[data-customer-notes]')?.classList.toggle('is-expanded');
+            showAllNotesPanel();
+        }
+
+        if (back) {
+            event.preventDefault();
+            showMainProfilePanel();
         }
 
         if (selectedTag) {
@@ -613,6 +639,7 @@
             return;
         }
 
+        showMainProfilePanel();
         const customerName = conversation.customer_name || conversation.conversation_customer_name || 'Customer';
         const customerAvatar = conversation.customer_avatar || conversation.conversation_customer_avatar || '';
         const avatar = panel.querySelector('[data-profile-avatar]');
@@ -694,6 +721,7 @@
 
         if (!notes.length) {
             container.innerHTML = '<p class="profile-empty">Chua co ghi chu nao.</p>';
+            renderCustomerNotesFull(notes);
             return;
         }
 
@@ -705,6 +733,54 @@
                 </article>
             `;
         }).join('');
+
+        renderCustomerNotesFull(notes);
+    }
+
+    function renderCustomerNotesFull(notes) {
+        const container = document.querySelector('[data-note-list-full]');
+
+        if (!container) {
+            return;
+        }
+
+        if (!notes.length) {
+            container.innerHTML = '<p class="profile-empty">Chua co ghi chu nao.</p>';
+            return;
+        }
+
+        container.innerHTML = notes.map(function (note) {
+            return `
+                <article data-note-item>
+                    <p>${escapeHtml(note.body)}</p>
+                    <time>${escapeHtml(note.author || 'Admin')} - ${escapeHtml(note.created_at || '')}</time>
+                </article>
+            `;
+        }).join('');
+    }
+
+    function showAllNotesPanel() {
+        const main = document.querySelector('[data-profile-main]');
+        const full = document.querySelector('[data-notes-full]');
+
+        if (!main || !full) {
+            return;
+        }
+
+        main.hidden = true;
+        full.hidden = false;
+    }
+
+    function showMainProfilePanel() {
+        const main = document.querySelector('[data-profile-main]');
+        const full = document.querySelector('[data-notes-full]');
+
+        if (!main || !full) {
+            return;
+        }
+
+        full.hidden = true;
+        main.hidden = false;
     }
 
     function renderCustomerTags(tags, allTags) {
@@ -730,8 +806,7 @@
 
         const normalizedFilter = String(filter || '').toLowerCase();
         const visible = customerTagOptions
-            .filter((tag) => !normalizedFilter || String(tag.name || '').toLowerCase().includes(normalizedFilter))
-            .slice(0, 8);
+            .filter((tag) => !normalizedFilter || String(tag.name || '').toLowerCase().includes(normalizedFilter));
 
         options.innerHTML = visible.length
             ? visible.map((tag) => `<button type="button" data-select-customer-tag="${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</button>`).join('')
