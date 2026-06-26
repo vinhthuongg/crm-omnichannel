@@ -139,6 +139,7 @@ class MessengerController extends Controller
                 'customer_id' => (int) $conversation->customer_id,
                 'customer_name' => $conversation->customer?->name ?? 'Customer',
                 'customer_avatar' => $conversation->customer?->avatar,
+                'customer_phone' => $conversation->customer?->phone,
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'assignee_name' => $conversation->assignee?->name,
                 'assigned_to' => $conversation->assigned_to,

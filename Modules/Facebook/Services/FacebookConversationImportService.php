@@ -162,6 +162,12 @@ class FacebookConversationImportService
                 ->first();
 
             $customer = $channel?->customer ?? Customer::query()->create(['name' => $customerName]);
+            $content = Arr::get($remoteMessage, 'message');
+
+            if (blank($customer->phone) && is_string($content) && $phone = $this->extractPhoneNumber($content)) {
+                $customer->forceFill(['phone' => $phone])->save();
+            }
+
             $customer->channels()->updateOrCreate(
                 ['channel' => 'facebook', 'external_id' => $customerExternalId],
                 ['metadata' => ['facebook_page_id' => $page->page_id]],
@@ -189,7 +195,6 @@ class FacebookConversationImportService
             $senderType = $fromId === $page->page_id ? 'user' : 'customer';
             $senderId = $senderType === 'user' ? $page->user_id : $customer->id;
             $attachments = $this->attachments($remoteMessage);
-            $content = Arr::get($remoteMessage, 'message');
 
             $message = Message::withTrashed()->updateOrCreate(
                 ['channel' => 'facebook', 'external_message_id' => $messageId],
@@ -257,6 +262,25 @@ class FacebookConversationImportService
             ->unique('url')
             ->values()
             ->all();
+    }
+
+    private function extractPhoneNumber(string $content): ?string
+    {
+        preg_match_all('/(?:\+?84|0)(?:[\s.\-()]?\d){8,10}/', $content, $matches);
+
+        foreach ($matches[0] ?? [] as $candidate) {
+            $normalized = preg_replace('/\D+/', '', $candidate) ?: '';
+
+            if (str_starts_with($normalized, '84')) {
+                $normalized = '0'.substr($normalized, 2);
+            }
+
+            if (preg_match('/^0\d{8,10}$/', $normalized)) {
+                return $normalized;
+            }
+        }
+
+        return null;
     }
 
     private function createdAt(array $message): Carbon

@@ -1280,6 +1280,11 @@ kbd {
     font-size: 13px;
 }
 
+.chat-contact .chat-customer-phone {
+    color: #111827;
+    font-weight: 800;
+}
+
 .chat-actions {
     display: flex;
     align-items: center;

@@ -75,9 +75,36 @@ class MessageService
             $updates['avatar'] = $data->customerAvatar;
         }
 
+        if (blank($customer->phone) && $phone = $this->extractPhoneNumber((string) $data->content)) {
+            $updates['phone'] = $phone;
+        }
+
         if ($updates) {
             $customer->forceFill($updates)->save();
         }
+    }
+
+    private function extractPhoneNumber(string $content): ?string
+    {
+        if ($content === '') {
+            return null;
+        }
+
+        preg_match_all('/(?:\+?84|0)(?:[\s.\-()]?\d){8,10}/', $content, $matches);
+
+        foreach ($matches[0] ?? [] as $candidate) {
+            $normalized = preg_replace('/\D+/', '', $candidate) ?: '';
+
+            if (str_starts_with($normalized, '84')) {
+                $normalized = '0'.substr($normalized, 2);
+            }
+
+            if (preg_match('/^0\d{8,10}$/', $normalized)) {
+                return $normalized;
+            }
+        }
+
+        return null;
     }
 
     public function sendFromUser(Conversation $conversation, User $user, array $data): Message

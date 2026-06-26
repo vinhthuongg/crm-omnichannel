@@ -15,6 +15,7 @@ class MessageResource extends JsonResource
             'conversation_url' => route('crm.conversations.show', $this->conversation_id),
             'conversation_customer_name' => $this->conversation?->customer?->name,
             'conversation_customer_avatar' => $this->conversation?->customer?->avatar,
+            'conversation_customer_phone' => $this->conversation?->customer?->phone,
             'sender_type' => $this->sender_type,
             'sender_id' => $this->sender_id,
             'sender_name' => $this->sender_type === 'customer'

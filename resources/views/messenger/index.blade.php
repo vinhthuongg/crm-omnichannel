@@ -116,6 +116,7 @@
                     </span>
                     <div>
                         <h2 data-chat-customer-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h2>
+                        <p class="chat-customer-phone" data-chat-customer-phone>{{ $activeConversation->customer?->phone ?: 'Chua co so dien thoai' }}</p>
                         <p data-chat-assignee>{{ $activeConversation->assignee?->name ? 'Phu trach: '.$activeConversation->assignee->name : 'Chua gan nhan vien' }}</p>
                     </div>
                 </div>
@@ -517,6 +518,7 @@
         const customerName = conversation.customer_name || 'Customer';
         const chatAvatar = document.querySelector('[data-chat-avatar]');
         const chatName = document.querySelector('[data-chat-customer-name]');
+        const chatPhone = document.querySelector('[data-chat-customer-phone]');
         const chatAssignee = document.querySelector('[data-chat-assignee]');
         const chatChannel = document.querySelector('[data-chat-channel]');
 
@@ -526,6 +528,10 @@
 
         if (chatName) {
             chatName.textContent = customerName;
+        }
+
+        if (chatPhone) {
+            chatPhone.textContent = conversation.customer_phone || 'Chua co so dien thoai';
         }
 
         if (chatAssignee) {
@@ -1099,6 +1105,12 @@
         upsertThread(message);
 
         if (String(message.conversation_id) === String(timeline?.dataset.conversationId)) {
+            const chatPhone = document.querySelector('[data-chat-customer-phone]');
+
+            if (chatPhone && message.conversation_customer_phone) {
+                chatPhone.textContent = message.conversation_customer_phone;
+            }
+
             appendMessage(message);
         }
     }
