@@ -278,6 +278,19 @@
     </section>
     <aside class="messenger-profile-panel" data-profile-panel>
         @if($activeConversation)
+            @php
+                $facebookChannel = $activeConversation->customer?->channels?->firstWhere('channel', 'facebook');
+                $facebookProfileUrl = $facebookChannel?->external_id ? 'https://www.facebook.com/'.$facebookChannel->external_id : '#';
+                $customerDetails = collect([
+                    ['label' => 'Ten cong khai', 'value' => $activeConversation->customer?->name],
+                    ['label' => 'So dien thoai', 'value' => $activeConversation->customer?->phone],
+                    ['label' => 'Email', 'value' => $activeConversation->customer?->email],
+                    ['label' => 'Facebook PSID', 'value' => $facebookChannel?->external_id],
+                    ['label' => 'Kenh', 'value' => $facebookChannel ? ucfirst($facebookChannel->channel) : null],
+                ])->filter(fn ($detail) => filled($detail['value']))->values();
+                $customerNotes = $activeConversation->customer?->notes?->sortByDesc('created_at')->values() ?? collect();
+                $customerTags = $activeConversation->customer?->tags ?? collect();
+            @endphp
             <header class="profile-card-head">
                 <span class="thread-avatar" data-profile-avatar>
                     @if($activeConversation->customer?->avatar)
@@ -288,37 +301,55 @@
                 </span>
                 <div>
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
-                    <a href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}" data-profile-link>Xem trang ca nhan</a>
+                    <a href="{{ $facebookProfileUrl }}" target="_blank" rel="noopener" data-profile-link>Xem trang ca nhan</a>
                 </div>
                 <button type="button" aria-label="More profile actions">...</button>
-                <a class="profile-next" href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}" aria-label="Open profile">&gt;</a>
+                <a class="profile-next" href="{{ $facebookProfileUrl }}" target="_blank" rel="noopener" aria-label="Open profile">&gt;</a>
             </header>
 
-            <section class="profile-section">
-                <h4>Gioi thieu</h4>
-                <p data-profile-phone>{{ $activeConversation->customer?->phone ? 'So dien thoai: '.$activeConversation->customer->phone : 'Them chi tiet ve moi nguoi, chang han nhu thong tin lien he.' }}</p>
-                <button type="button">+ Them chi tiet</button>
+            <section class="profile-section profile-details">
+                <h4>Chi tiet khach hang</h4>
+                <div class="profile-detail-list" data-profile-details>
+                    @forelse($customerDetails as $detail)
+                        <span>{{ $detail['label'] }}</span>
+                        <strong>{{ $detail['value'] }}</strong>
+                    @empty
+                        <p>Chua co thong tin cong khai.</p>
+                    @endforelse
+                </div>
             </section>
 
-            <section class="profile-section">
-                <h4>Trang ca nhan tren Facebook <span>i</span></h4>
-                <p>Khong co thong tin cong khai.</p>
+            <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
+                <header>
+                    <h4>Ghi chu (<span data-note-count>{{ $customerNotes->count() }}</span>) (F6)</h4>
+                    <button type="button" data-notes-toggle>Xem tat ca &gt;</button>
+                </header>
+                <textarea rows="3" placeholder="Nhap ghi chu va an enter" data-note-input></textarea>
+                <div class="profile-note-list" data-note-list>
+                    @forelse($customerNotes as $note)
+                        <article data-note-item>
+                            <p>{{ $note->body }}</p>
+                            <time>{{ $note->user?->name ?? 'Admin' }} - {{ $note->created_at?->format('H:i d/m/Y') }}</time>
+                        </article>
+                    @empty
+                        <p class="profile-empty">Chua co ghi chu nao.</p>
+                    @endforelse
+                </div>
             </section>
 
-            <section class="profile-section">
-                <h4>Hoat dong <small>Chuyen dung</small></h4>
-                <p>Danh dau cac hoat dong nhu don dat hang va khach hang tiem nang de cai thien hieu qua quang cao.</p>
-            </section>
-
-            <section class="profile-section">
-                <h4>Trang thai don dat hang</h4>
-                <button type="button">+ Tao don dat hang</button>
-            </section>
-
-            <section class="profile-section">
-                <h4>Giai doan khach hang tiem nang <span>i</span></h4>
-                <button type="button">Danh dau la khach hang tiem nang</button>
-                <p>Theo doi nhung luot tuong tac quan trong cua khach hang.</p>
+            <section class="profile-section profile-customer-tags" data-customer-tags data-tags-url="{{ route('crm.conversations.customer-tags.store', $activeConversation) }}">
+                <h4>Tag khach hang (F2)</h4>
+                <div class="customer-tag-dropdown">
+                    <input type="search" placeholder="Tim kiem hoac tao the moi..." data-customer-tag-input>
+                    <div class="customer-tag-options" data-customer-tag-options></div>
+                </div>
+                <div class="customer-tag-list" data-customer-tag-list>
+                    @forelse($customerTags as $tag)
+                        <span style="--tag-color: {{ $tag->color ?: '#2563eb' }}">{{ $tag->name }}</span>
+                    @empty
+                        <p class="profile-empty">Khach hang chua co the nao</p>
+                    @endforelse
+                </div>
             </section>
         @else
             <section class="profile-section is-empty">
@@ -351,10 +382,57 @@
         loadConversation(window.location.href);
     });
 
+    document.querySelector('[data-profile-panel]')?.addEventListener('keydown', function (event) {
+        if (event.target.matches('[data-note-input]') && event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            storeCustomerNote(event.target);
+        }
+
+        if (event.target.matches('[data-customer-tag-input]') && event.key === 'Enter') {
+            event.preventDefault();
+            storeCustomerTag(event.target.value);
+            event.target.value = '';
+        }
+    });
+
+    document.querySelector('[data-profile-panel]')?.addEventListener('input', function (event) {
+        if (event.target.matches('[data-customer-tag-input]')) {
+            renderCustomerTagOptions(event.target.value);
+        }
+    });
+
+    document.querySelector('[data-profile-panel]')?.addEventListener('click', function (event) {
+        const toggle = event.target.closest('[data-notes-toggle]');
+        const selectedTag = event.target.closest('[data-select-customer-tag]');
+
+        if (toggle) {
+            event.preventDefault();
+            document.querySelector('[data-customer-notes]')?.classList.toggle('is-expanded');
+        }
+
+        if (selectedTag) {
+            event.preventDefault();
+            storeCustomerTag(selectedTag.dataset.selectCustomerTag || '');
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'F6') {
+            event.preventDefault();
+            document.querySelector('[data-note-input]')?.focus();
+        }
+
+        if (event.key === 'F2') {
+            event.preventDefault();
+            document.querySelector('[data-customer-tag-input]')?.focus();
+        }
+    });
+
     let timeline = document.querySelector('[data-messenger-timeline]');
     let composer = document.querySelector('[data-messenger-composer]');
     const realtimeRoot = document.querySelector('[data-messenger-realtime]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    let customerTagOptions = @json($allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values());
     let attachmentUpload = {
         files: [],
         promise: Promise.resolve([]),
@@ -547,13 +625,11 @@
 
         const customerName = conversation.customer_name || conversation.conversation_customer_name || 'Customer';
         const customerAvatar = conversation.customer_avatar || conversation.conversation_customer_avatar || '';
-        const customerPhone = conversation.customer_phone || conversation.conversation_customer_phone || '';
-        const profileUrl = `/customers?q=${encodeURIComponent(customerName)}`;
         const avatar = panel.querySelector('[data-profile-avatar]');
         const name = panel.querySelector('[data-profile-name]');
         const link = panel.querySelector('[data-profile-link]');
         const next = panel.querySelector('.profile-next');
-        const phone = panel.querySelector('[data-profile-phone]');
+        const profileUrl = conversation.facebook_profile_url || link?.href || '#';
 
         if (avatar) {
             avatar.innerHTML = avatarHtml(customerAvatar, customerName);
@@ -565,17 +641,173 @@
 
         if (link) {
             link.href = profileUrl;
+            link.toggleAttribute('aria-disabled', profileUrl === '#');
         }
 
         if (next) {
             next.href = profileUrl;
+            next.toggleAttribute('aria-disabled', profileUrl === '#');
         }
 
-        if (phone) {
-            phone.textContent = customerPhone
-                ? `So dien thoai: ${customerPhone}`
-                : 'Them chi tiet ve moi nguoi, chang han nhu thong tin lien he.';
+        if (Array.isArray(conversation.customer_public_details)) {
+            renderProfileDetails(conversation.customer_public_details);
         }
+
+        if (Array.isArray(conversation.customer_notes)) {
+            renderCustomerNotes(conversation.customer_notes);
+        }
+
+        if (Array.isArray(conversation.customer_tags)) {
+            renderCustomerTags(conversation.customer_tags, conversation.all_customer_tags || customerTagOptions);
+        }
+
+        const notes = panel.querySelector('[data-customer-notes]');
+        const tags = panel.querySelector('[data-customer-tags]');
+
+        if (notes && conversation.customer_notes_url) {
+            notes.dataset.notesUrl = conversation.customer_notes_url;
+        }
+
+        if (tags && conversation.customer_tags_url) {
+            tags.dataset.tagsUrl = conversation.customer_tags_url;
+        }
+    }
+
+    function renderProfileDetails(details) {
+        const container = document.querySelector('[data-profile-details]');
+
+        if (!container) {
+            return;
+        }
+
+        if (!details.length) {
+            container.innerHTML = '<p>Chua co thong tin cong khai.</p>';
+            return;
+        }
+
+        container.innerHTML = details.map(function (detail) {
+            return `<span>${escapeHtml(detail.label)}</span><strong>${escapeHtml(detail.value)}</strong>`;
+        }).join('');
+    }
+
+    function renderCustomerNotes(notes) {
+        const container = document.querySelector('[data-note-list]');
+        const count = document.querySelector('[data-note-count]');
+
+        if (count) {
+            count.textContent = String(notes.length);
+        }
+
+        if (!container) {
+            return;
+        }
+
+        if (!notes.length) {
+            container.innerHTML = '<p class="profile-empty">Chua co ghi chu nao.</p>';
+            return;
+        }
+
+        container.innerHTML = notes.map(function (note) {
+            return `
+                <article data-note-item>
+                    <p>${escapeHtml(note.body)}</p>
+                    <time>${escapeHtml(note.author || 'Admin')} - ${escapeHtml(note.created_at || '')}</time>
+                </article>
+            `;
+        }).join('');
+    }
+
+    function renderCustomerTags(tags, allTags) {
+        const list = document.querySelector('[data-customer-tag-list]');
+
+        customerTagOptions = Array.isArray(allTags) ? allTags : customerTagOptions;
+
+        if (list) {
+            list.innerHTML = tags.length
+                ? tags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
+                : '<p class="profile-empty">Khach hang chua co the nao</p>';
+        }
+
+        renderCustomerTagOptions('');
+    }
+
+    function renderCustomerTagOptions(filter) {
+        const options = document.querySelector('[data-customer-tag-options]');
+
+        if (!options) {
+            return;
+        }
+
+        const normalizedFilter = String(filter || '').toLowerCase();
+        const visible = customerTagOptions
+            .filter((tag) => !normalizedFilter || String(tag.name || '').toLowerCase().includes(normalizedFilter))
+            .slice(0, 8);
+
+        options.innerHTML = visible.length
+            ? visible.map((tag) => `<button type="button" data-select-customer-tag="${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</button>`).join('')
+            : '<p>Nhap Enter de tao tag moi.</p>';
+    }
+
+    async function storeCustomerNote(input) {
+        const section = document.querySelector('[data-customer-notes]');
+        const body = String(input?.value || '').trim();
+
+        if (!section?.dataset.notesUrl || !body) {
+            return;
+        }
+
+        input.disabled = true;
+
+        try {
+            const response = await fetch(section.dataset.notesUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+                body: JSON.stringify({body}),
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json();
+            input.value = '';
+            renderCustomerNotes(payload.data?.notes || []);
+        } finally {
+            input.disabled = false;
+            input.focus();
+        }
+    }
+
+    async function storeCustomerTag(name) {
+        const section = document.querySelector('[data-customer-tags]');
+        const tagName = String(name || '').trim();
+
+        if (!section?.dataset.tagsUrl || !tagName) {
+            return;
+        }
+
+        const response = await fetch(section.dataset.tagsUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+            },
+            body: JSON.stringify({name: tagName}),
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        renderCustomerTags(payload.data?.tags || [], payload.data?.all_tags || customerTagOptions);
     }
 
     function renderMessages(messages) {
@@ -1557,6 +1789,7 @@
     }
 
     startRealtime();
+    renderCustomerTagOptions('');
 
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {

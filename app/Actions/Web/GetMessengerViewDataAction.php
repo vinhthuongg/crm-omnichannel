@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\WorkShiftService;
+use Modules\Customer\Models\CustomerTag;
 
 class GetMessengerViewDataAction
 {
@@ -52,6 +53,7 @@ class GetMessengerViewDataAction
             'filters' => ['search' => $search, 'tag' => $tag],
             'tagPresets' => $this->tagPresets(),
             'allTags' => Tag::query()->orderBy('name')->get(),
+            'allCustomerTags' => CustomerTag::query()->orderBy('name')->get(),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
             'messages' => $messages,
@@ -120,10 +122,10 @@ class GetMessengerViewDataAction
         if ($selectedConversation) {
             abort_unless($this->canViewConversation($user, $selectedConversation), 403);
 
-            return $selectedConversation->load(['customer.channels', 'assignee', 'tags']);
+            return $selectedConversation->load(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
         }
 
-        return $conversations->first()?->load(['customer.channels', 'assignee', 'tags']);
+        return $conversations->first()?->load(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
     }
 
     private function tagPresets(): Collection

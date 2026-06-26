@@ -16,6 +16,7 @@ use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Services\WorkShiftService;
+use Modules\Customer\Models\CustomerTag;
 use Modules\Message\Events\MessageDeletedEvent;
 use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Http\Resources\MessageResource;
@@ -142,7 +143,7 @@ class MessengerController extends Controller
     private function conversationPayload(Conversation $conversation, $messages, bool $hasOlderMessages, string $activeChannel, $user): array
     {
         $conversation->refresh();
-        $conversation->loadMissing(['customer.channels', 'assignee', 'tags']);
+        $conversation->loadMissing(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
         $canReply = $user->can('conversation.view_all') || (int) $conversation->assigned_to === (int) $user->id;
         $canClaim = ! $conversation->assigned_to && ! $user->can('conversation.view_all')
             && app(WorkShiftService::class)->userIsInCurrentShift($user, $conversation->work_shift_id);
@@ -154,6 +155,19 @@ class MessengerController extends Controller
                 'customer_name' => $conversation->customer?->name ?? 'Customer',
                 'customer_avatar' => $conversation->customer?->avatar,
                 'customer_phone' => $conversation->customer?->phone,
+                'customer_email' => $conversation->customer?->email,
+                'facebook_profile_url' => $this->facebookProfileUrl($conversation),
+                'customer_public_details' => $this->customerPublicDetails($conversation),
+                'customer_notes_url' => route('crm.conversations.customer-notes.store', $conversation),
+                'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
+                'customer_notes' => $this->customerNotesPayload($conversation),
+                'customer_tags' => $this->customerTagsPayload($conversation),
+                'all_customer_tags' => CustomerTag::query()
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+                    ->values()
+                    ->all(),
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'assignee_name' => $conversation->assignee?->name,
                 'assigned_to' => $conversation->assigned_to,
@@ -305,6 +319,64 @@ class MessengerController extends Controller
                 'is_unread' => false,
             ],
         ]);
+    }
+
+    public function storeCustomerNote(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $conversation->loadMissing('customer');
+        $conversation->customer?->notes()->create([
+            'user_id' => $request->user()->id,
+            'body' => $validated['body'],
+        ]);
+        $conversation->load(['customer.notes.user']);
+
+        return response()->json([
+            'data' => [
+                'notes' => $this->customerNotesPayload($conversation),
+            ],
+        ], 201);
+    }
+
+    public function storeCustomerTag(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'color' => ['nullable', 'string', 'max:24'],
+        ]);
+        $name = trim($validated['name']);
+
+        if ($name === '') {
+            return response()->json(['message' => 'Tag khong duoc de trong.'], 422);
+        }
+
+        $tag = CustomerTag::query()->firstOrCreate(
+            ['name' => $name],
+            ['color' => $validated['color'] ?? '#2563eb'],
+        );
+
+        $conversation->loadMissing('customer');
+        $conversation->customer?->tags()->syncWithoutDetaching([$tag->id]);
+        $conversation->load(['customer.tags']);
+
+        return response()->json([
+            'data' => [
+                'tags' => $this->customerTagsPayload($conversation),
+                'all_tags' => CustomerTag::query()
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+                    ->values()
+                    ->all(),
+            ],
+        ], 201);
     }
 
     public function claim(Request $request, Conversation $conversation, ConversationService $service, WorkShiftService $shifts): JsonResponse
@@ -487,6 +559,54 @@ class MessengerController extends Controller
 
             return $conversation;
         });
+    }
+
+    private function facebookProfileUrl(Conversation $conversation): ?string
+    {
+        $facebookId = $conversation->customer?->channels
+            ?->firstWhere('channel', 'facebook')
+            ?->external_id;
+
+        return $facebookId ? 'https://www.facebook.com/'.$facebookId : null;
+    }
+
+    private function customerPublicDetails(Conversation $conversation): array
+    {
+        $customer = $conversation->customer;
+        $facebookChannel = $customer?->channels?->firstWhere('channel', 'facebook');
+
+        return collect([
+            ['label' => 'Ten cong khai', 'value' => $customer?->name],
+            ['label' => 'So dien thoai', 'value' => $customer?->phone],
+            ['label' => 'Email', 'value' => $customer?->email],
+            ['label' => 'Facebook PSID', 'value' => $facebookChannel?->external_id],
+            ['label' => 'Kenh', 'value' => $facebookChannel?->channel ? ucfirst($facebookChannel->channel) : null],
+        ])
+            ->filter(fn (array $detail): bool => filled($detail['value']))
+            ->values()
+            ->all();
+    }
+
+    private function customerNotesPayload(Conversation $conversation): array
+    {
+        return $conversation->customer?->notes
+            ?->sortByDesc('created_at')
+            ->map(fn ($note): array => [
+                'id' => (int) $note->id,
+                'body' => $note->body,
+                'author' => $note->user?->name ?? 'Admin',
+                'created_at' => $note->created_at?->format('H:i d/m/Y'),
+            ])
+            ->values()
+            ->all() ?? [];
+    }
+
+    private function customerTagsPayload(Conversation $conversation): array
+    {
+        return $conversation->customer?->tags
+            ?->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+            ->values()
+            ->all() ?? [];
     }
 
     private function refreshConversationLastMessageAt(Conversation $conversation): void

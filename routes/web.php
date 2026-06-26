@@ -30,6 +30,8 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('conversations/{conversation}/messages', [MessengerController::class, 'clearMessages'])->name('crm.conversations.messages.clear');
         Route::get('conversations/{conversation}', [MessengerController::class, 'show'])->name('crm.conversations.show');
         Route::post('conversations/{conversation}/read', [MessengerController::class, 'markRead'])->name('crm.conversations.read');
+        Route::post('conversations/{conversation}/customer-notes', [MessengerController::class, 'storeCustomerNote'])->name('crm.conversations.customer-notes.store');
+        Route::post('conversations/{conversation}/customer-tags', [MessengerController::class, 'storeCustomerTag'])->name('crm.conversations.customer-tags.store');
         Route::post('conversations/{conversation}/attachments', [MessengerController::class, 'uploadAttachments'])->name('crm.conversations.attachments.store');
         Route::post('conversations/{conversation}/claim', [MessengerController::class, 'claim'])->name('crm.conversations.claim');
         Route::post('conversations/{conversation}/tags', [MessengerController::class, 'tags'])->name('crm.conversations.tags.store');
