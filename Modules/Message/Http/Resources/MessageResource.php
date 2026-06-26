@@ -44,8 +44,15 @@ class MessageResource extends JsonResource
             ->map(function (array $attachment): array {
                 $mimeType = (string) data_get($attachment, 'mime_type', '');
                 $type = (string) data_get($attachment, 'type', '');
-                $type = $type !== '' ? $type : $this->attachmentType($mimeType);
-                $url = (string) (data_get($attachment, 'url') ?: data_get($attachment, 'payload.url', ''));
+                $url = (string) (
+                    data_get($attachment, 'payload.image_data.url')
+                    ?: data_get($attachment, 'payload.video_data.url')
+                    ?: data_get($attachment, 'payload.audio_data.url')
+                    ?: data_get($attachment, 'url')
+                    ?: data_get($attachment, 'payload.url')
+                    ?: data_get($attachment, 'payload.file_url')
+                );
+                $type = $this->attachmentType($mimeType, $type, $attachment);
                 $name = (string) data_get($attachment, 'name', '');
 
                 if ($name === '' && $url !== '') {
@@ -64,12 +71,16 @@ class MessageResource extends JsonResource
             ->all();
     }
 
-    private function attachmentType(string $mimeType): string
+    private function attachmentType(string $mimeType, string $type = '', array $attachment = []): string
     {
         return match (true) {
+            data_get($attachment, 'payload.image_data.url') !== null => 'image',
+            data_get($attachment, 'payload.video_data.url') !== null => 'video',
+            data_get($attachment, 'payload.audio_data.url') !== null => 'audio',
             str_starts_with($mimeType, 'image/') => 'image',
             str_starts_with($mimeType, 'video/') => 'video',
             str_starts_with($mimeType, 'audio/') => 'audio',
+            $type !== '' => $type,
             default => 'file',
         };
     }

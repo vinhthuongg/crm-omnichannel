@@ -233,14 +233,22 @@ class FacebookConversationImportService
             ->map(function (array $attachment): array {
                 $url = (string) (
                     Arr::get($attachment, 'image_data.url')
-                    ?: Arr::get($attachment, 'file_url')
                     ?: Arr::get($attachment, 'video_data.url')
+                    ?: Arr::get($attachment, 'file_url')
                 );
+                $type = match (true) {
+                    Arr::has($attachment, 'image_data.url') => 'image',
+                    Arr::has($attachment, 'video_data.url') => 'video',
+                    str_starts_with((string) Arr::get($attachment, 'mime_type', ''), 'image/') => 'image',
+                    str_starts_with((string) Arr::get($attachment, 'mime_type', ''), 'video/') => 'video',
+                    str_starts_with((string) Arr::get($attachment, 'mime_type', ''), 'audio/') => 'audio',
+                    default => (string) Arr::get($attachment, 'type', 'file'),
+                };
 
                 return [
                     'name' => (string) Arr::get($attachment, 'name', basename((string) parse_url($url, PHP_URL_PATH))),
                     'url' => $url,
-                    'type' => (string) Arr::get($attachment, 'mime_type', '') !== '' ? 'file' : (string) Arr::get($attachment, 'type', 'file'),
+                    'type' => $type,
                     'mime_type' => (string) Arr::get($attachment, 'mime_type', ''),
                     'payload' => $attachment,
                 ];
