@@ -1389,6 +1389,17 @@ kbd {
     background: #f3f4f6;
 }
 
+.message-bubble.is-whisper {
+    border: 1px dashed #b7791f;
+    background: #fff7ed;
+    color: #7c2d12;
+}
+
+.message-row.mine .message-bubble.is-whisper {
+    background: #3f2a12;
+    color: #fff7ed;
+}
+
 .message-attachments {
     display: grid;
     gap: 6px;
@@ -1552,7 +1563,8 @@ kbd {
     background: transparent;
 }
 
-.composer-tabs span.active {
+.composer-tabs span.active,
+.composer-tabs .composer-mode.active {
     min-height: 24px;
     border-color: #1d64f2;
     border-radius: 7px;

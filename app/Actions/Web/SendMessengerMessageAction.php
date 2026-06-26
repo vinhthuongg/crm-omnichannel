@@ -25,10 +25,12 @@ class SendMessengerMessageAction
         $attachments = array_merge($attachments, $this->storeAttachments($data['attachments'] ?? []));
         $content = (string) ($data['content'] ?? '');
         $clientMessageId = (string) ($data['client_message_id'] ?? '');
+        $isWhisper = ($data['message_mode'] ?? 'message') === 'whisper';
+        $channel = $isWhisper ? 'internal' : $data['channel'];
 
         if ($clientMessageId !== '') {
             $existing = Message::query()
-                ->where('channel', $data['channel'])
+                ->where('channel', $channel)
                 ->where('client_message_id', $clientMessageId)
                 ->with('sender')
                 ->first();
@@ -38,18 +40,18 @@ class SendMessengerMessageAction
             }
         }
 
-        $message = DB::transaction(function () use ($conversation, $user, $data, $content, $attachments, $clientMessageId): Message {
+        $message = DB::transaction(function () use ($conversation, $user, $content, $attachments, $clientMessageId, $isWhisper, $channel): Message {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'user',
                 'sender_id' => $user->id,
-                'channel' => $data['channel'],
+                'channel' => $channel,
                 'content' => $content !== '' ? $content : null,
-                'message_type' => $attachments ? 'attachment' : 'text',
+                'message_type' => $isWhisper ? 'whisper' : ($attachments ? 'attachment' : 'text'),
                 'attachments' => $attachments,
                 'external_message_id' => null,
                 'client_message_id' => $clientMessageId !== '' ? $clientMessageId : null,
-                'outbound_status' => 'queued',
+                'outbound_status' => $isWhisper ? null : 'queued',
             ]);
 
             $conversation->forceFill([
@@ -63,6 +65,10 @@ class SendMessengerMessageAction
         try {
             event(new NewMessageEvent($message));
         } catch (\Throwable) {
+        }
+
+        if ($isWhisper) {
+            return $message;
         }
 
         if ($attachments) {

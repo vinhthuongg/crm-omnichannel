@@ -72,6 +72,7 @@
         <div class="messenger-thread-list">
             @forelse($conversations as $conversation)
                 @php($lastMessage = $conversation->messages->first())
+                @php($lastMessagePreview = $lastMessage && (($lastMessage->message_type ?? '') === 'whisper' || ($lastMessage->channel ?? '') === 'internal') ? 'Thi tham: '.$lastMessage->content : ($lastMessage?->content ?? 'Chua co tin nhan'))
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 <a class="messenger-thread {{ $isActive ? 'active' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}">
                     <span class="thread-avatar">
@@ -83,7 +84,7 @@
                     </span>
                     <span class="thread-body">
                         <strong>{{ $conversation->customer?->name ?? 'Customer' }}</strong>
-                        <small data-thread-last-message>{{ $lastMessage?->content ?? 'Chua co tin nhan' }}</small>
+                        <small data-thread-last-message>{{ $lastMessagePreview }}</small>
                         @if($conversation->tags->isNotEmpty())
                             <span class="thread-tags">
                                 @foreach($conversation->tags as $tag)
@@ -154,6 +155,7 @@
 
                 @foreach($messages as $message)
                     @continue(empty($message['is_recalled']) && blank($message['content']) && empty($message['attachments']))
+                    @php($isWhisper = ($message['message_type'] ?? '') === 'whisper' || ($message['channel'] ?? '') === 'internal')
                     <article class="message-row {{ $message['is_mine'] ? 'mine' : 'theirs' }}" data-message-id="{{ $message['id'] }}" data-client-message-id="{{ $message['client_message_id'] ?? '' }}">
                         @unless($message['is_mine'])
                             <span class="thread-avatar mini">
@@ -171,8 +173,8 @@
                                     <p>Tin nhan da duoc thu hoi</p>
                                 </div>
                             @elseif(filled($message['content']))
-                                <div class="message-bubble">
-                                    <span class="message-sender">{{ $message['sender_name'] }}</span>
+                                <div class="message-bubble {{ $isWhisper ? 'is-whisper' : '' }}">
+                                    <span class="message-sender">{{ $isWhisper ? 'Thi tham - '.$message['sender_name'] : $message['sender_name'] }}</span>
                                     <p>{{ $message['content'] }}</p>
                                 </div>
                             @endif
@@ -204,7 +206,7 @@
                                     @endforeach
                                 </div>
                             @endif
-                            <time>{{ $message['created_at']?->format('H:i') }} - {{ ucfirst($message['channel']) }}</time>
+                            <time>{{ $message['created_at']?->format('H:i') }} - {{ $isWhisper ? 'Noi bo' : ucfirst($message['channel']) }}</time>
                         </div>
                     </article>
                 @endforeach
@@ -213,10 +215,11 @@
             <form class="messenger-composer {{ $canReply ? '' : 'is-disabled' }}" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer data-can-reply="{{ $canReply ? '1' : '0' }}">
                 @csrf
                 <input type="hidden" name="channel" value="{{ $activeChannel }}">
+                <input type="hidden" name="message_mode" value="message" data-message-mode>
                 @php($activeTagNames = $activeConversation->tags->pluck('name')->all())
                 <div class="composer-tabs" data-conversation-tags data-tags-url="{{ route('crm.conversations.tags.store', $activeConversation) }}">
-                    <span class="active">Nhan tin</span>
-                    <span>Thi tham</span>
+                    <button type="button" class="composer-mode active" data-composer-mode="message">Nhan tin</button>
+                    <button type="button" class="composer-mode" data-composer-mode="whisper">Thi tham</button>
                     <b></b>
                     @foreach($tagPresets as $tag)
                         @php($tagName = $tag['name'])
@@ -442,6 +445,7 @@
     }
 
     function messageRowHtml(message, isMine) {
+        const isWhisper = message.message_type === 'whisper' || message.channel === 'internal';
         const avatar = isMine ? '' : `<span class="thread-avatar mini">${avatarHtml(message.sender_avatar, message.sender_name || 'C')}</span>`;
         const status = messageStatusText(message);
         const content = String(message.content || '').trim();
@@ -453,8 +457,8 @@
         const textBubble = message.is_recalled
             ? `<div class="message-bubble is-recalled"><p>Tin nhan da duoc thu hoi</p></div>`
             : content
-            ? `<div class="message-bubble">
-                    <span class="message-sender">${escapeHtml(message.sender_name || 'Unknown')}</span>
+            ? `<div class="message-bubble ${isWhisper ? 'is-whisper' : ''}">
+                    <span class="message-sender">${escapeHtml(isWhisper ? `Thi tham - ${message.sender_name || 'Nhan vien'}` : (message.sender_name || 'Unknown'))}</span>
                     <p>${escapeHtml(content)}</p>
                 </div>`
             : '';
@@ -464,7 +468,7 @@
             <div class="message-stack">
                 ${textBubble}
                 ${attachments}
-                <time>${escapeHtml(messageTime(message))} - ${escapeHtml((message.channel || '').charAt(0).toUpperCase() + (message.channel || '').slice(1))}${status ? ` - ${escapeHtml(status)}` : ''}</time>
+                <time>${escapeHtml(messageTime(message))} - ${escapeHtml(isWhisper ? 'Noi bo' : ((message.channel || '').charAt(0).toUpperCase() + (message.channel || '').slice(1)))}${status ? ` - ${escapeHtml(status)}` : ''}</time>
             </div>
         `;
     }
@@ -766,7 +770,7 @@
         return `crm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     }
 
-    function appendPendingMessage(content, channel, files, clientMessageId) {
+    function appendPendingMessage(content, channel, files, clientMessageId, messageMode = 'message') {
         if (!timeline) {
             return null;
         }
@@ -780,6 +784,7 @@
             sender_name: 'Admin',
             channel,
             content,
+            message_type: messageMode === 'whisper' ? 'whisper' : (files.length ? 'attachment' : 'text'),
             client_message_id: clientMessageId,
             attachments: Array.from(files || []).map(function (file) {
                 return {
@@ -888,7 +893,8 @@
         const meta = thread.querySelector('[data-thread-meta]');
 
         if (preview) {
-            preview.textContent = message.is_recalled ? 'Tin nhan da duoc thu hoi' : (message.content || '');
+            const isWhisper = message.message_type === 'whisper' || message.channel === 'internal';
+            preview.textContent = message.is_recalled ? 'Tin nhan da duoc thu hoi' : `${isWhisper ? 'Thi tham: ' : ''}${message.content || ''}`;
         }
 
         if (meta) {
@@ -1340,6 +1346,7 @@
         const fileList = composer.querySelector('[data-composer-file-list]');
         const content = String(input?.value || '').trim();
         const channel = String(composer.querySelector('input[name="channel"]')?.value || '');
+        const messageMode = String(composer.querySelector('[name="message_mode"]')?.value || 'message');
         const files = fileInput?.files || [];
 
         if (!content && files.length === 0) {
@@ -1347,7 +1354,7 @@
         }
 
         const clientMessageId = createClientMessageId();
-        const pendingId = appendPendingMessage(content, channel, files, clientMessageId);
+        const pendingId = appendPendingMessage(content, messageMode === 'whisper' ? 'internal' : channel, files, clientMessageId, messageMode);
 
         button.disabled = true;
         input.value = '';
@@ -1360,6 +1367,7 @@
             const uploadedAttachments = files.length ? await attachmentUpload.promise : [];
             const formData = new FormData();
             formData.set('channel', channel);
+            formData.set('message_mode', messageMode);
             formData.set('client_message_id', clientMessageId);
 
             if (content) {
@@ -1445,6 +1453,29 @@
 
         event.preventDefault();
         composer.requestSubmit();
+    });
+
+    composer?.querySelectorAll('[data-composer-mode]')?.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const mode = button.dataset.composerMode || 'message';
+            const modeInput = composer.querySelector('[name="message_mode"]');
+            const textInput = composer.querySelector('[name="content"]');
+
+            composer.querySelectorAll('[data-composer-mode]').forEach(function (modeButton) {
+                modeButton.classList.toggle('active', modeButton === button);
+            });
+
+            if (modeInput) {
+                modeInput.value = mode;
+            }
+
+            if (textInput) {
+                textInput.placeholder = mode === 'whisper'
+                    ? 'Nhap ghi chu noi bo, chi nhan vien thay'
+                    : 'Nhap noi dung tin nhan va nhan Enter de gui';
+                textInput.focus();
+            }
+        });
     });
 
     composer?.querySelectorAll('[data-upload-trigger]')?.forEach(function (trigger) {

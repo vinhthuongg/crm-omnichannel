@@ -32,6 +32,7 @@ class SendMessengerMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'message_mode' => ['sometimes', 'in:message,whisper'],
             'channel' => ['required', 'in:facebook,zalo'],
             'client_message_id' => ['sometimes', 'nullable', 'string', 'max:80'],
             'content' => ['required_without_all:attachments,uploaded_attachments', 'nullable', 'string', 'max:5000'],
