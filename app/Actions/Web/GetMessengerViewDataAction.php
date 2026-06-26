@@ -58,7 +58,10 @@ class GetMessengerViewDataAction
             'hasOlderMessages' => $activeConversation && $oldestMessageId > 0
                 ? $activeConversation->messages()->where('id', '<', $oldestMessageId)->exists()
                 : false,
-            'activeChannel' => $activeConversation?->messages()->latest()->value('channel')
+            'activeChannel' => $activeConversation?->messages()
+                ->whereIn('channel', ['facebook', 'zalo'])
+                ->latest()
+                ->value('channel')
                 ?? $activeConversation?->customer?->channels?->first()?->channel
                 ?? 'facebook',
         ];
