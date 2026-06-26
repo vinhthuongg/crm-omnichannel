@@ -1014,9 +1014,7 @@
 
             try {
                 await fetchNewMessages();
-                if (!timeline) {
-                    await refreshThreadList();
-                }
+                await refreshThreadList();
             } finally {
                 pollingInFlight = false;
             }
@@ -1187,7 +1185,7 @@
         if (!document.hidden) {
             Promise.all([
                 fetchNewMessages(),
-                timeline ? Promise.resolve() : refreshThreadList(),
+                refreshThreadList(),
             ]).finally(function () {
                 if (realtimeMode === 'none' || realtimeMode === 'polling') {
                     startRealtime();
