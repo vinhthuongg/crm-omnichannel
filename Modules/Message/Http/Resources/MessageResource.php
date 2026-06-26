@@ -17,8 +17,12 @@ class MessageResource extends JsonResource
             'conversation_customer_avatar' => $this->conversation?->customer?->avatar,
             'sender_type' => $this->sender_type,
             'sender_id' => $this->sender_id,
-            'sender_name' => $this->senderName(),
-            'sender_avatar' => $this->sender_type === 'customer' ? $this->sender?->avatar : null,
+            'sender_name' => $this->sender_type === 'customer'
+                ? (string) ($this->conversation?->customer?->name ?? $this->senderName())
+                : $this->senderName(),
+            'sender_avatar' => $this->sender_type === 'customer'
+                ? $this->conversation?->customer?->avatar
+                : null,
             'channel' => $this->channel,
             'content' => $this->recalled_at ? null : $this->content,
             'message_type' => $this->message_type,

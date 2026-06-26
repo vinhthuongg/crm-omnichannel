@@ -18,6 +18,7 @@ final readonly class FacebookWebhookMessageData
         $message = data_get($entry, 'message', []);
         $attachments = self::normalizeAttachments((array) data_get($message, 'attachments', []));
         $name = trim((string) data_get($profile, 'first_name').' '.(string) data_get($profile, 'last_name'));
+        $name = $name !== '' ? $name : (string) data_get($profile, 'name', '');
         $avatar = data_get($profile, 'profile_pic');
 
         return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, data_get($message, 'text'), $attachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId]);

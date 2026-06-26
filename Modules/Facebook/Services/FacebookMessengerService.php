@@ -40,7 +40,7 @@ class FacebookMessengerService
                 ->timeout(10)
                 ->withToken($this->token($pageAccessToken))
                 ->get($this->graphUrl("/{$psid}"), [
-                    'fields' => 'first_name,last_name,profile_pic',
+                    'fields' => 'name,first_name,last_name,profile_pic',
                 ]);
 
             if (! $response->successful()) {
