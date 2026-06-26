@@ -369,7 +369,7 @@ class MessengerController extends Controller
         );
 
         $conversation->loadMissing('customer');
-        $conversation->customer?->tags()->syncWithoutDetaching([$tag->id]);
+        $conversation->customer?->tags()->sync([$tag->id]);
         $conversation->load(['customer.tags']);
 
         return response()->json([

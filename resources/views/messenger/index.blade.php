@@ -75,6 +75,7 @@
                 @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
+                @php($threadTags = $conversation->tags->concat($conversation->customer?->tags ?? collect())->unique('name')->values())
                 <a class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}" data-thread-unread-count="{{ $unreadCount }}">
                     <span class="thread-avatar">
                         @if($conversation->customer?->avatar)
@@ -86,9 +87,9 @@
                     <span class="thread-body">
                         <strong>{{ $conversation->customer?->name ?? 'Customer' }}</strong>
                         <small data-thread-last-message>{{ $lastMessagePreview }}</small>
-                        @if($conversation->tags->isNotEmpty())
+                        @if($threadTags->isNotEmpty())
                             <span class="thread-tags">
-                                @foreach($conversation->tags as $tag)
+                                @foreach($threadTags as $tag)
                                     <b style="--tag-color: {{ $tag->color ?: '#64748b' }}">{{ $tag->name }}</b>
                                 @endforeach
                             </span>
@@ -863,6 +864,7 @@
 
         const payload = await response.json();
         renderCustomerTags(payload.data?.tags || [], payload.data?.all_tags || customerTagOptions);
+        await refreshThreadList();
     }
 
     function renderMessages(messages) {

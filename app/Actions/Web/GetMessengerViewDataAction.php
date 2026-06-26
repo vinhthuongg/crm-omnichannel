@@ -22,7 +22,7 @@ class GetMessengerViewDataAction
         $search = trim((string) ($filters['search'] ?? ''));
         $tag = trim((string) ($filters['tag'] ?? ''));
         $conversationQuery = $this->visibleConversations($user)
-            ->with(['customer.channels', 'assignee', 'tags', 'messages' => fn ($query) => $query->latest()->limit(1)])
+            ->with(['customer.channels', 'customer.tags', 'assignee', 'tags', 'messages' => fn ($query) => $query->latest()->limit(1)])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->whereHas('customer', function (Builder $customerQuery) use ($search): void {
                     $customerQuery->where('name', 'like', "%{$search}%")
