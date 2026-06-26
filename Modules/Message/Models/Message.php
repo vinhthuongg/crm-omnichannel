@@ -42,4 +42,58 @@ class Message extends Model
 
         return (string) ($this->sender?->name ?? 'Unknown');
     }
+
+    public function conversationPreviewText(): string
+    {
+        $content = trim((string) $this->content);
+
+        if ($content === '') {
+            $content = $this->attachmentPreviewText() ?? 'Chua co tin nhan';
+        }
+
+        if ($this->recalled_at) {
+            $content = 'Tin nhan da duoc thu hoi';
+        }
+
+        if ($this->message_type === 'whisper' || $this->channel === 'internal') {
+            return 'Thi tham: '.$content;
+        }
+
+        if ($this->sender_type === 'user') {
+            return 'Ban: '.$content;
+        }
+
+        return $content;
+    }
+
+    private function attachmentPreviewText(): ?string
+    {
+        $attachment = collect($this->attachments ?? [])->first();
+
+        if (! $attachment) {
+            return null;
+        }
+
+        $type = strtolower((string) data_get($attachment, 'type', ''));
+        $mimeType = strtolower((string) data_get($attachment, 'mime_type', ''));
+        $payload = data_get($attachment, 'payload', []);
+
+        if ($type === 'sticker' || filled(data_get($payload, 'sticker_id'))) {
+            return '[Emoji]';
+        }
+
+        if ($type === 'image' || substr($mimeType, 0, 6) === 'image/' || filled(data_get($payload, 'image_data.url'))) {
+            return '[Hinh anh]';
+        }
+
+        if ($type === 'video' || substr($mimeType, 0, 6) === 'video/' || filled(data_get($payload, 'video_data.url'))) {
+            return '[Video]';
+        }
+
+        if ($type === 'audio' || substr($mimeType, 0, 6) === 'audio/' || filled(data_get($payload, 'audio_data.url'))) {
+            return '[Audio]';
+        }
+
+        return '[Tep dinh kem]';
+    }
 }

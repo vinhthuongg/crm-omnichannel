@@ -71,36 +71,8 @@
 
         <div class="messenger-thread-list">
             @forelse($conversations as $conversation)
-                @php
-                    $lastMessage = $conversation->messages->first();
-                    $lastAttachments = collect($lastMessage?->attachments ?? []);
-                    $lastAttachment = $lastAttachments->first();
-                    $lastAttachmentType = strtolower((string) data_get($lastAttachment, 'type', ''));
-                    $lastAttachmentMime = strtolower((string) data_get($lastAttachment, 'mime_type', ''));
-                    $lastAttachmentPayload = data_get($lastAttachment, 'payload', []);
-                    $lastAttachmentPreview = null;
-
-                    if ($lastAttachmentType === 'sticker' || filled(data_get($lastAttachmentPayload, 'sticker_id'))) {
-                        $lastAttachmentPreview = '[Emoji]';
-                    } elseif ($lastAttachmentType === 'image' || substr($lastAttachmentMime, 0, 6) === 'image/' || filled(data_get($lastAttachmentPayload, 'image_data.url'))) {
-                        $lastAttachmentPreview = '[Hinh anh]';
-                    } elseif ($lastAttachmentType === 'video' || substr($lastAttachmentMime, 0, 6) === 'video/' || filled(data_get($lastAttachmentPayload, 'video_data.url'))) {
-                        $lastAttachmentPreview = '[Video]';
-                    } elseif ($lastAttachmentType === 'audio' || substr($lastAttachmentMime, 0, 6) === 'audio/' || filled(data_get($lastAttachmentPayload, 'audio_data.url'))) {
-                        $lastAttachmentPreview = '[Audio]';
-                    } elseif (filled($lastAttachment)) {
-                        $lastAttachmentPreview = '[Tep dinh kem]';
-                    }
-                    $lastMessagePreview = filled($lastMessage?->content) ? $lastMessage->content : ($lastAttachmentPreview ?? 'Chua co tin nhan');
-
-                    if ($lastMessage?->is_recalled) {
-                        $lastMessagePreview = 'Tin nhan da duoc thu hoi';
-                    } elseif ($lastMessage && (($lastMessage->message_type ?? '') === 'whisper' || ($lastMessage->channel ?? '') === 'internal')) {
-                        $lastMessagePreview = 'Thi tham: '.$lastMessagePreview;
-                    } elseif (($lastMessage?->sender_type ?? '') === 'user') {
-                        $lastMessagePreview = 'Ban: '.$lastMessagePreview;
-                    }
-                @endphp
+                @php($lastMessage = $conversation->messages->first())
+                @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 <a class="messenger-thread {{ $isActive ? 'active' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}">
                     <span class="thread-avatar">
