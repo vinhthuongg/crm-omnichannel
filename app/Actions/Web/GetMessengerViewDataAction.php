@@ -21,6 +21,9 @@ class GetMessengerViewDataAction
     {
         $search = trim((string) ($filters['search'] ?? ''));
         $tag = trim((string) ($filters['tag'] ?? ''));
+        $channel = in_array(($filters['channel'] ?? 'all'), ['facebook', 'zalo'], true)
+            ? (string) $filters['channel']
+            : 'all';
         $conversationQuery = $this->visibleConversations($user)
             ->with(['customer.channels', 'customer.tags', 'assignee', 'tags', 'messages' => fn ($query) => $query->latest()->limit(1)])
             ->when($search !== '', function (Builder $query) use ($search): void {
@@ -32,7 +35,9 @@ class GetMessengerViewDataAction
             })
             ->when($tag !== '', function (Builder $query) use ($tag): void {
                 $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tag));
-            })
+            });
+
+        $conversationQuery = $this->applyChannelFilter($conversationQuery, $channel)
             ->latest('last_message_at');
 
         $conversations = $conversationQuery->limit(30)->get();
@@ -49,7 +54,8 @@ class GetMessengerViewDataAction
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
-            'filters' => ['search' => $search, 'tag' => $tag],
+            'filters' => ['search' => $search, 'tag' => $tag, 'channel' => $channel],
+            'inboxChannels' => $this->inboxChannels($user, $search, $tag, $channel),
             'tagPresets' => $this->tagPresets(),
             'allTags' => Tag::query()->orderBy('name')->get(),
             'allCustomerTags' => Tag::query()->orderBy('name')->get(),
@@ -115,6 +121,45 @@ class GetMessengerViewDataAction
         }
 
         return $query;
+    }
+
+    private function applyChannelFilter(Builder $query, string $channel): Builder
+    {
+        if (! in_array($channel, ['facebook', 'zalo'], true)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $query) use ($channel): void {
+            $query->whereHas('customer.channels', fn (Builder $channelQuery) => $channelQuery->where('channel', $channel))
+                ->orWhereHas('messages', fn (Builder $messageQuery) => $messageQuery->where('channel', $channel));
+        });
+    }
+
+    private function inboxChannels(User $user, string $search, string $tag, string $activeChannel): array
+    {
+        return collect([
+            ['key' => 'all', 'label' => 'Tat ca'],
+            ['key' => 'facebook', 'label' => 'Facebook'],
+            ['key' => 'zalo', 'label' => 'Zalo'],
+        ])->map(function (array $item) use ($user, $search, $tag, $activeChannel): array {
+            $query = $this->visibleConversations($user)
+                ->when($search !== '', function (Builder $query) use ($search): void {
+                    $query->whereHas('customer', function (Builder $customerQuery) use ($search): void {
+                        $customerQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                })
+                ->when($tag !== '', function (Builder $query) use ($tag): void {
+                    $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tag));
+                });
+
+            return [
+                ...$item,
+                'active' => $activeChannel === $item['key'],
+                'unread' => (int) $this->applyChannelFilter($query, $item['key'])->sum('unread_messages_count'),
+            ];
+        })->all();
     }
 
     private function resolveActiveConversation(User $user, ?Conversation $selectedConversation, Collection $conversations): ?Conversation

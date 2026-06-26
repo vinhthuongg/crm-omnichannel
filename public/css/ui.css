@@ -1027,6 +1027,7 @@ kbd {
     min-height: 100vh;
     display: grid;
     grid-template-columns: 430px minmax(0, 1fr) 286px;
+    grid-template-rows: auto minmax(0, 1fr);
     background: #fff;
     color: #111;
 }
@@ -1052,7 +1053,51 @@ kbd {
     height: 100%;
     min-height: 0;
     grid-template-columns: 390px minmax(0, 1fr) 286px;
+    grid-template-rows: auto minmax(0, 1fr);
     overflow: hidden;
+}
+
+.messenger-channel-tabs {
+    grid-column: 1 / -1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow-x: auto;
+    border-bottom: 1px solid #dbe2ea;
+    background: #fff;
+    padding: 10px 14px;
+}
+
+.messenger-channel-tabs a {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 4px;
+    color: #111827;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.messenger-channel-tabs a.active {
+    background: #bfdbfe;
+    color: #0f5fa8;
+}
+
+.messenger-channel-tabs span {
+    min-width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #b91c1c;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
 }
 
 .messenger-list {

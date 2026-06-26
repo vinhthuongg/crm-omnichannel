@@ -44,6 +44,7 @@
             class="messenger-shell"
             data-messenger-realtime
             data-conversations-url="{{ route('crm.conversations') }}"
+            data-channel-filter="{{ $filters['channel'] ?? 'all' }}"
             data-inbox-broadcast-channel="private-crm.conversations"
             data-broadcast-auth-url="{{ url('/broadcasting/auth') }}"
             data-reverb-key="{{ $reverb['key'] }}"
@@ -51,6 +52,23 @@
             data-reverb-port="{{ $reverbPublicHost ? $reverbPublicPort : (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) && request()->secure() ? '' : $reverb['options']['port']) }}"
             data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
         >
+            <nav class="messenger-channel-tabs" aria-label="Inbox channels">
+                @foreach($inboxChannels as $inboxChannel)
+                    <a
+                        class="{{ $inboxChannel['active'] ? 'active' : '' }}"
+                        href="{{ route('crm.conversations', array_filter([
+                            'channel' => $inboxChannel['key'] === 'all' ? null : $inboxChannel['key'],
+                            'q' => $filters['search'] ?: null,
+                            'tag' => $filters['tag'] ?: null,
+                        ])) }}"
+                    >
+                        {{ $inboxChannel['label'] }}
+                        @if($inboxChannel['unread'] > 0)
+                            <span>{{ $inboxChannel['unread'] }}</span>
+                        @endif
+                    </a>
+                @endforeach
+            </nav>
             <aside class="messenger-list">
                 <div class="messenger-list-head">
                     <div>
@@ -59,6 +77,9 @@
                 </div>
 
         <form class="messenger-search" method="GET" action="{{ route('crm.conversations') }}">
+            @if(($filters['channel'] ?? 'all') !== 'all')
+                <input type="hidden" name="channel" value="{{ $filters['channel'] }}">
+            @endif
             <input type="search" name="q" placeholder="Tim kiem tren Messenger" value="{{ $filters['search'] }}">
             <select name="tag" aria-label="Loc theo tag">
                 <option value="">Tat ca tag</option>
@@ -76,7 +97,13 @@
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
                 @php($threadTags = ($conversation->customer?->tags?->isNotEmpty() ? $conversation->customer->tags : $conversation->tags)->take(1)->values())
-                <a class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}" data-thread-unread-count="{{ $unreadCount }}">
+                <a
+                    class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}"
+                    href="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
+                    data-thread-conversation-id="{{ $conversation->id }}"
+                    data-conversation-url="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
+                    data-thread-unread-count="{{ $unreadCount }}"
+                >
                     <span class="thread-avatar">
                         @if($conversation->customer?->avatar)
                             <img src="{{ $conversation->customer->avatar }}" alt="{{ $conversation->customer?->name ?? 'Customer' }}">
@@ -1400,6 +1427,10 @@
             return;
         }
 
+        if (!messageMatchesChannelFilter(message)) {
+            return;
+        }
+
         list.querySelector('.messenger-empty')?.remove();
 
         let thread = list.querySelector(`[data-thread-conversation-id="${message.conversation_id}"]`);
@@ -1466,6 +1497,17 @@
         } else if (message.sender_type === 'user') {
             updateThreadUnread(thread, 0);
         }
+    }
+
+    function messageMatchesChannelFilter(message) {
+        const channelFilter = realtimeRoot?.dataset.channelFilter || 'all';
+        const messageChannel = String(message?.channel || '');
+
+        if (channelFilter === 'all' || !['facebook', 'zalo'].includes(messageChannel)) {
+            return true;
+        }
+
+        return messageChannel === channelFilter;
     }
 
     async function refreshThreadList() {

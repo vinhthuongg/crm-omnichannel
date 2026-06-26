@@ -31,6 +31,7 @@ class MessengerController extends Controller
         $data = $action->execute($request->user(), null, [
             'search' => $request->string('q')->toString(),
             'tag' => $request->string('tag')->toString(),
+            'channel' => $request->string('channel')->toString(),
         ]);
 
         if (! $request->ajax()) {
@@ -46,6 +47,7 @@ class MessengerController extends Controller
         $data = $action->execute($request->user(), $conversation, [
             'search' => $request->string('q')->toString(),
             'tag' => $request->string('tag')->toString(),
+            'channel' => $request->string('channel')->toString(),
         ]);
         $this->markConversationRead($data['activeConversation']);
         $this->syncReadStateInViewData($data);
