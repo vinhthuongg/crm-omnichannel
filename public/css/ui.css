@@ -1160,6 +1160,12 @@ kbd {
     background: #e8eef7;
 }
 
+.messenger-thread.is-unread .thread-body strong,
+.messenger-thread.is-unread .thread-body small {
+    font-weight: 800;
+    color: #0f172a;
+}
+
 .thread-avatar {
     width: 52px;
     height: 52px;
@@ -1229,9 +1235,37 @@ kbd {
     line-height: 1.4;
 }
 
-.thread-meta {
+.thread-side {
     align-self: start;
+    display: grid;
+    justify-items: end;
+    gap: 4px;
     padding-top: 9px;
+}
+
+.thread-read-state {
+    min-height: 14px;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.thread-unread-badge {
+    min-width: 20px;
+    height: 20px;
+    display: none;
+    place-items: center;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.messenger-thread.is-unread .thread-unread-badge {
+    display: grid;
 }
 
 .messenger-chat {

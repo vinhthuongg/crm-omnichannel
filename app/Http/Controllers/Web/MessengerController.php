@@ -27,10 +27,17 @@ class MessengerController extends Controller
 {
     public function index(Request $request, GetMessengerViewDataAction $action): View
     {
-        return view('messenger.index', $action->execute($request->user(), null, [
+        $data = $action->execute($request->user(), null, [
             'search' => $request->string('q')->toString(),
             'tag' => $request->string('tag')->toString(),
-        ]));
+        ]);
+
+        if (! $request->ajax()) {
+            $this->markConversationRead($data['activeConversation']);
+            $this->syncReadStateInViewData($data);
+        }
+
+        return view('messenger.index', $data);
     }
 
     public function show(Request $request, Conversation $conversation, GetMessengerViewDataAction $action): View|JsonResponse
@@ -39,6 +46,8 @@ class MessengerController extends Controller
             'search' => $request->string('q')->toString(),
             'tag' => $request->string('tag')->toString(),
         ]);
+        $this->markConversationRead($data['activeConversation']);
+        $this->syncReadStateInViewData($data);
 
         if ($request->expectsJson()) {
             $messages = $conversation->messages()
@@ -98,6 +107,10 @@ class MessengerController extends Controller
                 ->limit($limit)
                 ->get();
 
+            if ($messages->where('sender_type', 'customer')->isNotEmpty()) {
+                $this->markConversationRead($conversation);
+            }
+
             return response()->json([
                 'data' => MessageResource::collection($messages)->resolve(),
                 'meta' => [
@@ -128,6 +141,7 @@ class MessengerController extends Controller
 
     private function conversationPayload(Conversation $conversation, $messages, bool $hasOlderMessages, string $activeChannel, $user): array
     {
+        $conversation->refresh();
         $conversation->loadMissing(['customer.channels', 'assignee', 'tags']);
         $canReply = $user->can('conversation.view_all') || (int) $conversation->assigned_to === (int) $user->id;
         $canClaim = ! $conversation->assigned_to && ! $user->can('conversation.view_all')
@@ -143,11 +157,14 @@ class MessengerController extends Controller
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'assignee_name' => $conversation->assignee?->name,
                 'assigned_to' => $conversation->assigned_to,
+                'unread_messages_count' => (int) $conversation->unread_messages_count,
+                'is_unread' => (int) $conversation->unread_messages_count > 0,
                 'can_claim' => $canClaim,
                 'can_reply' => $canReply,
                 'active_channel' => $activeChannel,
                 'created_at' => $conversation->created_at?->toISOString(),
                 'messages_url' => route('crm.conversations.messages.index', $conversation),
+                'read_url' => route('crm.conversations.read', $conversation),
                 'stream_url' => route('crm.conversations.messages.stream', $conversation),
                 'send_url' => route('crm.conversations.messages.store', $conversation),
                 'attachments_url' => route('crm.conversations.attachments.store', $conversation),
@@ -276,6 +293,20 @@ class MessengerController extends Controller
         ], 201);
     }
 
+    public function markRead(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+        $this->markConversationRead($conversation);
+
+        return response()->json([
+            'data' => [
+                'id' => (int) $conversation->id,
+                'unread_messages_count' => (int) $conversation->unread_messages_count,
+                'is_unread' => false,
+            ],
+        ]);
+    }
+
     public function claim(Request $request, Conversation $conversation, ConversationService $service, WorkShiftService $shifts): JsonResponse
     {
         $this->authorizeConversationAccess($request, $conversation);
@@ -392,7 +423,11 @@ class MessengerController extends Controller
             DB::transaction(function () use ($conversation, $request): void {
                 $conversation->messages()->update(['deleted_by_user_id' => $request->user()->id]);
                 $conversation->messages()->delete();
-                $conversation->forceFill(['last_message_at' => null])->save();
+                $conversation->forceFill([
+                    'last_message_at' => null,
+                    'last_read_at' => now(),
+                    'unread_messages_count' => 0,
+                ])->save();
             });
 
             event(new MessageDeletedEvent((int) $conversation->id, [], true));
@@ -420,6 +455,38 @@ class MessengerController extends Controller
         }
 
         abort(403);
+    }
+
+    private function markConversationRead(?Conversation $conversation): void
+    {
+        if (! $conversation || (int) $conversation->unread_messages_count === 0) {
+            return;
+        }
+
+        $conversation->markAsRead();
+    }
+
+    private function syncReadStateInViewData(array &$data): void
+    {
+        $activeConversation = $data['activeConversation'] ?? null;
+
+        if (! $activeConversation instanceof Conversation) {
+            return;
+        }
+
+        $activeConversation->refresh();
+        $data['activeConversation'] = $activeConversation;
+
+        $data['conversations'] = $data['conversations']->map(function (Conversation $conversation) use ($activeConversation): Conversation {
+            if ((int) $conversation->id === (int) $activeConversation->id) {
+                $conversation->forceFill([
+                    'unread_messages_count' => $activeConversation->unread_messages_count,
+                    'last_read_at' => $activeConversation->last_read_at,
+                ]);
+            }
+
+            return $conversation;
+        });
     }
 
     private function refreshConversationLastMessageAt(Conversation $conversation): void

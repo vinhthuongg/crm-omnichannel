@@ -74,7 +74,8 @@
                 @php($lastMessage = $conversation->messages->first())
                 @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
                 @php($isActive = $activeConversation?->id === $conversation->id)
-                <a class="messenger-thread {{ $isActive ? 'active' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}">
+                @php($unreadCount = (int) $conversation->unread_messages_count)
+                <a class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}" data-thread-unread-count="{{ $unreadCount }}">
                     <span class="thread-avatar">
                         @if($conversation->customer?->avatar)
                             <img src="{{ $conversation->customer->avatar }}" alt="{{ $conversation->customer?->name ?? 'Customer' }}">
@@ -93,7 +94,11 @@
                             </span>
                         @endif
                     </span>
-                    <span class="thread-meta" data-thread-meta>{{ $conversation->last_message_at?->diffForHumans() }}</span>
+                    <span class="thread-side">
+                        <span class="thread-meta" data-thread-meta>{{ $conversation->last_message_at?->diffForHumans() }}</span>
+                        <span class="thread-read-state" data-thread-read-state>{{ $unreadCount > 0 ? 'Chua doc' : '' }}</span>
+                        <span class="thread-unread-badge" data-thread-unread-badge>{{ $unreadCount > 0 ? $unreadCount : '' }}</span>
+                    </span>
                 </a>
             @empty
                 <div class="messenger-empty">No matching conversations found.</div>
@@ -141,6 +146,7 @@
                 data-oldest-message-id="{{ $messages->first()['id'] ?? 0 }}"
                 data-has-older-messages="{{ $hasOlderMessages ? '1' : '0' }}"
                 data-poll-url="{{ route('crm.conversations.messages.index', $activeConversation) }}"
+                data-read-url="{{ route('crm.conversations.read', $activeConversation) }}"
                 data-stream-url="{{ route('crm.conversations.messages.stream', $activeConversation) }}"
                 data-broadcast-channel="private-crm.conversation.{{ $activeConversation->id }}"
                 data-inbox-broadcast-channel="private-crm.conversations"
@@ -514,6 +520,7 @@
 
         document.querySelectorAll('.messenger-thread.active').forEach((thread) => thread.classList.remove('active'));
         document.querySelector(`[data-thread-conversation-id="${conversation.id}"]`)?.classList.add('active');
+        markThreadRead(conversation.id);
 
         const customerName = conversation.customer_name || 'Customer';
         const chatAvatar = document.querySelector('[data-chat-avatar]');
@@ -545,6 +552,7 @@
 
         timeline.dataset.conversationId = conversation.id;
         timeline.dataset.pollUrl = conversation.messages_url;
+        timeline.dataset.readUrl = conversation.read_url;
         timeline.dataset.streamUrl = conversation.stream_url;
         timeline.dataset.broadcastChannel = conversation.broadcast_channel;
         timeline.dataset.lastMessageId = String(conversation.meta?.last_message_id || 0);
@@ -963,6 +971,51 @@
         }
     }
 
+    function updateThreadUnread(thread, count) {
+        if (!thread) {
+            return;
+        }
+
+        const unreadCount = Math.max(0, Number(count || 0));
+        const badge = thread.querySelector('[data-thread-unread-badge]');
+        const readState = thread.querySelector('[data-thread-read-state]');
+
+        thread.dataset.threadUnreadCount = String(unreadCount);
+        thread.classList.toggle('is-unread', unreadCount > 0);
+
+        if (badge) {
+            badge.textContent = unreadCount > 0 ? String(unreadCount) : '';
+        }
+
+        if (readState) {
+            readState.textContent = unreadCount > 0 ? 'Chua doc' : '';
+        }
+    }
+
+    function markThreadRead(conversationId) {
+        const thread = document.querySelector(`[data-thread-conversation-id="${conversationId}"]`);
+        updateThreadUnread(thread, 0);
+    }
+
+    async function markActiveConversationRead() {
+        if (!timeline?.dataset.readUrl) {
+            return;
+        }
+
+        try {
+            await fetch(timeline.dataset.readUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+            });
+        } catch (error) {
+            console.warn('CRM messenger mark read failed:', error);
+        }
+    }
+
     function upsertThread(message) {
         const list = document.querySelector('.messenger-thread-list');
 
@@ -980,6 +1033,7 @@
             thread.href = message.conversation_url || `/conversations/${encodeURIComponent(message.conversation_id)}`;
             thread.dataset.threadConversationId = message.conversation_id;
             thread.dataset.conversationUrl = thread.href;
+            thread.dataset.threadUnreadCount = '0';
             const customerName = message.conversation_customer_name || message.sender_name || 'Customer';
             const customerAvatar = message.conversation_customer_avatar || message.sender_avatar;
             thread.innerHTML = `
@@ -988,7 +1042,11 @@
                     <strong>${escapeHtml(customerName)}</strong>
                     <small data-thread-last-message></small>
                 </span>
-                <span class="thread-meta" data-thread-meta></span>
+                <span class="thread-side">
+                    <span class="thread-meta" data-thread-meta></span>
+                    <span class="thread-read-state" data-thread-read-state></span>
+                    <span class="thread-unread-badge" data-thread-unread-badge></span>
+                </span>
             `;
             list.prepend(thread);
         } else {
@@ -1009,6 +1067,29 @@
         }
 
         updateThreadPreview(message);
+
+        const isActiveThread = String(message.conversation_id) === String(timeline?.dataset.conversationId);
+
+        if (isActiveThread) {
+            markThreadRead(message.conversation_id);
+
+            if (message.sender_type === 'customer') {
+                markActiveConversationRead();
+            }
+
+            return;
+        }
+
+        if (message.conversation_unread_messages_count !== undefined) {
+            updateThreadUnread(thread, message.conversation_unread_messages_count);
+            return;
+        }
+
+        if (message.sender_type === 'customer') {
+            updateThreadUnread(thread, Number(thread.dataset.threadUnreadCount || 0) + 1);
+        } else if (message.sender_type === 'user') {
+            updateThreadUnread(thread, 0);
+        }
     }
 
     async function refreshThreadList() {
@@ -1038,6 +1119,12 @@
 
         if (freshList) {
             list.innerHTML = freshList.innerHTML;
+            const activeId = timeline?.dataset.conversationId;
+
+            if (activeId) {
+                list.querySelector(`[data-thread-conversation-id="${activeId}"]`)?.classList.add('active');
+                markThreadRead(activeId);
+            }
         }
     }
 
@@ -1061,7 +1148,12 @@
         }
 
         const payload = await response.json();
-        (payload.data || []).forEach(appendMessage);
+        const messages = payload.data || [];
+        messages.forEach(appendMessage);
+
+        if (messages.some((message) => message.sender_type === 'customer')) {
+            markThreadRead(timeline.dataset.conversationId);
+        }
     }
 
     async function loadOlderMessages() {
@@ -1190,6 +1282,7 @@
                 conversation_id: payload.conversation_id,
                 content: 'Da xoa toan bo tin nhan',
             });
+            markThreadRead(payload.conversation_id);
             return;
         }
 

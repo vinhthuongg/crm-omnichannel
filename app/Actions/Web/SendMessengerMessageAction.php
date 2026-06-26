@@ -56,7 +56,9 @@ class SendMessengerMessageAction
 
             $conversation->forceFill([
                 'last_message_at' => $message->created_at,
+                'last_read_at' => now(),
                 'status' => 'open',
+                'unread_messages_count' => 0,
             ])->save();
 
             return $message;

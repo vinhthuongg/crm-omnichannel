@@ -55,6 +55,7 @@ class MessageService
             }
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id, 'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType, 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
+            $conversation->incrementUnreadMessages();
             return $message;
         });
 
@@ -113,7 +114,12 @@ class MessageService
 
         $message = DB::transaction(function () use ($conversation, $user, $data, $externalMessageId): Message {
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'user', 'sender_id' => $user->id, 'channel' => $data['channel'], 'content' => $data['content'] ?? null, 'message_type' => $data['message_type'] ?? 'text', 'attachments' => $data['attachments'] ?? null, 'external_message_id' => $externalMessageId]);
-            $conversation->forceFill(['last_message_at' => $message->created_at, 'status' => 'open'])->save();
+            $conversation->forceFill([
+                'last_message_at' => $message->created_at,
+                'last_read_at' => now(),
+                'status' => 'open',
+                'unread_messages_count' => 0,
+            ])->save();
             return $message;
         });
 
