@@ -311,7 +311,11 @@ class MessengerController extends Controller
             'tags.*.color' => ['nullable', 'string', 'max:24'],
         ]);
 
-        $conversation = $service->syncTags($conversation, $validated['tags'] ?? [], $request->user());
+        $conversation = $service->syncTags(
+            $conversation,
+            array_slice($validated['tags'] ?? [], 0, 1),
+            $request->user(),
+        );
 
         return response()->json([
             'data' => [

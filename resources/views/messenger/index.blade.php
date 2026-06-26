@@ -565,10 +565,10 @@
         }
 
         tabs.dataset.tagsUrl = tagsUrl || '';
-        const activeNames = new Set((tags || []).map((tag) => String(tag.name || '')));
+        const activeName = String((tags || [])[0]?.name || '');
 
         tabs.querySelectorAll('[data-tag-name]').forEach(function (button) {
-            button.classList.toggle('is-active', activeNames.has(button.dataset.tagName || ''));
+            button.classList.toggle('is-active', activeName !== '' && activeName === (button.dataset.tagName || ''));
         });
     }
 
@@ -579,12 +579,12 @@
             return [];
         }
 
-        return Array.from(tabs.querySelectorAll('[data-tag-name].is-active')).map(function (button) {
-            return {
-                name: button.dataset.tagName || button.textContent.trim(),
-                color: button.dataset.tagColor || null,
-            };
-        });
+        const button = tabs.querySelector('[data-tag-name].is-active');
+
+        return button ? [{
+            name: button.dataset.tagName || button.textContent.trim(),
+            color: button.dataset.tagColor || null,
+        }] : [];
     }
 
     async function loadConversation(url) {
@@ -1437,7 +1437,15 @@
         }
 
         const tabs = event.currentTarget;
-        button.classList.toggle('is-active');
+        const wasActive = button.classList.contains('is-active');
+
+        tabs.querySelectorAll('[data-tag-name].is-active').forEach(function (activeButton) {
+            activeButton.classList.remove('is-active');
+        });
+
+        if (!wasActive) {
+            button.classList.add('is-active');
+        }
 
         try {
             const response = await fetch(tabs.dataset.tagsUrl, {
