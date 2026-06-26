@@ -413,7 +413,12 @@ class MessengerController extends Controller
     public function tags(Request $request, Conversation $conversation, ConversationService $service): JsonResponse
     {
         $this->authorizeConversationAccess($request, $conversation);
-        abort_unless($request->user()->can('conversation.tag'), 403);
+        abort_unless(
+            $request->user()->can('conversation.tag')
+            || $request->user()->can('conversation.view_all')
+            || $request->user()->hasRole('Admin'),
+            403,
+        );
 
         $validated = $request->validate([
             'tags' => ['array'],

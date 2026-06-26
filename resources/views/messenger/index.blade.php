@@ -2019,14 +2019,15 @@
         });
     });
 
-    document.querySelector('[data-conversation-tags]')?.addEventListener('click', async function (event) {
+    document.addEventListener('click', async function (event) {
         const button = event.target.closest('[data-tag-name]');
+        const tabs = button?.closest('[data-conversation-tags]');
 
-        if (!button) {
+        if (!button || !tabs) {
             return;
         }
 
-        const tabs = event.currentTarget;
+        event.preventDefault();
         const wasActive = button.classList.contains('is-active');
         const conversationId = timeline?.dataset.conversationId;
         const previousTags = selectedConversationTags();
