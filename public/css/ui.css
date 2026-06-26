@@ -1433,10 +1433,12 @@ kbd {
 
 .message-video {
     display: block;
-    width: min(320px, 62vw);
+    width: auto;
+    height: auto;
+    max-width: min(360px, 62vw);
     max-height: 360px;
     border-radius: 12px;
-    background: #111;
+    background: transparent;
 }
 
 .message-audio {
