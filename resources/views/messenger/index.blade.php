@@ -78,14 +78,19 @@
                     $lastAttachmentType = strtolower((string) data_get($lastAttachment, 'type', ''));
                     $lastAttachmentMime = strtolower((string) data_get($lastAttachment, 'mime_type', ''));
                     $lastAttachmentPayload = data_get($lastAttachment, 'payload', []);
-                    $lastAttachmentPreview = match (true) {
-                        $lastAttachmentType === 'sticker' || filled(data_get($lastAttachmentPayload, 'sticker_id')) => '[Emoji]',
-                        $lastAttachmentType === 'image' || str_starts_with($lastAttachmentMime, 'image/') || filled(data_get($lastAttachmentPayload, 'image_data.url')) => '[Hinh anh]',
-                        $lastAttachmentType === 'video' || str_starts_with($lastAttachmentMime, 'video/') || filled(data_get($lastAttachmentPayload, 'video_data.url')) => '[Video]',
-                        $lastAttachmentType === 'audio' || str_starts_with($lastAttachmentMime, 'audio/') || filled(data_get($lastAttachmentPayload, 'audio_data.url')) => '[Audio]',
-                        filled($lastAttachment) => '[Tep dinh kem]',
-                        default => null,
-                    };
+                    $lastAttachmentPreview = null;
+
+                    if ($lastAttachmentType === 'sticker' || filled(data_get($lastAttachmentPayload, 'sticker_id'))) {
+                        $lastAttachmentPreview = '[Emoji]';
+                    } elseif ($lastAttachmentType === 'image' || substr($lastAttachmentMime, 0, 6) === 'image/' || filled(data_get($lastAttachmentPayload, 'image_data.url'))) {
+                        $lastAttachmentPreview = '[Hinh anh]';
+                    } elseif ($lastAttachmentType === 'video' || substr($lastAttachmentMime, 0, 6) === 'video/' || filled(data_get($lastAttachmentPayload, 'video_data.url'))) {
+                        $lastAttachmentPreview = '[Video]';
+                    } elseif ($lastAttachmentType === 'audio' || substr($lastAttachmentMime, 0, 6) === 'audio/' || filled(data_get($lastAttachmentPayload, 'audio_data.url'))) {
+                        $lastAttachmentPreview = '[Audio]';
+                    } elseif (filled($lastAttachment)) {
+                        $lastAttachmentPreview = '[Tep dinh kem]';
+                    }
                     $lastMessagePreview = filled($lastMessage?->content) ? $lastMessage->content : ($lastAttachmentPreview ?? 'Chua co tin nhan');
 
                     if ($lastMessage?->is_recalled) {
@@ -93,7 +98,7 @@
                     } elseif ($lastMessage && (($lastMessage->message_type ?? '') === 'whisper' || ($lastMessage->channel ?? '') === 'internal')) {
                         $lastMessagePreview = 'Thi tham: '.$lastMessagePreview;
                     } elseif (($lastMessage?->sender_type ?? '') === 'user') {
-                        $lastMessagePreview = 'Bạn: '.$lastMessagePreview;
+                        $lastMessagePreview = 'Ban: '.$lastMessagePreview;
                     }
                 @endphp
                 @php($isActive = $activeConversation?->id === $conversation->id)
@@ -961,7 +966,7 @@
         }
 
         if (message?.sender_type === 'user') {
-            return `Bạn: ${content}`;
+            return `Ban: ${content}`;
         }
 
         return content;
