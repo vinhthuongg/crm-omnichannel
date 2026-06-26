@@ -1484,15 +1484,70 @@ kbd {
 
 .messenger-composer {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 72px;
     gap: 10px;
-    padding: 12px 18px 16px;
-    border-top: 1px solid #e5e7eb;
-    background: #fff;
+    padding: 0 0 10px;
+    border-top: 1px solid #263044;
+    background: #050a18;
+    color: #d6deef;
 }
 
 .messenger-composer.is-disabled {
     opacity: .72;
+}
+
+.composer-tabs {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 0 0;
+    overflow-x: auto;
+    border-bottom: 1px solid #263044;
+    background: #111827;
+}
+
+.composer-tabs span {
+    flex: 0 0 auto;
+    min-height: 20px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid #263044;
+    border-radius: 5px;
+    padding: 0 12px;
+    color: #7f8aa3;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.composer-tabs span.active {
+    min-height: 24px;
+    border-color: #1d64f2;
+    border-radius: 7px;
+    background: #1d64f2;
+    color: #fff;
+}
+
+.composer-tabs span.danger {
+    border-color: #7f1d3a;
+    color: #f43f5e;
+}
+
+.composer-tabs span.success {
+    border-color: #14532d;
+    color: #22c55e;
+}
+
+.composer-tabs span.plus {
+    border: 0;
+    color: #aeb8cc;
+    font-size: 20px;
+    padding: 0 4px;
+}
+
+.composer-tabs b {
+    flex: 0 0 1px;
+    height: 18px;
+    background: #263044;
 }
 
 .composer-file-button {
@@ -1515,22 +1570,94 @@ kbd {
 }
 
 .composer-file-list {
-    grid-column: 2 / 4;
+    min-width: 0;
     min-height: 16px;
-    color: #6b7280;
+    padding: 0 14px;
+    color: #95a0b8;
     font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.messenger-composer input {
-    min-height: 42px;
-    border: 1px solid #e5e7eb;
-    border-radius: 999px;
-    padding: 0 16px;
+.messenger-composer textarea {
+    width: 100%;
+    min-height: 54px;
+    resize: none;
+    border: 0;
+    padding: 0 14px;
     outline: none;
-    background: #f7f7f8;
+    background: transparent;
+    color: #f8fafc;
+    font: inherit;
+    line-height: 1.5;
+}
+
+.messenger-composer textarea::placeholder {
+    color: #71809b;
+}
+
+.composer-bottom-row {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 0 10px 0 8px;
+}
+
+.composer-user-avatar {
+    flex: 0 0 auto;
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.composer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    min-width: 0;
+}
+
+.composer-actions button,
+.composer-actions label {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 6px;
+    padding: 0;
+    background: transparent;
+    color: #aeb8cc;
+    cursor: pointer;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.composer-actions label input {
+    display: none;
+}
+
+.composer-actions button:hover,
+.composer-actions label:hover {
+    color: #fff;
+}
+
+.composer-actions .composer-send-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #165dff;
+    color: #fff;
+    font-size: 22px;
+}
+
+.composer-actions .composer-send-button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
 }
 
 .messenger-empty,

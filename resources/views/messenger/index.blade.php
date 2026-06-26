@@ -200,12 +200,42 @@
             <form class="messenger-composer {{ $canReply ? '' : 'is-disabled' }}" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer data-can-reply="{{ $canReply ? '1' : '0' }}">
                 @csrf
                 <input type="hidden" name="channel" value="{{ $activeChannel }}">
-                <label class="composer-file-button" title="Tai file len">
-                    +
-                    <input type="file" name="attachments[]" multiple data-composer-files>
-                </label>
-                <input type="text" name="content" placeholder="Aa" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>
-                <button type="submit" {{ $canReply ? '' : 'disabled' }}>Send</button>
+                <div class="composer-tabs" aria-hidden="true">
+                    <span class="active">Nhan tin</span>
+                    <span>Thi tham</span>
+                    <b></b>
+                    <span class="danger">Dang tu van</span>
+                    <span class="success">Goi lan 1</span>
+                    <span>Goi lan 2</span>
+                    <span>Huy</span>
+                    <span>Spam</span>
+                    <span class="success">Da mua</span>
+                    <span class="plus">+</span>
+                </div>
+                <textarea name="content" rows="3" placeholder="Nhap noi dung tin nhan va nhan Enter de gui" autocomplete="off" {{ $canReply ? '' : 'disabled' }}></textarea>
+                <div class="composer-bottom-row">
+                    <span class="thread-avatar mini composer-user-avatar">
+                        @if($currentUser->avatar ?? null)
+                            <img src="{{ $currentUser->avatar }}" alt="{{ $currentUser->name }}">
+                        @else
+                            {{ strtoupper(substr($currentUser->name, 0, 1)) }}
+                        @endif
+                    </span>
+                    <div class="composer-actions" aria-label="Message tools">
+                        <button type="button" title="Bieu cam">☺</button>
+                        <button type="button" title="Mau tin">▱</button>
+                        <label title="Dinh kem">
+                            ♧
+                            <input type="file" name="attachments[]" multiple data-composer-files>
+                        </label>
+                        <button type="button" title="Hinh anh" data-upload-trigger>▧</button>
+                        <button type="button" title="Video" data-upload-trigger>▻</button>
+                        <button type="button" title="Ghi chu">▤</button>
+                        <button type="button" title="Lich">□</button>
+                        <button type="button" title="San pham">◇</button>
+                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>➤</button>
+                    </div>
+                </div>
                 <div class="composer-file-list" data-composer-file-list></div>
             </form>
             @error('content')
@@ -528,7 +558,7 @@
         const claimBar = document.querySelector('[data-claim-bar]');
         const claimStatus = document.querySelector('[data-claim-status]');
         const claimButton = document.querySelector('[data-claim-button]');
-        const contentInput = composer?.querySelector('input[name="content"]');
+        const contentInput = composer?.querySelector('[name="content"]');
         const sendButton = composer?.querySelector('button[type="submit"]');
         const fileInput = composer?.querySelector('[data-composer-files]');
         const canReply = Boolean(conversation.can_reply);
@@ -1230,7 +1260,7 @@
             return;
         }
 
-        const input = composer.querySelector('input[name="content"]');
+        const input = composer.querySelector('[name="content"]');
         const button = composer.querySelector('button[type="submit"]');
         const fileInput = composer.querySelector('[data-composer-files]');
         const fileList = composer.querySelector('[data-composer-file-list]');
@@ -1332,6 +1362,21 @@
 
                 throw error;
             });
+    });
+
+    composer?.querySelector('[name="content"]')?.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
+            return;
+        }
+
+        event.preventDefault();
+        composer.requestSubmit();
+    });
+
+    composer?.querySelectorAll('[data-upload-trigger]')?.forEach(function (trigger) {
+        trigger.addEventListener('click', function () {
+            composer.querySelector('[data-composer-files]')?.click();
+        });
     });
 
     async function uploadComposerAttachments(files) {
