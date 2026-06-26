@@ -1026,7 +1026,7 @@ kbd {
 .messenger-shell {
     min-height: 100vh;
     display: grid;
-    grid-template-columns: 430px minmax(0, 1fr);
+    grid-template-columns: 430px minmax(0, 1fr) 286px;
     background: #fff;
     color: #111;
 }
@@ -1051,7 +1051,7 @@ kbd {
 .messenger-crm-main .messenger-shell {
     height: 100%;
     min-height: 0;
-    grid-template-columns: 390px minmax(0, 1fr);
+    grid-template-columns: 390px minmax(0, 1fr) 286px;
     overflow: hidden;
 }
 
@@ -1328,6 +1328,129 @@ kbd {
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
+}
+
+.messenger-profile-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    border-left: 1px solid #e5e7eb;
+    background: #f8fafc;
+    color: #1f2937;
+}
+
+.profile-card-head {
+    min-height: 94px;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 28px 24px;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border-bottom: 1px solid #dbe2ea;
+    background: #fff;
+}
+
+.profile-card-head h3 {
+    margin: 0;
+    overflow: hidden;
+    color: #1f2937;
+    font-size: 18px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-card-head a {
+    color: #0b73d9;
+    font-size: 13px;
+    line-height: 1.25;
+    text-decoration: none;
+}
+
+.profile-card-head button,
+.profile-next {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #1f2937;
+    font-size: 20px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.profile-card-head button:hover,
+.profile-next:hover {
+    background: #eef2f7;
+}
+
+.profile-section {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #dbe2ea;
+    background: #fff;
+}
+
+.profile-section h4 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 16px;
+    line-height: 1.25;
+}
+
+.profile-section h4 span {
+    display: inline-grid;
+    width: 14px;
+    height: 14px;
+    place-items: center;
+    border-radius: 50%;
+    background: #334155;
+    color: #fff;
+    font-size: 10px;
+}
+
+.profile-section h4 small {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 0 7px;
+    color: #475569;
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+.profile-section p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.profile-section button {
+    min-height: 36px;
+    justify-self: start;
+    border: 1px solid #aeb9c7;
+    border-radius: 3px;
+    background: #fff;
+    color: #1f2937;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.profile-section button:hover {
+    background: #f1f5f9;
+}
+
+.profile-section.is-empty {
+    margin-top: 12px;
 }
 
 .messenger-timeline {
@@ -1792,6 +1915,12 @@ kbd {
     .messenger-chat {
         height: auto;
         min-height: 620px;
+    }
+
+    .messenger-profile-panel {
+        min-height: 360px;
+        border-left: 0;
+        border-top: 1px solid #e5e7eb;
     }
 
     .login-insight,

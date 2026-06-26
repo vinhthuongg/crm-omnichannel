@@ -276,6 +276,57 @@
             </section>
         @endif
     </section>
+    <aside class="messenger-profile-panel" data-profile-panel>
+        @if($activeConversation)
+            <header class="profile-card-head">
+                <span class="thread-avatar" data-profile-avatar>
+                    @if($activeConversation->customer?->avatar)
+                        <img src="{{ $activeConversation->customer->avatar }}" alt="{{ $activeConversation->customer?->name ?? 'Customer' }}">
+                    @else
+                        {{ strtoupper(substr($activeConversation->customer?->name ?? 'C', 0, 1)) }}
+                    @endif
+                </span>
+                <div>
+                    <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
+                    <a href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}" data-profile-link>Xem trang ca nhan</a>
+                </div>
+                <button type="button" aria-label="More profile actions">...</button>
+                <a class="profile-next" href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}" aria-label="Open profile">&gt;</a>
+            </header>
+
+            <section class="profile-section">
+                <h4>Gioi thieu</h4>
+                <p data-profile-phone>{{ $activeConversation->customer?->phone ? 'So dien thoai: '.$activeConversation->customer->phone : 'Them chi tiet ve moi nguoi, chang han nhu thong tin lien he.' }}</p>
+                <button type="button">+ Them chi tiet</button>
+            </section>
+
+            <section class="profile-section">
+                <h4>Trang ca nhan tren Facebook <span>i</span></h4>
+                <p>Khong co thong tin cong khai.</p>
+            </section>
+
+            <section class="profile-section">
+                <h4>Hoat dong <small>Chuyen dung</small></h4>
+                <p>Danh dau cac hoat dong nhu don dat hang va khach hang tiem nang de cai thien hieu qua quang cao.</p>
+            </section>
+
+            <section class="profile-section">
+                <h4>Trang thai don dat hang</h4>
+                <button type="button">+ Tao don dat hang</button>
+            </section>
+
+            <section class="profile-section">
+                <h4>Giai doan khach hang tiem nang <span>i</span></h4>
+                <button type="button">Danh dau la khach hang tiem nang</button>
+                <p>Theo doi nhung luot tuong tac quan trong cua khach hang.</p>
+            </section>
+        @else
+            <section class="profile-section is-empty">
+                <h4>Thong tin khach hang</h4>
+                <p>Chon mot conversation de xem chi tiet.</p>
+            </section>
+        @endif
+    </aside>
         </div>
     </main>
 </div>
@@ -487,6 +538,46 @@
         return escapeHtml((name || 'C').slice(0, 1).toUpperCase());
     }
 
+    function updateProfilePanel(conversation) {
+        const panel = document.querySelector('[data-profile-panel]');
+
+        if (!panel || !conversation) {
+            return;
+        }
+
+        const customerName = conversation.customer_name || conversation.conversation_customer_name || 'Customer';
+        const customerAvatar = conversation.customer_avatar || conversation.conversation_customer_avatar || '';
+        const customerPhone = conversation.customer_phone || conversation.conversation_customer_phone || '';
+        const profileUrl = `/customers?q=${encodeURIComponent(customerName)}`;
+        const avatar = panel.querySelector('[data-profile-avatar]');
+        const name = panel.querySelector('[data-profile-name]');
+        const link = panel.querySelector('[data-profile-link]');
+        const next = panel.querySelector('.profile-next');
+        const phone = panel.querySelector('[data-profile-phone]');
+
+        if (avatar) {
+            avatar.innerHTML = avatarHtml(customerAvatar, customerName);
+        }
+
+        if (name) {
+            name.textContent = customerName;
+        }
+
+        if (link) {
+            link.href = profileUrl;
+        }
+
+        if (next) {
+            next.href = profileUrl;
+        }
+
+        if (phone) {
+            phone.textContent = customerPhone
+                ? `So dien thoai: ${customerPhone}`
+                : 'Them chi tiet ve moi nguoi, chang han nhu thong tin lien he.';
+        }
+    }
+
     function renderMessages(messages) {
         if (!timeline) {
             return;
@@ -531,6 +622,8 @@
         if (chatAvatar) {
             chatAvatar.innerHTML = avatarHtml(conversation.customer_avatar, customerName);
         }
+
+        updateProfilePanel(conversation);
 
         if (chatName) {
             chatName.textContent = customerName;
@@ -1251,6 +1344,7 @@
                 chatPhone.textContent = message.conversation_customer_phone;
             }
 
+            updateProfilePanel(message);
             appendMessage(message);
         }
     }
