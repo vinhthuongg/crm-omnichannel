@@ -12,13 +12,14 @@ class Message extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['conversation_id', 'sender_type', 'sender_id', 'channel', 'content', 'message_type', 'attachments', 'external_message_id', 'client_message_id', 'outbound_status', 'outbound_error', 'sent_at', 'recalled_at', 'recalled_by_user_id', 'deleted_by_user_id'];
+    protected $fillable = ['conversation_id', 'sender_type', 'sender_id', 'channel', 'content', 'message_type', 'attachments', 'external_message_id', 'client_message_id', 'outbound_status', 'outbound_error', 'sent_at', 'read_at', 'recalled_at', 'recalled_by_user_id', 'deleted_by_user_id'];
 
     protected function casts(): array
     {
         return [
             'attachments' => 'array',
             'sent_at' => 'datetime',
+            'read_at' => 'datetime',
             'recalled_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
