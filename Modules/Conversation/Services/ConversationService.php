@@ -60,7 +60,10 @@ class ConversationService
 
     public function syncTags(Conversation $conversation, array $tags, User $actor): Conversation
     {
-        $ids = collect($tags)->map(fn (array $tag) => Tag::query()->firstOrCreate(['name' => $tag['name']], ['color' => $tag['color'] ?? null])->id)->all();
+        $ids = collect($tags)
+            ->take(1)
+            ->map(fn (array $tag) => Tag::query()->firstOrCreate(['name' => $tag['name']], ['color' => $tag['color'] ?? null])->id)
+            ->all();
         $conversation->tags()->sync($ids);
         $this->activityLog->record($actor, 'conversation.tagged', $conversation, ['tags' => $ids]);
         return $conversation->load(['customer.channels', 'assignee', 'tags']);

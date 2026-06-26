@@ -615,7 +615,8 @@ class MessengerController extends Controller
     private function customerTagsPayload(Conversation $conversation): array
     {
         return $conversation->customer?->tags
-            ?->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+            ?->take(1)
+            ->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
             ->values()
             ->all() ?? [];
     }

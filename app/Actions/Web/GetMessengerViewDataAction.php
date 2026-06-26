@@ -187,7 +187,8 @@ class GetMessengerViewDataAction
                 ->values()
                 ->all() ?? [],
             'tags' => $customer->tags
-                ?->map(fn ($tag): array => [
+                ?->take(1)
+                ->map(fn ($tag): array => [
                     'name' => $tag->name,
                     'color' => $tag->color ?: '#2563eb',
                 ])

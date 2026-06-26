@@ -75,7 +75,7 @@
                 @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
-                @php($threadTags = $conversation->tags->concat($conversation->customer?->tags ?? collect())->unique('name')->values())
+                @php($threadTags = ($conversation->customer?->tags?->isNotEmpty() ? $conversation->customer->tags : $conversation->tags)->take(1)->values())
                 <a class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}" href="{{ route('crm.conversations.show', $conversation) }}" data-thread-conversation-id="{{ $conversation->id }}" data-conversation-url="{{ route('crm.conversations.show', $conversation) }}" data-thread-unread-count="{{ $unreadCount }}">
                     <span class="thread-avatar">
                         @if($conversation->customer?->avatar)
@@ -764,8 +764,9 @@
         customerTagOptions = Array.isArray(allTags) ? allTags : customerTagOptions;
 
         if (list) {
-            list.innerHTML = tags.length
-                ? tags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
+            const visibleTags = (tags || []).slice(0, 1);
+            list.innerHTML = visibleTags.length
+                ? visibleTags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
                 : '<p class="profile-empty">Khach hang chua co the nao</p>';
         }
 
@@ -972,7 +973,7 @@
     }
 
     function tagBadgesHtml(tags) {
-        const visibleTags = (tags || []).filter((tag) => tag?.name);
+        const visibleTags = (tags || []).filter((tag) => tag?.name).slice(0, 1);
 
         if (!visibleTags.length) {
             return '';
