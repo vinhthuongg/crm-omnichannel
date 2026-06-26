@@ -208,10 +208,9 @@ class GetMessengerViewDataAction
 
         $customer = $conversation->customer;
         $facebookChannel = $customer->channels?->firstWhere('channel', 'facebook');
-        $facebookProfileUrl = $facebookChannel?->external_id ? 'https://www.facebook.com/'.$facebookChannel->external_id : '#';
 
         return [
-            'facebook_profile_url' => $facebookProfileUrl,
+            'facebook_profile_url' => $this->facebookProfileUrl($conversation),
             'details' => collect([
                 ['label' => 'Ten cong khai', 'value' => $customer->name],
                 ['label' => 'So dien thoai', 'value' => $customer->phone],
@@ -240,6 +239,40 @@ class GetMessengerViewDataAction
                 ->values()
                 ->all() ?? [],
         ];
+    }
+
+    private function facebookProfileUrl(Conversation $conversation): string
+    {
+        $customer = $conversation->customer;
+        $facebookChannel = $customer?->channels?->firstWhere('channel', 'facebook');
+        $metadata = (array) ($facebookChannel?->metadata ?? []);
+        $profileUrl = (string) (
+            data_get($metadata, 'profile.link')
+            ?: data_get($metadata, 'profile.url')
+            ?: data_get($metadata, 'profile.profile_url')
+            ?: data_get($metadata, 'profile_url')
+            ?: data_get($metadata, 'link')
+        );
+
+        if (filter_var($profileUrl, FILTER_VALIDATE_URL)) {
+            return $profileUrl;
+        }
+
+        $pageId = (string) ($conversation->facebook_page_id ?: data_get($metadata, 'facebook_page_id', ''));
+        $selectedId = (string) ($conversation->external_conversation_id ?: $facebookChannel?->external_id ?: '');
+
+        if ($pageId !== '' && $selectedId !== '') {
+            return 'https://business.facebook.com/latest/inbox/messenger?'.http_build_query([
+                'asset_id' => $pageId,
+                'selected_item_id' => $selectedId,
+            ]);
+        }
+
+        if (filled($customer?->name)) {
+            return 'https://www.facebook.com/search/people/?q='.rawurlencode((string) $customer->name);
+        }
+
+        return '#';
     }
 
     private function canViewConversation(User $user, Conversation $conversation): bool

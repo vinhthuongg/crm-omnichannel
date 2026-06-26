@@ -576,11 +576,36 @@ class MessengerController extends Controller
 
     private function facebookProfileUrl(Conversation $conversation): ?string
     {
-        $facebookId = $conversation->customer?->channels
-            ?->firstWhere('channel', 'facebook')
-            ?->external_id;
+        $customer = $conversation->customer;
+        $facebookChannel = $customer?->channels?->firstWhere('channel', 'facebook');
+        $metadata = (array) ($facebookChannel?->metadata ?? []);
+        $profileUrl = (string) (
+            data_get($metadata, 'profile.link')
+            ?: data_get($metadata, 'profile.url')
+            ?: data_get($metadata, 'profile.profile_url')
+            ?: data_get($metadata, 'profile_url')
+            ?: data_get($metadata, 'link')
+        );
 
-        return $facebookId ? 'https://www.facebook.com/'.$facebookId : null;
+        if (filter_var($profileUrl, FILTER_VALIDATE_URL)) {
+            return $profileUrl;
+        }
+
+        $pageId = (string) ($conversation->facebook_page_id ?: data_get($metadata, 'facebook_page_id', ''));
+        $selectedId = (string) ($conversation->external_conversation_id ?: $facebookChannel?->external_id ?: '');
+
+        if ($pageId !== '' && $selectedId !== '') {
+            return 'https://business.facebook.com/latest/inbox/messenger?'.http_build_query([
+                'asset_id' => $pageId,
+                'selected_item_id' => $selectedId,
+            ]);
+        }
+
+        if (filled($customer?->name)) {
+            return 'https://www.facebook.com/search/people/?q='.rawurlencode((string) $customer->name);
+        }
+
+        return '#';
     }
 
     private function customerPublicDetails(Conversation $conversation): array
