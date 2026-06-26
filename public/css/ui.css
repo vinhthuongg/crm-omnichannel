@@ -1587,11 +1587,6 @@ kbd {
     background: #111c31;
 }
 
-.profile-note-list article:first-child,
-.profile-notes.is-expanded .profile-note-list article {
-    display: grid;
-}
-
 .profile-note-list article p {
     color: #f8fafc;
 }

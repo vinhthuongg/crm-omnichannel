@@ -332,17 +332,6 @@
                     <button type="button" data-notes-toggle>Xem tat ca &gt;</button>
                 </header>
                 <textarea rows="3" placeholder="Nhap ghi chu va an enter" data-note-input></textarea>
-                <div class="profile-note-list" data-note-list>
-                    @if(count($profilePanel['notes']) === 0)
-                        <p class="profile-empty">Chua co ghi chu nao.</p>
-                    @endif
-                    @foreach($profilePanel['notes'] as $note)
-                        <article data-note-item>
-                            <p>{{ $note['body'] }}</p>
-                            <time>{{ $note['author'] }} - {{ $note['created_at'] }}</time>
-                        </article>
-                    @endforeach
-                </div>
             </section>
 
             <section class="profile-section profile-customer-tags" data-customer-tags data-tags-url="{{ route('crm.conversations.customer-tags.store', $activeConversation) }}">
@@ -708,31 +697,11 @@
     }
 
     function renderCustomerNotes(notes) {
-        const container = document.querySelector('[data-note-list]');
         const count = document.querySelector('[data-note-count]');
 
         if (count) {
             count.textContent = String(notes.length);
         }
-
-        if (!container) {
-            return;
-        }
-
-        if (!notes.length) {
-            container.innerHTML = '<p class="profile-empty">Chua co ghi chu nao.</p>';
-            renderCustomerNotesFull(notes);
-            return;
-        }
-
-        container.innerHTML = notes.map(function (note) {
-            return `
-                <article data-note-item>
-                    <p>${escapeHtml(note.body)}</p>
-                    <time>${escapeHtml(note.author || 'Admin')} - ${escapeHtml(note.created_at || '')}</time>
-                </article>
-            `;
-        }).join('');
 
         renderCustomerNotesFull(notes);
     }
