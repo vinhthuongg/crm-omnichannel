@@ -1,6 +1,14 @@
 @extends('layouts.app', ['title' => 'Messenger - CRM', 'bodyClass' => 'messenger-page'])
 
 @section('content')
+@php($reverb = config('broadcasting.connections.reverb'))
+@php($reverbPublicHost = config('reverb.public.host'))
+@php($reverbPublicPort = config('reverb.public.port'))
+@php($reverbPublicScheme = match (config('reverb.public.scheme')) {
+    'https' => 'wss',
+    'http' => 'ws',
+    default => config('reverb.public.scheme'),
+})
 <div class="crm-shell messenger-crm-shell" data-crm-shell>
     <aside class="crm-sidebar">
         <a class="crm-logo" href="{{ route('dashboard') }}">CRM</a>
@@ -32,7 +40,17 @@
             </form>
         </header>
 
-        <div class="messenger-shell">
+        <div
+            class="messenger-shell"
+            data-messenger-realtime
+            data-conversations-url="{{ route('crm.conversations') }}"
+            data-inbox-broadcast-channel="private-crm.conversations"
+            data-broadcast-auth-url="{{ url('/broadcasting/auth') }}"
+            data-reverb-key="{{ $reverb['key'] }}"
+            data-reverb-host="{{ $reverbPublicHost ?: (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) ? request()->getHost() : $reverb['options']['host']) }}"
+            data-reverb-port="{{ $reverbPublicHost ? $reverbPublicPort : (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) && request()->secure() ? '' : $reverb['options']['port']) }}"
+            data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
+        >
             <aside class="messenger-list">
                 <div class="messenger-list-head">
                     <div>
@@ -71,14 +89,6 @@
 
     <section class="messenger-chat">
         @if($activeConversation)
-            @php($reverb = config('broadcasting.connections.reverb'))
-            @php($reverbPublicHost = config('reverb.public.host'))
-            @php($reverbPublicPort = config('reverb.public.port'))
-            @php($reverbPublicScheme = match (config('reverb.public.scheme')) {
-                'https' => 'wss',
-                'http' => 'ws',
-                default => config('reverb.public.scheme'),
-            })
             @php($canReply = $currentUser->can('conversation.view_all') || (int) $activeConversation->assigned_to === (int) $currentUser->id)
             @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userIsInCurrentShift($currentUser, $activeConversation->work_shift_id))
             <header class="messenger-chat-head">
@@ -228,6 +238,7 @@
 
     let timeline = document.querySelector('[data-messenger-timeline]');
     let composer = document.querySelector('[data-messenger-composer]');
+    const realtimeRoot = document.querySelector('[data-messenger-realtime]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     let attachmentUpload = {
         files: [],
@@ -768,6 +779,8 @@
             return;
         }
 
+        list.querySelector('.messenger-empty')?.remove();
+
         let thread = list.querySelector(`[data-thread-conversation-id="${message.conversation_id}"]`);
 
         if (!thread) {
@@ -805,6 +818,36 @@
         }
 
         updateThreadPreview(message);
+    }
+
+    async function refreshThreadList() {
+        const list = document.querySelector('.messenger-thread-list');
+
+        if (!list || !realtimeRoot?.dataset.conversationsUrl) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        url.pathname = new URL(realtimeRoot.dataset.conversationsUrl, window.location.origin).pathname;
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'text/html',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const freshList = doc.querySelector('.messenger-thread-list');
+
+        if (freshList) {
+            list.innerHTML = freshList.innerHTML;
+        }
     }
 
     async function fetchNewMessages() {
@@ -893,7 +936,7 @@
 
     async function subscribeToChannels(socket, socketId, channels) {
         for (const channel of [...new Set(channels)]) {
-            const response = await fetch(timeline.dataset.broadcastAuthUrl, {
+            const response = await fetch(realtimeRoot.dataset.broadcastAuthUrl, {
                 method: 'POST',
                 headers: {
                     Accept: 'application/json',
@@ -971,6 +1014,9 @@
 
             try {
                 await fetchNewMessages();
+                if (!timeline) {
+                    await refreshThreadList();
+                }
             } finally {
                 pollingInFlight = false;
             }
@@ -1017,8 +1063,8 @@
 
     function startBroadcastSocket() {
         if (
-            !timeline?.dataset.reverbKey ||
-            !timeline?.dataset.reverbHost ||
+            !realtimeRoot?.dataset.reverbKey ||
+            !realtimeRoot?.dataset.reverbHost ||
             !window.WebSocket
         ) {
             return false;
@@ -1026,8 +1072,8 @@
 
         closeMessageSocket();
 
-        const port = timeline.dataset.reverbPort ? `:${timeline.dataset.reverbPort}` : '';
-        const socketUrl = `${timeline.dataset.reverbScheme}://${timeline.dataset.reverbHost}${port}/app/${encodeURIComponent(timeline.dataset.reverbKey)}?protocol=7&client=crm-web&version=1.0&flash=false`;
+        const port = realtimeRoot.dataset.reverbPort ? `:${realtimeRoot.dataset.reverbPort}` : '';
+        const socketUrl = `${realtimeRoot.dataset.reverbScheme}://${realtimeRoot.dataset.reverbHost}${port}/app/${encodeURIComponent(realtimeRoot.dataset.reverbKey)}?protocol=7&client=crm-web&version=1.0&flash=false`;
         console.info('CRM messenger websocket connecting:', socketUrl);
         messageSocket = new WebSocket(socketUrl);
         const socket = messageSocket;
@@ -1039,8 +1085,8 @@
                 if (payload.event === 'pusher:connection_established') {
                     const connection = parsePusherData(payload.data);
                     await subscribeToChannels(socket, connection.socket_id, [
-                        timeline.dataset.broadcastChannel,
-                        timeline.dataset.inboxBroadcastChannel,
+                        timeline?.dataset.broadcastChannel,
+                        realtimeRoot.dataset.inboxBroadcastChannel,
                     ].filter(Boolean));
 
                     return;
@@ -1123,6 +1169,7 @@
         }
 
         realtimeMode = 'polling';
+        startPolling();
     }
 
     if (timeline) {
@@ -1132,26 +1179,30 @@
                 loadOlderMessages();
             }
         });
-        startRealtime();
-
-        document.addEventListener('visibilitychange', function () {
-            if (!document.hidden) {
-                fetchNewMessages().finally(function () {
-                    if (realtimeMode === 'none' || realtimeMode === 'polling') {
-                        startRealtime();
-                    }
-                });
-
-                return;
-            }
-
-            closeMessageSocket();
-            stopFallbackTimer();
-            stopReconnectTimer();
-            stopPolling();
-            realtimeMode = 'none';
-        });
     }
+
+    startRealtime();
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            Promise.all([
+                fetchNewMessages(),
+                timeline ? Promise.resolve() : refreshThreadList(),
+            ]).finally(function () {
+                if (realtimeMode === 'none' || realtimeMode === 'polling') {
+                    startRealtime();
+                }
+            });
+
+            return;
+        }
+
+        closeMessageSocket();
+        stopFallbackTimer();
+        stopReconnectTimer();
+        stopPolling();
+        realtimeMode = 'none';
+    });
 
     composer?.addEventListener('submit', async function (event) {
         event.preventDefault();
