@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('conversations/{conversation}', [MessengerController::class, 'show'])->name('crm.conversations.show');
         Route::post('conversations/{conversation}/attachments', [MessengerController::class, 'uploadAttachments'])->name('crm.conversations.attachments.store');
         Route::post('conversations/{conversation}/claim', [MessengerController::class, 'claim'])->name('crm.conversations.claim');
+        Route::post('conversations/{conversation}/tags', [MessengerController::class, 'tags'])->name('crm.conversations.tags.store');
         Route::post('conversations/{conversation}/messages', [MessengerController::class, 'send'])->name('crm.conversations.messages.store');
         Route::patch('conversations/{conversation}/messages/{message}/recall', [MessengerController::class, 'recallMessage'])->name('crm.conversations.messages.recall');
         Route::delete('conversations/{conversation}/messages/{message}', [MessengerController::class, 'deleteMessage'])->name('crm.conversations.messages.delete');

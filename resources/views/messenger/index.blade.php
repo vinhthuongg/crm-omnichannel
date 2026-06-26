@@ -60,6 +60,12 @@
 
         <form class="messenger-search" method="GET" action="{{ route('crm.conversations') }}">
             <input type="search" name="q" placeholder="Tim kiem tren Messenger" value="{{ $filters['search'] }}">
+            <select name="tag" aria-label="Loc theo tag">
+                <option value="">Tat ca tag</option>
+                @foreach($allTags as $tag)
+                    <option value="{{ $tag->name }}" @selected(($filters['tag'] ?? '') === $tag->name)>{{ $tag->name }}</option>
+                @endforeach
+            </select>
             <button type="submit">Search</button>
         </form>
 
@@ -78,6 +84,13 @@
                     <span class="thread-body">
                         <strong>{{ $conversation->customer?->name ?? 'Customer' }}</strong>
                         <small data-thread-last-message>{{ $lastMessage?->content ?? 'Chua co tin nhan' }}</small>
+                        @if($conversation->tags->isNotEmpty())
+                            <span class="thread-tags">
+                                @foreach($conversation->tags as $tag)
+                                    <b style="--tag-color: {{ $tag->color ?: '#64748b' }}">{{ $tag->name }}</b>
+                                @endforeach
+                            </span>
+                        @endif
                     </span>
                     <span class="thread-meta" data-thread-meta>{{ $conversation->last_message_at?->diffForHumans() }}</span>
                 </a>
@@ -200,16 +213,22 @@
             <form class="messenger-composer {{ $canReply ? '' : 'is-disabled' }}" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer data-can-reply="{{ $canReply ? '1' : '0' }}">
                 @csrf
                 <input type="hidden" name="channel" value="{{ $activeChannel }}">
-                <div class="composer-tabs" aria-hidden="true">
+                @php($activeTagNames = $activeConversation->tags->pluck('name')->all())
+                <div class="composer-tabs" data-conversation-tags data-tags-url="{{ route('crm.conversations.tags.store', $activeConversation) }}">
                     <span class="active">Nhan tin</span>
                     <span>Thi tham</span>
                     <b></b>
-                    <span class="danger">Dang tu van</span>
-                    <span class="success">Goi lan 1</span>
-                    <span>Goi lan 2</span>
-                    <span>Huy</span>
-                    <span>Spam</span>
-                    <span class="success">Da mua</span>
+                    @foreach($tagPresets as $tag)
+                        @php($tagName = $tag['name'])
+                        @php($tagColor = $tag['color'] ?: '#64748b')
+                        <button
+                            type="button"
+                            class="composer-tag {{ in_array($tagName, $activeTagNames, true) ? 'is-active' : '' }}"
+                            style="--tag-color: {{ $tagColor }}"
+                            data-tag-name="{{ $tagName }}"
+                            data-tag-color="{{ $tagColor }}"
+                        >{{ $tagName }}</button>
+                    @endforeach
                     <span class="plus">+</span>
                 </div>
                 <textarea name="content" rows="3" placeholder="Nhap noi dung tin nhan va nhan Enter de gui" autocomplete="off" {{ $canReply ? '' : 'disabled' }}></textarea>
@@ -524,6 +543,7 @@
 
         composer.action = conversation.send_url;
         composer.dataset.uploadUrl = conversation.attachments_url;
+        updateConversationTags(conversation.tags_url, conversation.tags || []);
         const channelInput = composer.querySelector('input[name="channel"]');
 
         if (channelInput) {
@@ -535,6 +555,36 @@
         renderMessages(conversation.messages || []);
         window.history.pushState({conversationUrl: url}, '', url);
         startRealtime();
+    }
+
+    function updateConversationTags(tagsUrl, tags) {
+        const tabs = document.querySelector('[data-conversation-tags]');
+
+        if (!tabs) {
+            return;
+        }
+
+        tabs.dataset.tagsUrl = tagsUrl || '';
+        const activeNames = new Set((tags || []).map((tag) => String(tag.name || '')));
+
+        tabs.querySelectorAll('[data-tag-name]').forEach(function (button) {
+            button.classList.toggle('is-active', activeNames.has(button.dataset.tagName || ''));
+        });
+    }
+
+    function selectedConversationTags() {
+        const tabs = document.querySelector('[data-conversation-tags]');
+
+        if (!tabs) {
+            return [];
+        }
+
+        return Array.from(tabs.querySelectorAll('[data-tag-name].is-active')).map(function (button) {
+            return {
+                name: button.dataset.tagName || button.textContent.trim(),
+                color: button.dataset.tagColor || null,
+            };
+        });
     }
 
     async function loadConversation(url) {
@@ -1377,6 +1427,43 @@
         trigger.addEventListener('click', function () {
             composer.querySelector('[data-composer-files]')?.click();
         });
+    });
+
+    document.querySelector('[data-conversation-tags]')?.addEventListener('click', async function (event) {
+        const button = event.target.closest('[data-tag-name]');
+
+        if (!button) {
+            return;
+        }
+
+        const tabs = event.currentTarget;
+        button.classList.toggle('is-active');
+
+        try {
+            const response = await fetch(tabs.dataset.tagsUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+                body: JSON.stringify({
+                    tags: selectedConversationTags(),
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Khong luu duoc tag.');
+            }
+
+            const payload = await response.json();
+            updateConversationTags(tabs.dataset.tagsUrl, payload.data?.tags || []);
+            await refreshThreadList();
+        } catch (error) {
+            button.classList.toggle('is-active');
+            console.warn('CRM conversation tag update failed:', error);
+        }
     });
 
     async function uploadComposerAttachments(files) {

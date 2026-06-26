@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\WorkShiftService;
 
 class GetMessengerViewDataAction
@@ -19,14 +20,18 @@ class GetMessengerViewDataAction
     public function execute(User $user, ?Conversation $selectedConversation = null, array $filters = []): array
     {
         $search = trim((string) ($filters['search'] ?? ''));
+        $tag = trim((string) ($filters['tag'] ?? ''));
         $conversationQuery = $this->visibleConversations($user)
-            ->with(['customer.channels', 'assignee', 'messages' => fn ($query) => $query->latest()->limit(1)])
+            ->with(['customer.channels', 'assignee', 'tags', 'messages' => fn ($query) => $query->latest()->limit(1)])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->whereHas('customer', function (Builder $customerQuery) use ($search): void {
                     $customerQuery->where('name', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%");
                 });
+            })
+            ->when($tag !== '', function (Builder $query) use ($tag): void {
+                $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tag));
             })
             ->latest('last_message_at');
 
@@ -44,7 +49,9 @@ class GetMessengerViewDataAction
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
-            'filters' => ['search' => $search],
+            'filters' => ['search' => $search, 'tag' => $tag],
+            'tagPresets' => $this->tagPresets(),
+            'allTags' => Tag::query()->orderBy('name')->get(),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
             'messages' => $messages,
@@ -110,10 +117,32 @@ class GetMessengerViewDataAction
         if ($selectedConversation) {
             abort_unless($this->canViewConversation($user, $selectedConversation), 403);
 
-            return $selectedConversation->load(['customer.channels', 'assignee']);
+            return $selectedConversation->load(['customer.channels', 'assignee', 'tags']);
         }
 
-        return $conversations->first()?->load(['customer.channels', 'assignee']);
+        return $conversations->first()?->load(['customer.channels', 'assignee', 'tags']);
+    }
+
+    private function tagPresets(): Collection
+    {
+        $defaults = collect([
+            ['name' => 'Dang tu van', 'color' => '#e11d48'],
+            ['name' => 'Goi lan 1', 'color' => '#16a34a'],
+            ['name' => 'Goi lan 2', 'color' => '#2563eb'],
+            ['name' => 'Huy', 'color' => '#64748b'],
+            ['name' => 'Spam', 'color' => '#6b7280'],
+            ['name' => 'Da mua', 'color' => '#059669'],
+        ]);
+
+        $saved = Tag::query()
+            ->orderBy('name')
+            ->get(['name', 'color'])
+            ->map(fn (Tag $tag): array => ['name' => $tag->name, 'color' => $tag->color]);
+
+        return $defaults
+            ->merge($saved)
+            ->unique('name')
+            ->values();
     }
 
     private function canViewConversation(User $user, Conversation $conversation): bool

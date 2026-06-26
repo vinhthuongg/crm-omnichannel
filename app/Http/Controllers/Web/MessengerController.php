@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Services\WorkShiftService;
 use Modules\Message\Events\MessageDeletedEvent;
@@ -28,6 +29,7 @@ class MessengerController extends Controller
     {
         return view('messenger.index', $action->execute($request->user(), null, [
             'search' => $request->string('q')->toString(),
+            'tag' => $request->string('tag')->toString(),
         ]));
     }
 
@@ -35,6 +37,7 @@ class MessengerController extends Controller
     {
         $data = $action->execute($request->user(), $conversation, [
             'search' => $request->string('q')->toString(),
+            'tag' => $request->string('tag')->toString(),
         ]);
 
         if ($request->expectsJson()) {
@@ -125,7 +128,7 @@ class MessengerController extends Controller
 
     private function conversationPayload(Conversation $conversation, $messages, bool $hasOlderMessages, string $activeChannel, $user): array
     {
-        $conversation->loadMissing(['customer.channels', 'assignee']);
+        $conversation->loadMissing(['customer.channels', 'assignee', 'tags']);
         $canReply = $user->can('conversation.view_all') || (int) $conversation->assigned_to === (int) $user->id;
         $canClaim = ! $conversation->assigned_to && ! $user->can('conversation.view_all')
             && app(WorkShiftService::class)->userIsInCurrentShift($user, $conversation->work_shift_id);
@@ -148,7 +151,12 @@ class MessengerController extends Controller
                 'send_url' => route('crm.conversations.messages.store', $conversation),
                 'attachments_url' => route('crm.conversations.attachments.store', $conversation),
                 'claim_url' => route('crm.conversations.claim', $conversation),
+                'tags_url' => route('crm.conversations.tags.store', $conversation),
                 'broadcast_channel' => 'private-crm.conversation.'.$conversation->id,
+                'tags' => $conversation->tags
+                    ->map(fn (Tag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+                    ->values()
+                    ->all(),
                 'messages' => array_values(is_array($messages) ? $messages : $messages->all()),
                 'meta' => [
                     'has_older_messages' => $hasOlderMessages,
@@ -288,6 +296,30 @@ class MessengerController extends Controller
                 'assigned_to' => (int) $claimed->assigned_to,
                 'assignee_name' => $claimed->assignee?->name,
                 'claimed_at' => $claimed->claimed_at?->toISOString(),
+            ],
+        ]);
+    }
+
+    public function tags(Request $request, Conversation $conversation, ConversationService $service): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+        abort_unless($request->user()->can('conversation.tag'), 403);
+
+        $validated = $request->validate([
+            'tags' => ['array'],
+            'tags.*.name' => ['required', 'string', 'max:80'],
+            'tags.*.color' => ['nullable', 'string', 'max:24'],
+        ]);
+
+        $conversation = $service->syncTags($conversation, $validated['tags'] ?? [], $request->user());
+
+        return response()->json([
+            'data' => [
+                'id' => (int) $conversation->id,
+                'tags' => $conversation->tags
+                    ->map(fn (Tag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+                    ->values()
+                    ->all(),
             ],
         ]);
     }
