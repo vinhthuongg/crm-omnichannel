@@ -572,6 +572,30 @@
         });
     }
 
+    function tagBadgesHtml(tags) {
+        const visibleTags = (tags || []).filter((tag) => tag?.name);
+
+        if (!visibleTags.length) {
+            return '';
+        }
+
+        return `<span class="thread-tags">${visibleTags.map(function (tag) {
+            return `<b style="--tag-color: ${escapeHtml(tag.color || '#64748b')}">${escapeHtml(tag.name)}</b>`;
+        }).join('')}</span>`;
+    }
+
+    function updateThreadTags(conversationId, tags) {
+        const thread = document.querySelector(`[data-thread-conversation-id="${conversationId}"]`);
+        const body = thread?.querySelector('.thread-body');
+
+        if (!body) {
+            return;
+        }
+
+        body.querySelector('.thread-tags')?.remove();
+        body.insertAdjacentHTML('beforeend', tagBadgesHtml(tags));
+    }
+
     function selectedConversationTags() {
         const tabs = document.querySelector('[data-conversation-tags]');
 
@@ -1438,6 +1462,8 @@
 
         const tabs = event.currentTarget;
         const wasActive = button.classList.contains('is-active');
+        const conversationId = timeline?.dataset.conversationId;
+        const previousTags = selectedConversationTags();
 
         tabs.querySelectorAll('[data-tag-name].is-active').forEach(function (activeButton) {
             activeButton.classList.remove('is-active');
@@ -1446,6 +1472,8 @@
         if (!wasActive) {
             button.classList.add('is-active');
         }
+
+        updateThreadTags(conversationId, selectedConversationTags());
 
         try {
             const response = await fetch(tabs.dataset.tagsUrl, {
@@ -1467,9 +1495,11 @@
 
             const payload = await response.json();
             updateConversationTags(tabs.dataset.tagsUrl, payload.data?.tags || []);
+            updateThreadTags(payload.data?.id || timeline?.dataset.conversationId, payload.data?.tags || []);
             await refreshThreadList();
         } catch (error) {
-            button.classList.toggle('is-active');
+            updateConversationTags(tabs.dataset.tagsUrl, previousTags);
+            updateThreadTags(conversationId, previousTags);
             console.warn('CRM conversation tag update failed:', error);
         }
     });
