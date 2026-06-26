@@ -171,12 +171,18 @@
                                         @php($attachmentUrl = (string) ($attachment['url'] ?? ''))
                                         @php($attachmentPath = strtolower((string) parse_url($attachmentUrl, PHP_URL_PATH)))
                                         @php($isVisualAttachment = in_array($attachmentType, ['image', 'sticker'], true) || str_starts_with($attachmentMimeType, 'image/') || preg_match('/\.(png|jpe?g|gif|webp|bmp|avif)$/', $attachmentPath))
+                                        @php($isVideoAttachment = $attachmentType === 'video' || str_starts_with($attachmentMimeType, 'video/') || preg_match('/\.(mp4|mov|m4v|webm|ogg)$/', $attachmentPath))
+                                        @php($isAudioAttachment = $attachmentType === 'audio' || str_starts_with($attachmentMimeType, 'audio/') || preg_match('/\.(mp3|m4a|wav|aac|oga|ogg)$/', $attachmentPath))
                                         @php($stickerId = (string) data_get($attachment, 'payload.sticker_id', ''))
                                         @php($isEmojiAttachment = in_array($stickerId, ['369239263222822'], true))
                                         @if($isVisualAttachment)
                                             <a class="message-image-link {{ $isEmojiAttachment ? 'is-emoji' : 'is-sticker' }}" href="{{ $attachment['url'] ?? '#' }}" target="_blank" rel="noopener">
                                                 <img src="{{ $attachment['url'] ?? '#' }}" alt="{{ $attachment['name'] ?? 'Attachment' }}" loading="lazy">
                                             </a>
+                                        @elseif($isVideoAttachment)
+                                            <video class="message-video" src="{{ $attachmentUrl }}" controls preload="metadata"></video>
+                                        @elseif($isAudioAttachment)
+                                            <audio class="message-audio" src="{{ $attachmentUrl }}" controls preload="metadata"></audio>
                                         @else
                                             <a class="message-file-link" href="{{ $attachment['url'] ?? '#' }}" target="_blank" rel="noopener">
                                                 {{ $attachment['name'] ?? 'Attachment' }}
@@ -624,11 +630,25 @@
         const isVisualAttachment = ['image', 'sticker'].includes(type)
             || mimeType.startsWith('image/')
             || /\.(png|jpe?g|gif|webp|bmp|avif)$/.test(urlPath);
+        const isVideoAttachment = type === 'video'
+            || mimeType.startsWith('video/')
+            || /\.(mp4|mov|m4v|webm|ogg)$/.test(urlPath);
+        const isAudioAttachment = type === 'audio'
+            || mimeType.startsWith('audio/')
+            || /\.(mp3|m4a|wav|aac|oga|ogg)$/.test(urlPath);
         const stickerId = String(attachment?.payload?.sticker_id || '');
         const visualClass = stickerId === '369239263222822' ? 'is-emoji' : 'is-sticker';
 
         if (isVisualAttachment) {
             return `<a class="message-image-link ${visualClass}" href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${name}" loading="lazy"></a>`;
+        }
+
+        if (isVideoAttachment) {
+            return `<video class="message-video" src="${url}" controls preload="metadata"></video>`;
+        }
+
+        if (isAudioAttachment) {
+            return `<audio class="message-audio" src="${url}" controls preload="metadata"></audio>`;
         }
 
         return `<a class="message-file-link" href="${url}" target="_blank" rel="noopener">${name}</a>`;
