@@ -337,7 +337,7 @@
             <section class="profile-section profile-customer-tags" data-customer-tags data-tags-url="{{ route('crm.conversations.customer-tags.store', $activeConversation) }}">
                 <h4>Tag khach hang (F2)</h4>
                 <div class="customer-tag-dropdown">
-                    <input type="search" placeholder="Tim kiem hoac tao the moi..." data-customer-tag-input>
+                    <input type="search" placeholder="Tim kiem tag co san..." data-customer-tag-input>
                     <div class="customer-tag-options" data-customer-tag-options></div>
                 </div>
                 <div class="customer-tag-list" data-customer-tag-list>
@@ -389,7 +389,12 @@
 
         if (event.target.matches('[data-customer-tag-input]') && event.key === 'Enter') {
             event.preventDefault();
-            storeCustomerTag(event.target.value);
+            const tagName = matchingCustomerTagName(event.target.value);
+
+            if (tagName) {
+                storeCustomerTag(tagName);
+            }
+
             event.target.value = '';
         }
     });
@@ -779,7 +784,23 @@
 
         options.innerHTML = visible.length
             ? visible.map((tag) => `<button type="button" data-select-customer-tag="${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</button>`).join('')
-            : '<p>Nhap Enter de tao tag moi.</p>';
+            : '<p>Khong co tag phu hop.</p>';
+    }
+
+    function matchingCustomerTagName(value) {
+        const search = String(value || '').trim().toLowerCase();
+
+        if (!search) {
+            return '';
+        }
+
+        const exact = customerTagOptions.find((tag) => String(tag.name || '').toLowerCase() === search);
+
+        if (exact) {
+            return exact.name;
+        }
+
+        return customerTagOptions.find((tag) => String(tag.name || '').toLowerCase().includes(search))?.name || '';
     }
 
     async function storeCustomerNote(input) {

@@ -162,10 +162,10 @@ class MessengerController extends Controller
                 'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
                 'customer_notes' => $this->customerNotesPayload($conversation),
                 'customer_tags' => $this->customerTagsPayload($conversation),
-                'all_customer_tags' => CustomerTag::query()
+                'all_customer_tags' => Tag::query()
                     ->orderBy('name')
                     ->get()
-                    ->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+                    ->map(fn (Tag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
                     ->values()
                     ->all(),
                 'facebook_page_id' => $conversation->facebook_page_id,
@@ -357,9 +357,15 @@ class MessengerController extends Controller
             return response()->json(['message' => 'Tag khong duoc de trong.'], 422);
         }
 
+        $systemTag = Tag::query()->where('name', $name)->first();
+
+        if (! $systemTag) {
+            return response()->json(['message' => 'Tag nay chua co trong he thong.'], 422);
+        }
+
         $tag = CustomerTag::query()->firstOrCreate(
-            ['name' => $name],
-            ['color' => $validated['color'] ?? '#2563eb'],
+            ['name' => $systemTag->name],
+            ['color' => $systemTag->color ?: '#2563eb'],
         );
 
         $conversation->loadMissing('customer');
@@ -369,10 +375,10 @@ class MessengerController extends Controller
         return response()->json([
             'data' => [
                 'tags' => $this->customerTagsPayload($conversation),
-                'all_tags' => CustomerTag::query()
+                'all_tags' => Tag::query()
                     ->orderBy('name')
                     ->get()
-                    ->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
+                    ->map(fn (Tag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
                     ->values()
                     ->all(),
             ],

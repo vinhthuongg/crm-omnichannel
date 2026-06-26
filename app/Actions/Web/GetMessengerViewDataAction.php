@@ -8,7 +8,6 @@ use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\WorkShiftService;
-use Modules\Customer\Models\CustomerTag;
 
 class GetMessengerViewDataAction
 {
@@ -53,7 +52,7 @@ class GetMessengerViewDataAction
             'filters' => ['search' => $search, 'tag' => $tag],
             'tagPresets' => $this->tagPresets(),
             'allTags' => Tag::query()->orderBy('name')->get(),
-            'allCustomerTags' => CustomerTag::query()->orderBy('name')->get(),
+            'allCustomerTags' => Tag::query()->orderBy('name')->get(),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
             'profilePanel' => $this->profilePanel($activeConversation),
