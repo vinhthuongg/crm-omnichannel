@@ -96,7 +96,6 @@
                     </span>
                     <span class="thread-side">
                         <span class="thread-meta" data-thread-meta>{{ $conversation->last_message_at?->diffForHumans() }}</span>
-                        <span class="thread-read-state" data-thread-read-state>{{ $unreadCount > 0 ? 'Chua doc' : '' }}</span>
                         <span class="thread-unread-badge" data-thread-unread-badge>{{ $unreadCount > 0 ? $unreadCount : '' }}</span>
                     </span>
                 </a>
@@ -978,17 +977,12 @@
 
         const unreadCount = Math.max(0, Number(count || 0));
         const badge = thread.querySelector('[data-thread-unread-badge]');
-        const readState = thread.querySelector('[data-thread-read-state]');
 
         thread.dataset.threadUnreadCount = String(unreadCount);
         thread.classList.toggle('is-unread', unreadCount > 0);
 
         if (badge) {
             badge.textContent = unreadCount > 0 ? String(unreadCount) : '';
-        }
-
-        if (readState) {
-            readState.textContent = unreadCount > 0 ? 'Chua doc' : '';
         }
     }
 
@@ -1044,7 +1038,6 @@
                 </span>
                 <span class="thread-side">
                     <span class="thread-meta" data-thread-meta></span>
-                    <span class="thread-read-state" data-thread-read-state></span>
                     <span class="thread-unread-badge" data-thread-unread-badge></span>
                 </span>
             `;
