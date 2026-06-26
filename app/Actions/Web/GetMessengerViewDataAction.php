@@ -56,6 +56,7 @@ class GetMessengerViewDataAction
             'allCustomerTags' => CustomerTag::query()->orderBy('name')->get(),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
+            'profilePanel' => $this->profilePanel($activeConversation),
             'messages' => $messages,
             'hasOlderMessages' => $activeConversation && $oldestMessageId > 0
                 ? $activeConversation->messages()->where('id', '<', $oldestMessageId)->exists()
@@ -148,6 +149,52 @@ class GetMessengerViewDataAction
             ->merge($saved)
             ->unique('name')
             ->values();
+    }
+
+    private function profilePanel(?Conversation $conversation): array
+    {
+        if (! $conversation?->customer) {
+            return [
+                'facebook_profile_url' => '#',
+                'details' => [],
+                'notes' => [],
+                'tags' => [],
+            ];
+        }
+
+        $customer = $conversation->customer;
+        $facebookChannel = $customer->channels?->firstWhere('channel', 'facebook');
+        $facebookProfileUrl = $facebookChannel?->external_id ? 'https://www.facebook.com/'.$facebookChannel->external_id : '#';
+
+        return [
+            'facebook_profile_url' => $facebookProfileUrl,
+            'details' => collect([
+                ['label' => 'Ten cong khai', 'value' => $customer->name],
+                ['label' => 'So dien thoai', 'value' => $customer->phone],
+                ['label' => 'Email', 'value' => $customer->email],
+                ['label' => 'Facebook PSID', 'value' => $facebookChannel?->external_id],
+                ['label' => 'Kenh', 'value' => $facebookChannel ? ucfirst($facebookChannel->channel) : null],
+            ])
+                ->filter(fn (array $detail): bool => filled($detail['value']))
+                ->values()
+                ->all(),
+            'notes' => $customer->notes
+                ?->sortByDesc('created_at')
+                ->map(fn ($note): array => [
+                    'body' => $note->body,
+                    'author' => $note->user?->name ?? 'Admin',
+                    'created_at' => $note->created_at?->format('H:i d/m/Y'),
+                ])
+                ->values()
+                ->all() ?? [],
+            'tags' => $customer->tags
+                ?->map(fn ($tag): array => [
+                    'name' => $tag->name,
+                    'color' => $tag->color ?: '#2563eb',
+                ])
+                ->values()
+                ->all() ?? [],
+        ];
     }
 
     private function canViewConversation(User $user, Conversation $conversation): bool

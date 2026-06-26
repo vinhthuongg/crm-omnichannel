@@ -278,19 +278,6 @@
     </section>
     <aside class="messenger-profile-panel" data-profile-panel>
         @if($activeConversation)
-            @php
-                $facebookChannel = $activeConversation->customer?->channels?->firstWhere('channel', 'facebook');
-                $facebookProfileUrl = $facebookChannel?->external_id ? 'https://www.facebook.com/'.$facebookChannel->external_id : '#';
-                $customerDetails = collect([
-                    ['label' => 'Ten cong khai', 'value' => $activeConversation->customer?->name],
-                    ['label' => 'So dien thoai', 'value' => $activeConversation->customer?->phone],
-                    ['label' => 'Email', 'value' => $activeConversation->customer?->email],
-                    ['label' => 'Facebook PSID', 'value' => $facebookChannel?->external_id],
-                    ['label' => 'Kenh', 'value' => $facebookChannel ? ucfirst($facebookChannel->channel) : null],
-                ])->filter(fn ($detail) => filled($detail['value']))->values();
-                $customerNotes = $activeConversation->customer?->notes?->sortByDesc('created_at')->values() ?? collect();
-                $customerTags = $activeConversation->customer?->tags ?? collect();
-            @endphp
             <header class="profile-card-head">
                 <span class="thread-avatar" data-profile-avatar>
                     @if($activeConversation->customer?->avatar)
@@ -301,39 +288,41 @@
                 </span>
                 <div>
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
-                    <a href="{{ $facebookProfileUrl }}" target="_blank" rel="noopener" data-profile-link>Xem trang ca nhan</a>
+                    <a href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" data-profile-link>Xem trang ca nhan</a>
                 </div>
                 <button type="button" aria-label="More profile actions">...</button>
-                <a class="profile-next" href="{{ $facebookProfileUrl }}" target="_blank" rel="noopener" aria-label="Open profile">&gt;</a>
+                <a class="profile-next" href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" aria-label="Open profile">&gt;</a>
             </header>
 
             <section class="profile-section profile-details">
                 <h4>Chi tiet khach hang</h4>
                 <div class="profile-detail-list" data-profile-details>
-                    @forelse($customerDetails as $detail)
+                    @if(count($profilePanel['details']) === 0)
+                        <p>Chua co thong tin cong khai.</p>
+                    @endif
+                    @foreach($profilePanel['details'] as $detail)
                         <span>{{ $detail['label'] }}</span>
                         <strong>{{ $detail['value'] }}</strong>
-                    @empty
-                        <p>Chua co thong tin cong khai.</p>
-                    @endforelse
+                    @endforeach
                 </div>
             </section>
 
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
                 <header>
-                    <h4>Ghi chu (<span data-note-count>{{ $customerNotes->count() }}</span>) (F6)</h4>
+                    <h4>Ghi chu (<span data-note-count>{{ count($profilePanel['notes']) }}</span>) (F6)</h4>
                     <button type="button" data-notes-toggle>Xem tat ca &gt;</button>
                 </header>
                 <textarea rows="3" placeholder="Nhap ghi chu va an enter" data-note-input></textarea>
                 <div class="profile-note-list" data-note-list>
-                    @forelse($customerNotes as $note)
-                        <article data-note-item>
-                            <p>{{ $note->body }}</p>
-                            <time>{{ $note->user?->name ?? 'Admin' }} - {{ $note->created_at?->format('H:i d/m/Y') }}</time>
-                        </article>
-                    @empty
+                    @if(count($profilePanel['notes']) === 0)
                         <p class="profile-empty">Chua co ghi chu nao.</p>
-                    @endforelse
+                    @endif
+                    @foreach($profilePanel['notes'] as $note)
+                        <article data-note-item>
+                            <p>{{ $note['body'] }}</p>
+                            <time>{{ $note['author'] }} - {{ $note['created_at'] }}</time>
+                        </article>
+                    @endforeach
                 </div>
             </section>
 
@@ -344,11 +333,12 @@
                     <div class="customer-tag-options" data-customer-tag-options></div>
                 </div>
                 <div class="customer-tag-list" data-customer-tag-list>
-                    @forelse($customerTags as $tag)
-                        <span style="--tag-color: {{ $tag->color ?: '#2563eb' }}">{{ $tag->name }}</span>
-                    @empty
+                    @if(count($profilePanel['tags']) === 0)
                         <p class="profile-empty">Khach hang chua co the nao</p>
-                    @endforelse
+                    @endif
+                    @foreach($profilePanel['tags'] as $tag)
+                        <span style="--tag-color: {{ $tag['color'] }}">{{ $tag['name'] }}</span>
+                    @endforeach
                 </div>
             </section>
         @else
