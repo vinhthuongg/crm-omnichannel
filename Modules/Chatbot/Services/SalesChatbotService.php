@@ -280,6 +280,10 @@ class SalesChatbotService
 
     private function structuredVehicleAnswer(Conversation $conversation, array $state, string $detail, array $matches): string
     {
+        $bankLoanProcesses = collect($matches)
+            ->where('source', 'quytrinh_vay_nganhang')
+            ->values();
+
         $prices = collect($matches)
             ->where('source', 'giaxe_json')
             ->unique(fn (array $document): string => implode('|', [
@@ -309,6 +313,10 @@ class SalesChatbotService
             ]))
             ->take(5)
             ->values();
+
+        if ($prices->isEmpty() && $promotions->isEmpty() && $installments->isEmpty() && $bankLoanProcesses->isNotEmpty()) {
+            return $this->bankLoanProcessAnswer($conversation, $state, $detail, $bankLoanProcesses);
+        }
 
         $model = (string) (
             data_get($prices->first(), 'metadata.model')
@@ -379,6 +387,7 @@ class SalesChatbotService
 
             $lines[] = '';
             $lines[] = 'Giá lăn bánh và phương án trả góp thực tế còn phụ thuộc khu vực đăng ký, số tiền trả trước, thời hạn vay và phê duyệt của đơn vị tài chính.';
+            $this->appendBankLoanProcessSummary($lines, $bankLoanProcesses);
             $lines[] = 'Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để tính phương án trả góp chi tiết cho mình ạ.';
 
             $nextState = [
@@ -462,11 +471,19 @@ class SalesChatbotService
         }
 
         $query = trim('tra gop lai suat '.$model.' '.$content);
-        $matches = collect($this->knowledgeBase->contextDocuments($query, 'INSTALLMENT_LOAN'))
+        $documents = collect($this->knowledgeBase->contextDocuments($query, 'INSTALLMENT_LOAN'));
+        $bankLoanProcesses = $documents
+            ->where('source', 'quytrinh_vay_nganhang')
+            ->values();
+        $matches = $documents
             ->where('source', 'ctrinh_tragop')
             ->values();
 
         if ($matches->isEmpty()) {
+            if ($bankLoanProcesses->isNotEmpty()) {
+                return $this->bankLoanProcessAnswer($conversation, $state, $content, $bankLoanProcesses);
+            }
+
             return "Dạ em đã nhận nhu cầu trả góp của Anh/Chị.\n\nHiện em chưa thấy chương trình lãi suất phù hợp với mẫu {$model} trong file dữ liệu trả góp. Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ kiểm tra trực tiếp với bộ phận tài chính và phản hồi lại ngay ạ.";
         }
 
@@ -499,6 +516,7 @@ class SalesChatbotService
 
         $lines[] = '';
         $lines[] = 'Thông tin trên là tham khảo theo chương trình trong file dữ liệu. Hồ sơ thực tế còn phụ thuộc số tiền trả trước, thời hạn vay và phê duyệt của đơn vị tài chính.';
+        $this->appendBankLoanProcessSummary($lines, $bankLoanProcesses);
         $lines[] = 'Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để tính phương án trả góp chi tiết cho mình ạ.';
 
         $conversation->forceFill([
@@ -511,6 +529,113 @@ class SalesChatbotService
         ])->save();
 
         return implode("\n", $lines);
+    }
+
+    private function bankLoanProcessAnswer(Conversation $conversation, array $state, string $content, $processes): string
+    {
+        $document = $this->selectBankLoanProcessDocument($content, $processes);
+        $title = (string) data_get($document, 'metadata.title', 'Quy trình vay ngân hàng liên kết');
+        $answer = (string) data_get($document, 'metadata.answer', '');
+        $followUp = (string) data_get($document, 'metadata.follow_up', '');
+        $lines = [
+            "Dạ, em gửi Anh/Chị thông tin về {$title}:",
+            '',
+        ];
+
+        if ($answer !== '') {
+            $lines[] = $answer;
+        }
+
+        foreach ($this->bankLoanProcessBullets($document) as $line) {
+            $lines[] = $line;
+        }
+
+        if ($followUp !== '') {
+            $lines[] = '';
+            $lines[] = $followUp;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Anh/Chị cho em xin số điện thoại hoặc Zalo, bên em sẽ chuyển nhân viên tài chính hỗ trợ kiểm tra hồ sơ và phương án ngân hàng phù hợp cho mình ạ.';
+
+        $conversation->forceFill([
+            'automation_state' => [
+                ...$state,
+                'topic' => 'INSTALLMENT_LOAN',
+                'label' => 'Vay tra gop',
+                'payment_method' => 'installment',
+                'step' => 'awaiting_phone',
+                'bank_loan_process_step' => data_get($document, 'metadata.step'),
+                'bank_loan_process_at' => now()->toISOString(),
+            ],
+        ])->save();
+
+        return implode("\n", array_values(array_filter($lines, fn (string $line): bool => $line !== '')));
+    }
+
+    private function selectBankLoanProcessDocument(string $content, $processes): array
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+        $step = match (true) {
+            str_contains($normalized, 'giay to') || str_contains($normalized, 'ho so') => '4',
+            str_contains($normalized, 'dieu kien') || str_contains($normalized, 'no xau') || str_contains($normalized, 'thu nhap') => '3',
+            str_contains($normalized, 'quy trinh') || str_contains($normalized, 'xet duyet') || str_contains($normalized, 'duyet') => '2',
+            str_contains($normalized, 'tinh thu') || str_contains($normalized, 'tra truoc') || str_contains($normalized, 'hang thang') => '5',
+            str_contains($normalized, 'ai ho tro') || str_contains($normalized, 'nhan vien tai chinh') => '6',
+            default => '1',
+        };
+
+        return (array) ($processes->firstWhere('metadata.step', $step) ?? $processes->first() ?? []);
+    }
+
+    private function bankLoanProcessBullets(array $document): array
+    {
+        $lines = [];
+        $processSteps = (array) data_get($document, 'metadata.process_steps', []);
+        $conditions = (array) data_get($document, 'metadata.loan_conditions', []);
+        $documentGroups = (array) data_get($document, 'metadata.document_groups', []);
+        $summary = (array) data_get($document, 'metadata.quick_summary', []);
+        $clarifyingQuestions = (array) data_get($document, 'metadata.clarifying_questions', []);
+
+        foreach ($processSteps as $item) {
+            $lines[] = '- '.trim((string) $item);
+        }
+
+        foreach ($conditions as $item) {
+            $lines[] = '- '.trim((string) $item);
+        }
+
+        foreach ($documentGroups as $group => $items) {
+            $label = str_replace('_', ' ', (string) $group);
+            $lines[] = '- '.$label.': '.implode('; ', array_filter(array_map('strval', (array) $items)));
+        }
+
+        foreach ($summary as $item) {
+            $lines[] = '- '.trim((string) $item);
+        }
+
+        if ($clarifyingQuestions !== []) {
+            $lines[] = '';
+            $lines[] = 'Để em chọn ngân hàng phù hợp hơn, Anh/Chị cho em biết thêm:';
+            foreach (array_slice($clarifyingQuestions, 0, 3) as $question) {
+                $lines[] = '- '.trim((string) $question);
+            }
+        }
+
+        return array_values(array_filter($lines, fn (string $line): bool => $line !== '-'));
+    }
+
+    private function appendBankLoanProcessSummary(array &$lines, $processes): void
+    {
+        if ($processes->isEmpty()) {
+            return;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Quy trình vay qua ngân hàng liên kết:';
+        $lines[] = '- Bên em hỗ trợ gửi hồ sơ sang Toyota Finance hoặc ngân hàng liên kết như VPBank, MB Bank, TPBank, BIDV.';
+        $lines[] = '- Ngân hàng thường xét duyệt trong 1-2 ngày làm việc.';
+        $lines[] = '- Khi hồ sơ duyệt xong, Anh/Chị đóng phần trả trước, ký hồ sơ vay và nhận xe.';
     }
 
     private function installmentPackageTitle(string $model, string $product): string

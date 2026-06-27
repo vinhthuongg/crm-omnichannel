@@ -10,6 +10,7 @@ class VehicleKnowledgeBase
             $this->priceDocuments(),
             $this->promotionDocuments(),
             $this->installmentDocuments(),
+            $this->bankLoanProcessDocuments(),
         ));
     }
 
@@ -17,9 +18,14 @@ class VehicleKnowledgeBase
     {
         $documents = collect($this->documents());
         $matchedModels = collect($this->detectModels($query));
+        $processes = collect($this->bankLoanProcessDocuments())
+            ->filter(fn (array $document): bool => $this->matchesBankLoanProcess($query, $document))
+            ->take(6);
 
         if ($matchedModels->isEmpty()) {
-            return [];
+            return $topic === 'INSTALLMENT_LOAN' || $processes->isNotEmpty()
+                ? $processes->values()->all()
+                : [];
         }
 
         $matched = $documents->filter(function (array $document) use ($matchedModels): bool {
@@ -45,7 +51,7 @@ class VehicleKnowledgeBase
 
         return match ($topic) {
             'PROMOTIONS' => $promotions->merge($prices)->values()->all(),
-            'INSTALLMENT_LOAN' => $installments->merge($prices)->merge($promotions)->values()->all(),
+            'INSTALLMENT_LOAN' => $installments->merge($prices)->merge($promotions)->merge($processes)->values()->all(),
             default => $prices->merge($promotions)->values()->all(),
         };
     }
@@ -246,6 +252,130 @@ class VehicleKnowledgeBase
             ->filter(fn (array $doc): bool => $doc['text'] !== '')
             ->values()
             ->all();
+    }
+
+    private function bankLoanProcessDocuments(): array
+    {
+        $payload = $this->json('quytrinh_vay_nganhang.txt');
+        $processName = $this->value($payload, 'ten_quy_trinh');
+
+        return collect((array) data_get($payload, 'cac_buoc_quy_trinh', []))
+            ->map(function (array $row) use ($processName): array {
+                $step = (string) ($row['buoc'] ?? '');
+                $title = $this->value($row, 'tieu_de');
+                $answer = $this->value($row, 'cau_tra_loi_nhan_vien');
+
+                $parts = [
+                    $processName,
+                    "Bước {$step}: {$title}.",
+                    $this->value($row, 'cau_hoi_khach_hang'),
+                    $answer,
+                    $this->listText((array) ($row['cau_hoi_lam_ro_nhu_cau'] ?? []), 'Câu hỏi làm rõ'),
+                    $this->listText((array) ($row['cac_buoc_thuc_hien'] ?? []), 'Quy trình'),
+                    $this->value($row, 'ghi_chu_nhan_vien'),
+                    $this->value($row, 'cau_hoi_goi_mo'),
+                    $this->loanDocumentGroups((array) ($row['nhom_giay_to'] ?? [])),
+                    $this->value($row, 'ghi_chu_nop_ho_so'),
+                    $this->estimateText((array) ($row['phuong_an_uoc_tinh'] ?? [])),
+                    $this->value($row, 'hanh_dong_tiep_theo'),
+                    $this->listText((array) ($row['tom_tat_quy_trinh_nhanh'] ?? []), 'Tóm tắt nhanh'),
+                ];
+
+                return [
+                    'id' => 'bank-loan-process:'.$step,
+                    'source' => 'quytrinh_vay_nganhang',
+                    'metadata' => [
+                        'step' => $step,
+                        'title' => $title,
+                        'answer' => $answer,
+                        'clarifying_questions' => (array) ($row['cau_hoi_lam_ro_nhu_cau'] ?? []),
+                        'process_steps' => (array) ($row['cac_buoc_thuc_hien'] ?? []),
+                        'loan_conditions' => (array) ($row['dieu_kien_vay'] ?? []),
+                        'document_groups' => (array) ($row['nhom_giay_to'] ?? []),
+                        'quick_summary' => (array) ($row['tom_tat_quy_trinh_nhanh'] ?? []),
+                        'follow_up' => (string) (
+                            $row['cau_hoi_goi_mo']
+                            ?? $row['ghi_chu_nhan_vien']
+                            ?? $row['ghi_chu_nop_ho_so']
+                            ?? $row['hanh_dong_tiep_theo']
+                            ?? ''
+                        ),
+                    ],
+                    'text' => trim(implode(' ', array_filter($parts))),
+                ];
+            })
+            ->filter(fn (array $doc): bool => $doc['text'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private function matchesBankLoanProcess(string $query, array $document): bool
+    {
+        $normalizedQuery = $this->normalize($query);
+        $normalizedText = $this->normalize((string) ($document['text'] ?? ''));
+        $keywords = [
+            'vay',
+            'tra gop',
+            'gop',
+            'ngan hang',
+            'ho so',
+            'giay to',
+            'dieu kien',
+            'duyet',
+            'xet duyet',
+            'vpbank',
+            'mb',
+            'mb bank',
+            'tpbank',
+            'bidv',
+            'tfs',
+            'toyota finance',
+            'tra truoc',
+            'tai chinh',
+        ];
+
+        foreach ($keywords as $keyword) {
+            if (str_contains($normalizedQuery, $keyword)) {
+                return true;
+            }
+        }
+
+        return collect(explode(' ', $normalizedQuery))
+            ->filter(fn (string $word): bool => strlen($word) >= 4)
+            ->contains(fn (string $word): bool => str_contains($normalizedText, $word));
+    }
+
+    private function listText(array $items, string $label): string
+    {
+        $values = array_values(array_filter(array_map(fn ($item): string => trim((string) $item), $items)));
+
+        return $values === []
+            ? ''
+            : $label.': '.implode('; ', $values).'.';
+    }
+
+    private function loanDocumentGroups(array $groups): string
+    {
+        if ($groups === []) {
+            return '';
+        }
+
+        return collect($groups)
+            ->map(function (array $items, string $group): string {
+                return str_replace('_', ' ', $group).': '.implode('; ', array_filter(array_map('strval', $items)));
+            })
+            ->implode('. ');
+    }
+
+    private function estimateText(array $estimate): string
+    {
+        if ($estimate === []) {
+            return '';
+        }
+
+        return collect($estimate)
+            ->map(fn ($value, string $key): string => str_replace('_', ' ', $key).': '.trim((string) $value))
+            ->implode('; ');
     }
 
     private function json(string $filename): array

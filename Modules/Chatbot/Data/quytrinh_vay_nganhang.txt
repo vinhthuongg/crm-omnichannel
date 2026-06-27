@@ -1,0 +1,84 @@
+{
+  "ten_quy_trinh": "Hành trình mua xe và vay qua ngân hàng liên kết",
+  "cac_buoc_quy_trinh": [
+    {
+      "buoc": 1,
+      "tieu_de": "Khách bắt đầu quan tâm đến trả góp",
+      "cau_hoi_khach_hang": "Anh/chị đang tìm hiểu mua xe trả góp, nhưng không rõ phải vay ở đâu. Đại lý có bắt buộc vay qua Toyota Finance không em?",
+      "cau_tra_loi_nhan_vien": "Dạ không bắt buộc đâu ạ! Ngoài Toyota Finance (TFS), bên em còn liên kết với nhiều ngân hàng khác như VPBank, MB Bank, TPBank, BIDV... Anh/chị có thể chọn ngân hàng phù hợp với hồ sơ và nhu cầu vay của mình.",
+      "cau_hoi_lam_ro_nhu_cau": [
+        "Mình có sẵn tài khoản ngân hàng nào chưa ạ?",
+        "Mình muốn vay trong bao nhiêu năm để chia nhỏ hàng tháng?",
+        "Mức đầu tư hàng tháng mình thấy thoải mái là khoảng bao nhiêu?"
+      ]
+    },
+    {
+      "buoc": 2,
+      "tieu_de": "Giải thích ngân hàng liên kết - Quy trình vay",
+      "cau_hoi_khach_hang": "Vậy vay qua mấy ngân hàng đó thì quy trình sao em? Có phức tạp không?",
+      "cau_tra_loi_nhan_vien": "Dạ quy trình rất rõ ràng và bên em có bộ phận hỗ trợ hoàn toàn.",
+      "cac_buoc_thuc_hien": [
+        "Bước 1: Mình chọn xe và gói vay phù hợp",
+        "Bước 2: Bên em hỗ trợ gửi hồ sơ sang ngân hàng liên kết",
+        "Bước 3: Ngân hàng xét duyệt trong 1-2 ngày làm việc",
+        "Bước 4: Khi hồ sơ duyệt xong, mình chỉ cần đóng phần trả trước và ký hồ sơ vay là nhận xe luôn ạ"
+      ],
+      "ghi_chu_nhan_vien": "Trong suốt quá trình, anh/chị không cần phải trực tiếp lên ngân hàng đâu, có nhân viên bên em lo trọn gói!"
+    },
+    {
+      "buoc": 3,
+      "tieu_de": "Điều kiện vay mua xe qua ngân hàng liên kết",
+      "cau_hoi_khach_hang": "Vậy muốn vay thì cần điều kiện gì?",
+      "cau_tra_loi_nhan_vien": "Dạ, điều kiện chung là công dân Việt Nam từ 21-65 tuổi, có thu nhập ổn định từ lương, kinh doanh hoặc cho thuê, không có nợ xấu ngân hàng. Khách có thể vay một mình hoặc cùng vợ/chồng đứng tên đồng vay để tăng khả năng duyệt.",
+      "cau_hoi_goi_mo": "Thu nhập chính của mình đến từ lương công ty, kinh doanh hay nguồn nào khác ạ? Em sẽ chọn ngân hàng phù hợp hơn cho mình."
+    },
+    {
+      "buoc": 4,
+      "tieu_de": "Giấy tờ cần chuẩn bị",
+      "cau_hoi_khach_hang": "Vậy chuẩn bị giấy tờ gì để làm hồ sơ vay?",
+      "cau_tra_loi_nhan_vien": "Tùy theo mình đi làm công ty hay kinh doanh, giấy tờ có thể hơi khác nhau.",
+      "nhom_giay_to": {
+        "nhan_vien_cong_ty_luong_chuyen_khoan": [
+          "CMND/CCCD + Hộ khẩu hoặc KT3",
+          "Giấy đăng ký kết hôn hoặc giấy xác nhận độc thân",
+          "Hợp đồng lao động",
+          "Sao kê lương 3-6 tháng gần nhất"
+        ],
+        "ho_kinh_doanh_hoac_doanh_nghiep": [
+          "CMND/CCCD + Hộ khẩu",
+          "Giấy phép kinh doanh",
+          "Hóa đơn đầu ra - đầu vào, hoặc sao kê ngân hàng"
+        ]
+      },
+      "ghi_chu_nop_ho_so": "Bên em có mẫu sẵn từng loại hồ sơ, anh/chị chỉ cần gửi qua Zalo là bên em lọc và sắp xếp theo yêu cầu ngân hàng ạ."
+    },
+    {
+      "buoc": 5,
+      "tieu_de": "Ước tính gói vay - Chốt phương án",
+      "cau_hoi_khach_hang": "Anh muốn tính thử vay Veloz bản Top. Trả trước khoảng 200 triệu thì được không?",
+      "cau_tra_loi_nhan_vien": "Dạ, để em tính thử phương án vay qua ngân hàng VPBank.",
+      "phuong_an_uoc_tinh": {
+        "mau_xe": "Veloz bản Top",
+        "ngan_hang_tinh_mau": "VPBank",
+        "gia_lan_banh": "735 triệu",
+        "tra_truoc": "200 triệu (27%)",
+        "so_tien_vay": "535 triệu",
+        "thoi_gian_vay": "7 năm",
+        "uoc_tinh_hang_thang": "khoảng 9.2 triệu/tháng (lãi suất khoảng 0.9%/tháng, cố định 6 tháng đầu)"
+      },
+      "hanh_dong_tiep_theo": "Em gửi bảng tính chi tiết kèm luôn phương án ngân hàng MB và BIDV để mình so sánh nha."
+    },
+    {
+      "buoc": 6,
+      "tieu_de": "Chốt hồ sơ - Điều phối nhân viên tài chính",
+      "cau_hoi_khach_hang": "Nếu anh làm hồ sơ vay thì ai hỗ trợ?",
+      "cau_tra_loi_nhan_vien": "Dạ bên em có nhân viên tài chính chuyên trách, sẽ liên hệ anh/chị để nhận hồ sơ, hỗ trợ khai form vay, gửi ngân hàng xét duyệt và báo kết quả. Mình chỉ cần ở nhà hoặc văn phòng là được ạ.",
+      "tom_tat_quy_trinh_nhanh": [
+        "Mình chọn gói vay phù hợp gồm số năm và số tiền trả trước",
+        "Em gửi anh/chị danh sách giấy tờ cần chuẩn bị",
+        "Nhân viên tài chính nhận hồ sơ, nộp ngân hàng và báo kết quả trong 1-2 ngày",
+        "Sau khi duyệt xong, anh/chị chỉ cần ký hợp đồng và nhận xe"
+      ]
+    }
+  ]
+}
