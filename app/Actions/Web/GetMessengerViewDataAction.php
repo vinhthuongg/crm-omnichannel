@@ -3,6 +3,7 @@
 namespace App\Actions\Web;
 
 use App\Models\User;
+use App\Support\InitialMessageTemplate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
@@ -63,6 +64,7 @@ class GetMessengerViewDataAction
             'activeConversation' => $activeConversation,
             'profilePanel' => $this->profilePanel($activeConversation),
             'messages' => $messages,
+            'initialMessageTemplate' => InitialMessageTemplate::phoneCaptureFor($activeConversation),
             'hasOlderMessages' => $activeConversation && $oldestMessageId > 0
                 ? $activeConversation->messages()->where('id', '<', $oldestMessageId)->exists()
                 : false,

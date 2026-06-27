@@ -6,6 +6,7 @@ use App\Actions\Web\GetMessengerViewDataAction;
 use App\Actions\Web\SendMessengerMessageAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\SendMessengerMessageRequest;
+use App\Support\InitialMessageTemplate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -177,6 +178,7 @@ class MessengerController extends Controller
                 'delete_url' => route('crm.conversations.destroy', $conversation),
                 'clear_messages_url' => route('crm.conversations.messages.clear', $conversation),
                 'attachments_url' => route('crm.conversations.attachments.store', $conversation),
+                'initial_message_template' => InitialMessageTemplate::phoneCaptureFor($conversation),
                 'claim_url' => route('crm.conversations.claim', $conversation),
                 'tags_url' => route('crm.conversations.tags.store', $conversation),
                 'broadcast_channel' => 'private-crm.conversation.'.$conversation->id,
