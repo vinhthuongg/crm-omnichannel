@@ -3,6 +3,7 @@
 namespace Modules\Chatbot\Services;
 
 use App\Support\InitialMessageTemplate;
+use Illuminate\Support\Facades\Log;
 use Modules\Chatbot\DTO\ChatbotReply;
 use Modules\Conversation\Models\Conversation;
 use Modules\Customer\Models\Customer;
@@ -22,6 +23,11 @@ class SalesChatbotService
     public function replyFor(Conversation $conversation, Customer $customer, InboundMessageData $data): ?ChatbotReply
     {
         if (! config('chatbot.enabled', true)) {
+            Log::warning('Chatbot reply disabled by config', [
+                'conversation_id' => $conversation->id,
+                'channel' => $data->channel,
+            ]);
+
             return null;
         }
 
@@ -42,6 +48,11 @@ class SalesChatbotService
     public function replyForMessage(Conversation $conversation, Customer $customer, Message $message): ?ChatbotReply
     {
         if (! config('chatbot.enabled', true)) {
+            Log::warning('Chatbot reply disabled by config', [
+                'conversation_id' => $conversation->id,
+                'channel' => $message->channel,
+            ]);
+
             return null;
         }
 

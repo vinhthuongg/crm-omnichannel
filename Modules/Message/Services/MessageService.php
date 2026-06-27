@@ -69,22 +69,61 @@ class MessageService
         });
 
         $this->broadcastNewMessage($message);
+        Log::info('Chatbot inbound message stored', [
+            'message_id' => $message->id,
+            'conversation_id' => $conversation->id,
+            'channel' => $data->channel,
+            'chatbot_enabled' => (bool) config('chatbot.enabled', true),
+            'chatbot_async' => (bool) config('chatbot.async', false),
+            'content_blank' => blank($data->content),
+            'customer_has_phone' => filled($customer->phone),
+            'unread_messages_count' => (int) $conversation->unread_messages_count,
+        ]);
 
         if (config('chatbot.async', false)) {
+            Log::info('Chatbot auto reply dispatched async', [
+                'message_id' => $message->id,
+                'conversation_id' => $conversation->id,
+            ]);
             SendChatbotReplyJob::dispatch($message->id);
 
             return $message;
         }
 
-        $autoReply = $this->createChatbotReply(
-            $conversation,
-            $data->channel,
-            $this->chatbot->replyFor($conversation, $customer, $data),
-        );
+        $reply = $this->chatbot->replyFor($conversation, $customer, $data);
+
+        if (! $reply || $reply->content === '') {
+            Log::warning('Chatbot auto reply skipped', [
+                'message_id' => $message->id,
+                'conversation_id' => $conversation->id,
+                'channel' => $data->channel,
+                'reason' => ! $reply ? 'reply_null' : 'content_blank',
+                'automation_state' => $conversation->automation_state,
+                'customer_has_phone' => filled($customer->phone),
+            ]);
+
+            return $message;
+        }
+
+        $autoReply = $this->createChatbotReply($conversation, $data->channel, $reply);
 
         if ($autoReply) {
+            Log::info('Chatbot auto reply created', [
+                'message_id' => $message->id,
+                'auto_message_id' => $autoReply->id,
+                'conversation_id' => $conversation->id,
+                'channel' => $data->channel,
+                'client_message_id' => $autoReply->client_message_id,
+            ]);
             $this->broadcastNewMessage($autoReply);
             $this->sendAutoReplyAfterResponse($autoReply);
+        } else {
+            Log::warning('Chatbot auto reply duplicate skipped', [
+                'message_id' => $message->id,
+                'conversation_id' => $conversation->id,
+                'channel' => $data->channel,
+                'client_message_key' => $reply->clientMessageKey,
+            ]);
         }
 
         return $message;
@@ -207,10 +246,23 @@ class MessageService
             $message = $message->fresh(['conversation.customer.channels']);
 
             if (! $message?->conversation || $message->outbound_status !== 'queued') {
+                Log::warning('Chatbot auto outbound skipped before send', [
+                    'message_id' => $message?->id,
+                    'conversation_id' => $message?->conversation_id,
+                    'outbound_status' => $message?->outbound_status,
+                    'has_conversation' => (bool) $message?->conversation,
+                ]);
+
                 return;
             }
 
             try {
+                Log::info('Chatbot auto outbound sending', [
+                    'message_id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'channel' => $message->channel,
+                ]);
+
                 $message->forceFill([
                     'outbound_status' => 'sending',
                     'outbound_error' => null,
@@ -231,6 +283,13 @@ class MessageService
                     'sent_at' => now(),
                 ])->save();
                 event(new MessageUpdatedEvent($message));
+
+                Log::info('Chatbot auto outbound sent', [
+                    'message_id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'channel' => $message->channel,
+                    'external_message_id' => $externalMessageId,
+                ]);
             } catch (\Throwable $exception) {
                 $message->forceFill([
                     'outbound_status' => 'failed',
