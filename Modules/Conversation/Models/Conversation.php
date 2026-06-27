@@ -54,10 +54,6 @@ class Conversation extends Model
         $this->forceFill([
             'unread_messages_count' => 0,
             'last_read_at' => now(),
-            'automation_state' => [
-                ...(array) ($this->automation_state ?? []),
-                'paused_by_user_at' => now()->toISOString(),
-            ],
         ])->save();
     }
 

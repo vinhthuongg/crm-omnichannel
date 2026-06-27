@@ -47,10 +47,6 @@ class SendChatbotReplyJob implements ShouldQueue
             return;
         }
 
-        if ($conversation->last_read_at && $conversation->last_read_at->gte($inbound->created_at)) {
-            return;
-        }
-
         if ($this->humanIsHandlingConversation($conversation, $inbound)) {
             return;
         }
@@ -126,12 +122,24 @@ class SendChatbotReplyJob implements ShouldQueue
         $state = (array) ($conversation->automation_state ?? []);
 
         if (filled($state['paused_by_user_at'] ?? null)) {
-            return true;
+            return $this->hasHumanUserMessageSincePause($conversation, (string) $state['paused_by_user_at']);
         }
 
         return $conversation->messages()
             ->where('sender_type', 'user')
             ->where('created_at', '>=', $inbound->created_at)
+            ->where(function ($query): void {
+                $query->whereNull('client_message_id')
+                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
+            })
+            ->exists();
+    }
+
+    private function hasHumanUserMessageSincePause($conversation, string $pausedAt): bool
+    {
+        return $conversation->messages()
+            ->where('sender_type', 'user')
+            ->where('created_at', '>=', $pausedAt)
             ->where(function ($query): void {
                 $query->whereNull('client_message_id')
                     ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');

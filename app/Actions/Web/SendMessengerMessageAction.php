@@ -64,7 +64,8 @@ class SendMessengerMessageAction
                     ? $conversation->automation_state
                     : [
                         ...(array) ($conversation->automation_state ?? []),
-                        'paused_by_user_at' => now()->toISOString(),
+                        'paused_by_user_at' => $message->created_at?->toISOString() ?? now()->toISOString(),
+                        'paused_by_user_message_id' => $message->id,
                     ],
             ])->save();
 
