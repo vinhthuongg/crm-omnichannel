@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('omnichannel.connected')->group(function (): void {
         Route::get('messenger', [MessengerController::class, 'index'])->name('messenger.index');
         Route::get('conversations', [MessengerController::class, 'index'])->name('crm.conversations');
+        Route::delete('conversations/{conversation}', [MessengerController::class, 'destroy'])->name('crm.conversations.destroy');
         Route::get('conversations/{conversation}/messages/stream', [MessengerController::class, 'messageStream'])->name('crm.conversations.messages.stream');
         Route::get('conversations/{conversation}/messages', [MessengerController::class, 'messages'])->name('crm.conversations.messages.index');
         Route::delete('conversations/{conversation}/messages', [MessengerController::class, 'clearMessages'])->name('crm.conversations.messages.clear');

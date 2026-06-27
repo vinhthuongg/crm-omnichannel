@@ -159,10 +159,10 @@
                     <button
                         type="button"
                         class="chat-delete-messages"
-                        title="Xoa tin nhan"
-                        aria-label="Xoa tat ca tin nhan trong hoi thoai"
-                        data-clear-messages-url="{{ route('crm.conversations.messages.clear', $activeConversation) }}"
-                        data-clear-messages-button
+                        title="Xoa hoi thoai"
+                        aria-label="Xoa hoi thoai"
+                        data-delete-conversation-url="{{ route('crm.conversations.destroy', $activeConversation) }}"
+                        data-delete-conversation-button
                     >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" fill="currentColor"/>
@@ -454,14 +454,14 @@
     });
 
     document.querySelector('.chat-actions')?.addEventListener('click', function (event) {
-        const clearButton = event.target.closest('[data-clear-messages-button]');
+        const deleteButton = event.target.closest('[data-delete-conversation-button]');
 
-        if (!clearButton) {
+        if (!deleteButton) {
             return;
         }
 
         event.preventDefault();
-        clearConversationMessages(clearButton);
+        deleteConversation(deleteButton);
     });
 
     document.querySelector('[data-profile-panel]')?.addEventListener('keydown', function (event) {
@@ -1167,7 +1167,7 @@
         const chatPhone = document.querySelector('[data-chat-customer-phone]');
         const chatAssignee = document.querySelector('[data-chat-assignee]');
         const chatChannel = document.querySelector('[data-chat-channel]');
-        const clearButton = document.querySelector('[data-clear-messages-button]');
+        const deleteButton = document.querySelector('[data-delete-conversation-button]');
 
         if (chatAvatar) {
             chatAvatar.innerHTML = avatarHtml(conversation.customer_avatar, customerName);
@@ -1192,8 +1192,8 @@
             chatChannel.href = `/channels?channel=${encodeURIComponent(conversation.active_channel || 'facebook')}`;
         }
 
-        if (clearButton) {
-            clearButton.dataset.clearMessagesUrl = conversation.clear_messages_url || '';
+        if (deleteButton) {
+            deleteButton.dataset.deleteConversationUrl = conversation.delete_url || '';
         }
 
         timeline.dataset.conversationId = conversation.id;
@@ -1924,10 +1924,10 @@
         });
     }
 
-    async function clearConversationMessages(button) {
-        const url = button?.dataset.clearMessagesUrl;
+    async function deleteConversation(button) {
+        const url = button?.dataset.deleteConversationUrl;
 
-        if (!url || !window.confirm('Xoa toan bo tin nhan trong hoi thoai nay?')) {
+        if (!url || !window.confirm('Xoa hoi thoai nay khoi CRM?')) {
             return;
         }
 
@@ -1945,18 +1945,23 @@
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload.message || 'Khong xoa duoc tin nhan.');
+                throw new Error(payload.message || 'Khong xoa duoc hoi thoai.');
             }
 
             handleDeletedMessages(payload.data || {});
         } catch (error) {
-            window.alert(error.message || 'Khong xoa duoc tin nhan.');
+            window.alert(error.message || 'Khong xoa duoc hoi thoai.');
         } finally {
             button.disabled = false;
         }
     }
 
     function handleDeletedMessages(payload) {
+        if (payload.delete_conversation) {
+            removeConversationThread(payload.conversation_id);
+            return;
+        }
+
         if (String(payload?.conversation_id) !== String(timeline?.dataset.conversationId)) {
             return;
         }
@@ -1979,6 +1984,29 @@
             conversation_id: payload.conversation_id,
             content: 'Da xoa tin nhan',
         });
+    }
+
+    function removeConversationThread(conversationId) {
+        const thread = document.querySelector(`[data-thread-conversation-id="${conversationId}"]`);
+        const wasActive = String(conversationId) === String(timeline?.dataset.conversationId);
+        const fallbackThread = thread?.nextElementSibling?.matches?.('.messenger-thread')
+            ? thread.nextElementSibling
+            : thread?.previousElementSibling?.matches?.('.messenger-thread')
+            ? thread.previousElementSibling
+            : document.querySelector(`.messenger-thread:not([data-thread-conversation-id="${conversationId}"])`);
+
+        thread?.remove();
+
+        if (!wasActive) {
+            return;
+        }
+
+        if (fallbackThread) {
+            loadConversation(fallbackThread.dataset.conversationUrl || fallbackThread.href);
+            return;
+        }
+
+        window.location.href = realtimeRoot?.dataset.conversationsUrl || '/conversations';
     }
 
     async function runPollingLoop() {

@@ -185,6 +185,7 @@ class MessengerController extends Controller
                 'read_url' => route('crm.conversations.read', $conversation),
                 'stream_url' => route('crm.conversations.messages.stream', $conversation),
                 'send_url' => route('crm.conversations.messages.store', $conversation),
+                'delete_url' => route('crm.conversations.destroy', $conversation),
                 'clear_messages_url' => route('crm.conversations.messages.clear', $conversation),
                 'attachments_url' => route('crm.conversations.attachments.store', $conversation),
                 'claim_url' => route('crm.conversations.claim', $conversation),
@@ -560,6 +561,30 @@ class MessengerController extends Controller
                 'conversation_id' => (int) $conversation->id,
                 'message_ids' => [],
                 'clear_all' => true,
+            ],
+        ]);
+    }
+
+    public function destroy(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+
+        $conversationId = (int) $conversation->id;
+
+        DB::transaction(function () use ($conversation): void {
+            $conversation->messages()->withTrashed()->forceDelete();
+            $conversation->tags()->detach();
+            $conversation->delete();
+        });
+
+        event(new MessageDeletedEvent($conversationId, [], true, true));
+
+        return response()->json([
+            'data' => [
+                'conversation_id' => $conversationId,
+                'message_ids' => [],
+                'clear_all' => true,
+                'delete_conversation' => true,
             ],
         ]);
     }
