@@ -214,13 +214,23 @@ class SalesChatbotService
             $label = 'Vay tra gop';
         }
 
-        if ($topic === '' && $model !== '' && $this->isVehicleBuyingIntent($detail)) {
+        if ($topic === '' && $model !== '') {
             $topic = 'PRICE_BY_AREA';
             $label = 'Bao gia lan banh';
         }
 
         $query = trim(($state['search_prefix'] ?? $label).' '.$detail.' '.$model);
         $directMatches = $this->knowledgeBase->contextDocuments($query, $topic);
+
+        Log::info('Chatbot detail answer resolved', [
+            'conversation_id' => $conversation->id,
+            'topic' => $topic,
+            'label' => $label,
+            'model' => $model,
+            'detail' => $detail,
+            'matches' => count($directMatches),
+            'state_step' => $state['step'] ?? null,
+        ]);
 
         if ($directMatches === [] && $this->needsSpecificVehicle($topic, $detail)) {
             return $this->askForVehicleModel($state);
