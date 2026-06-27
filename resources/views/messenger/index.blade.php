@@ -1715,6 +1715,8 @@
         const isActiveThread = String(message.conversation_id) === String(timeline?.dataset.conversationId);
 
         if (isActiveThread) {
+            updateConversationTags(document.querySelector('[data-conversation-tags]')?.dataset.tagsUrl || '', message.conversation_tags || []);
+
             if (message.conversation_unread_messages_count !== undefined) {
                 updateThreadUnread(thread, message.conversation_unread_messages_count);
             }
@@ -2272,7 +2274,10 @@
 
             const payload = await response.json();
             replacePendingMessage(pendingId, payload.data);
-            if (Array.isArray(payload.data?.conversation_tags)) {
+            if (
+                Array.isArray(payload.data?.conversation_tags)
+                && String(payload.data?.conversation_id) === String(timeline?.dataset.conversationId)
+            ) {
                 updateConversationTags(document.querySelector('[data-conversation-tags]')?.dataset.tagsUrl || '', payload.data.conversation_tags);
                 updateThreadTags(payload.data.conversation_id, payload.data.conversation_tags);
             }

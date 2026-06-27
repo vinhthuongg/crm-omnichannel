@@ -5,6 +5,7 @@ namespace Modules\Message\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Models\Tag;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Message\DTO\InboundMessageData;
@@ -56,6 +57,8 @@ class MessageService
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id, 'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType, 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
             $conversation->incrementUnreadMessages();
+            $this->markConversationAsWaitingForConsulting($conversation);
+
             return $message;
         });
 
@@ -120,6 +123,8 @@ class MessageService
                 'status' => 'open',
                 'unread_messages_count' => 0,
             ])->save();
+            $this->markConversationAsConsulting($conversation);
+
             return $message;
         });
 
@@ -134,5 +139,26 @@ class MessageService
             event(new NewMessageEvent($message));
         } catch (\Throwable) {
         }
+    }
+
+    private function markConversationAsWaitingForConsulting(Conversation $conversation): void
+    {
+        $this->syncConversationStatusTag($conversation, 'Khach dang doi tu van', '#f59e0b');
+    }
+
+    private function markConversationAsConsulting(Conversation $conversation): void
+    {
+        $this->syncConversationStatusTag($conversation, 'Dang tu van', '#e11d48');
+    }
+
+    private function syncConversationStatusTag(Conversation $conversation, string $name, string $color): void
+    {
+        $tag = Tag::query()->firstOrCreate(
+            ['name' => $name],
+            ['color' => $color],
+        );
+
+        $conversation->tags()->sync([$tag->id]);
+        $conversation->load('tags');
     }
 }

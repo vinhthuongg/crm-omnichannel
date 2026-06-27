@@ -179,6 +179,7 @@ class GetMessengerViewDataAction
     {
         $defaults = collect([
             ['name' => 'Dang tu van', 'color' => '#e11d48'],
+            ['name' => 'Khach dang doi tu van', 'color' => '#f59e0b'],
             ['name' => 'Goi lan 1', 'color' => '#16a34a'],
             ['name' => 'Goi lan 2', 'color' => '#2563eb'],
             ['name' => 'Huy', 'color' => '#64748b'],
