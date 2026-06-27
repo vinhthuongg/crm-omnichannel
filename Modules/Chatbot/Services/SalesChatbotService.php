@@ -122,10 +122,15 @@ class SalesChatbotService
 
         if ($this->isGreeting($content)) {
             $menu = InitialMessageTemplate::serviceMenuFor($conversation);
+            $alreadyGreeted = $this->hasGreeted($conversation, $state);
+            $replyContent = $alreadyGreeted
+                ? $this->followUpGreetingMessage($state)
+                : ($menu !== '' ? $menu : $this->greetingMessage());
+            $this->markGreeted($conversation, $state);
 
             return new ChatbotReply(
-                content: $menu !== '' ? $menu : $this->greetingMessage(),
-                quickReplies: $menu !== '' ? $this->knowledgeBase->quickReplies() : [],
+                content: $replyContent,
+                quickReplies: ! $alreadyGreeted && $menu !== '' ? $this->knowledgeBase->quickReplies() : [],
                 clientMessageKey: $this->replyKey($conversation, $source, 'greeting'),
             );
         }
@@ -229,8 +234,8 @@ class SalesChatbotService
         }
 
         $summary = $context !== ''
-            ? "Kính chào Anh/Chị,\n\nEm xin gửi thông tin tham khảo cho {$detail}:\n".$this->compactContext($context)
-            : "Kính chào Anh/Chị,\n\nEm đã ghi nhận nhu cầu {$detail} của Anh/Chị.";
+            ? "Dạ em gửi Anh/Chị thông tin tham khảo cho {$detail}:\n".$this->compactContext($context)
+            : "Dạ em đã ghi nhận nhu cầu {$detail} của Anh/Chị.";
 
         return $summary."\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại ngay để tư vấn chi tiết và xác nhận báo giá/ưu đãi chính xác nhất ạ.";
     }
@@ -296,9 +301,7 @@ class SalesChatbotService
         );
 
         $lines = [
-            'Kính chào Anh/Chị,',
-            '',
-            "Em gửi Anh/Chị thông tin tham khảo cho mẫu {$model} theo dữ liệu hiện có của Toyota Kiên Giang:",
+            "Dạ em gửi Anh/Chị thông tin tham khảo cho mẫu {$model} theo dữ liệu hiện có của Toyota Kiên Giang:",
         ];
 
         if ($prices->isNotEmpty()) {
@@ -336,13 +339,12 @@ class SalesChatbotService
             $lines[] = 'Chương trình trả góp tham khảo:';
 
             foreach ($installments as $document) {
-                $package = (string) data_get($document, 'metadata.package', '');
                 $product = (string) data_get($document, 'metadata.product', '');
                 $phaseOne = (string) data_get($document, 'metadata.phase_one', '');
                 $phaseTwo = (string) data_get($document, 'metadata.phase_two', '');
                 $months = (string) data_get($document, 'metadata.months', '');
 
-                $lines[] = "- {$package}";
+                $lines[] = '- '.$this->installmentPackageTitle($model, $product);
                 $lines[] = "  Sản phẩm: {$product}";
 
                 if ($phaseOne !== '') {
@@ -435,13 +437,12 @@ class SalesChatbotService
         ];
 
         foreach ($matches->take(5) as $document) {
-            $package = (string) data_get($document, 'metadata.package', '');
             $product = (string) data_get($document, 'metadata.product', '');
             $phaseOne = (string) data_get($document, 'metadata.phase_one', '');
             $phaseTwo = (string) data_get($document, 'metadata.phase_two', '');
             $months = (string) data_get($document, 'metadata.months', '');
 
-            $lines[] = "- {$package}";
+            $lines[] = '- '.$this->installmentPackageTitle($model, $product);
             $lines[] = "  Sản phẩm: {$product}";
 
             if ($phaseOne !== '') {
@@ -473,6 +474,13 @@ class SalesChatbotService
         return implode("\n", $lines);
     }
 
+    private function installmentPackageTitle(string $model, string $product): string
+    {
+        $product = trim($product);
+
+        return trim("Gói trả góp {$model}".($product !== '' ? " - {$product}" : ''));
+    }
+
     private function isGreeting(string $content): bool
     {
         $normalized = str($content)->lower()->ascii()->squish()->toString();
@@ -485,11 +493,52 @@ class SalesChatbotService
         return "Kính chào Anh/Chị,\n\nToyota Kiên Giang rất vui được hỗ trợ Anh/Chị. Anh/Chị đang quan tâm mẫu xe hoặc nhu cầu tư vấn nào ạ?\n\nAnh/Chị có thể nhắn tên xe như Vios, Veloz Cross, Yaris Cross, Corolla Cross, Camry, Fortuner, Innova Cross, Raize hoặc Hilux để em kiểm tra giá và ưu đãi phù hợp ạ.";
     }
 
+    private function followUpGreetingMessage(array $state): string
+    {
+        $model = (string) ($state['model'] ?? '');
+
+        if ($model !== '') {
+            return "Dạ em vẫn đang hỗ trợ Anh/Chị về mẫu {$model} ạ. Anh/Chị muốn em kiểm tra thêm giá lăn bánh, ưu đãi, trả góp hay tình trạng xe cho mình ạ?";
+        }
+
+        return 'Dạ em đang hỗ trợ Anh/Chị ạ. Anh/Chị muốn em kiểm tra mẫu xe hoặc nhu cầu tư vấn nào tiếp theo ạ?';
+    }
+
+    private function hasGreeted(Conversation $conversation, array $state): bool
+    {
+        if (filled($state['greeted_at'] ?? null)) {
+            return true;
+        }
+
+        return $conversation->messages()
+            ->where('sender_type', 'user')
+            ->where('client_message_id', 'like', 'auto-chatbot-%')
+            ->where(function ($query): void {
+                $query->where('content', 'like', 'Kính chào Anh/Chị%')
+                    ->orWhere('content', 'like', 'KÃ­nh chÃ o Anh/Chá»‹%');
+            })
+            ->exists();
+    }
+
+    private function markGreeted(Conversation $conversation, array $state): void
+    {
+        if (filled($state['greeted_at'] ?? null)) {
+            return;
+        }
+
+        $conversation->forceFill([
+            'automation_state' => [
+                ...$state,
+                'greeted_at' => now()->toISOString(),
+            ],
+        ])->save();
+    }
+
     private function askForVehicleModel(array $state): string
     {
         $label = (string) ($state['label'] ?? 'tư vấn');
 
-        return "Kính chào Anh/Chị,\n\nEm đã nhận nhu cầu {$label} của Anh/Chị. Để em kiểm tra đúng giá và chương trình ưu đãi hiện hành, Anh/Chị vui lòng cho em biết mẫu xe mình đang quan tâm ạ.\n\nVí dụ: Vios, Veloz Cross, Yaris Cross, Corolla Cross, Camry, Fortuner, Innova Cross, Raize hoặc Hilux.\n\nSau khi có mẫu xe, em sẽ gửi thông tin giá và khuyến mãi phù hợp nhất ạ.";
+        return "Dạ em đã nhận nhu cầu {$label} của Anh/Chị. Để em kiểm tra đúng giá và chương trình ưu đãi hiện hành, Anh/Chị vui lòng cho em biết mẫu xe mình đang quan tâm ạ.\n\nVí dụ: Vios, Veloz Cross, Yaris Cross, Corolla Cross, Camry, Fortuner, Innova Cross, Raize hoặc Hilux.\n\nSau khi có mẫu xe, em sẽ gửi thông tin giá và khuyến mãi phù hợp nhất ạ.";
     }
 
     private function compactContext(string $context): string
