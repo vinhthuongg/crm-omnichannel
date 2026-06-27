@@ -175,7 +175,10 @@ class MessageService
             'content' => $content,
             'message_type' => 'text',
             'attachments' => $channel === 'facebook'
-                ? [['type' => 'quick_reply', 'content_type' => 'user_phone_number']]
+                ? [[
+                    'type' => 'quick_reply',
+                    'quick_replies' => InitialMessageTemplate::messengerQuickReplies(),
+                ]]
                 : [],
             'client_message_id' => $clientMessageId,
             'outbound_status' => 'queued',

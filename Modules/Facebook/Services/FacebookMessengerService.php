@@ -18,13 +18,11 @@ class FacebookMessengerService
         return $this->sendTextPayload($recipientId, ['text' => $message], $pageAccessToken);
     }
 
-    public function sendTextWithPhoneQuickReply(string $recipientId, string $message, ?string $pageAccessToken = null): array
+    public function sendTextWithQuickReplies(string $recipientId, string $message, array $quickReplies, ?string $pageAccessToken = null): array
     {
         return $this->sendTextPayload($recipientId, [
             'text' => $message,
-            'quick_replies' => [
-                ['content_type' => 'user_phone_number'],
-            ],
+            'quick_replies' => array_values($quickReplies),
         ], $pageAccessToken);
     }
 
