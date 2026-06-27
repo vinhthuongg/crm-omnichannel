@@ -258,7 +258,7 @@
                 @endforeach
             </section>
 
-            <form class="messenger-composer {{ $canReply ? '' : 'is-disabled' }}" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer data-can-reply="{{ $canReply ? '1' : '0' }}" data-initial-message-template="{{ $initialMessageTemplate }}">
+            <form class="messenger-composer {{ $canReply ? '' : 'is-disabled' }}" method="POST" action="{{ route('crm.conversations.messages.store', $activeConversation) }}" enctype="multipart/form-data" data-upload-url="{{ route('crm.conversations.attachments.store', $activeConversation) }}" data-messenger-composer data-can-reply="{{ $canReply ? '1' : '0' }}">
                 @csrf
                 <input type="hidden" name="channel" value="{{ $activeChannel }}">
                 <input type="hidden" name="message_mode" value="message" data-message-mode>
@@ -280,7 +280,7 @@
                     @endforeach
                     <span class="plus">+</span>
                 </div>
-                <textarea name="content" rows="3" placeholder="Nhap noi dung tin nhan va nhan Enter de gui" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content', $initialMessageTemplate) }}</textarea>
+                <textarea name="content" rows="3" placeholder="Nhap noi dung tin nhan va nhan Enter de gui" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
                     <span class="thread-avatar mini composer-user-avatar">
                         @if($currentUser->avatar ?? null)
@@ -1197,7 +1197,6 @@
 
         composer.action = conversation.send_url;
         composer.dataset.uploadUrl = conversation.attachments_url;
-        applyInitialMessageTemplate(conversation.initial_message_template || '');
         updateConversationTags(conversation.tags_url, conversation.tags || []);
         const channelInput = composer.querySelector('input[name="channel"]');
 
@@ -1210,21 +1209,6 @@
         renderMessages(conversation.messages || []);
         window.history.pushState({conversationUrl: url}, '', url);
         startRealtime();
-    }
-
-    function applyInitialMessageTemplate(nextTemplate) {
-        if (!composer) {
-            return;
-        }
-
-        const input = composer.querySelector('[name="content"]');
-        const previousTemplate = composer.dataset.initialMessageTemplate || '';
-
-        if (input && (input.value.trim() === '' || input.value === previousTemplate)) {
-            input.value = nextTemplate;
-        }
-
-        composer.dataset.initialMessageTemplate = nextTemplate;
     }
 
     function updateConversationTags(tagsUrl, tags) {

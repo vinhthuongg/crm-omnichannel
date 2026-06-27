@@ -13,11 +13,11 @@ Toyota Kiên Giang xin gửi đến Quý Anh/Chị lời chúc sức khỏe, h�
 
 Hiện tại, Toyota Kiên Giang đang hỗ trợ:
 
-Báo giá lăn bánh mới nhất theo từng khu vực.
-Cập nhật các chương trình ưu đãi và khuyến mãi hiện hành.
-Tư vấn các gói vay trả góp với lãi suất phù hợp.
-Kiểm tra tình trạng xe, màu xe và thời gian giao xe.
-Tư vấn lựa chọn phiên bản phù hợp với nhu cầu và ngân sách.
+- Báo giá lăn bánh mới nhất theo từng khu vực.
+- Cập nhật các chương trình ưu đãi và khuyến mãi hiện hành.
+- Tư vấn các gói vay trả góp với lãi suất phù hợp.
+- Kiểm tra tình trạng xe, màu xe và thời gian giao xe.
+- Tư vấn lựa chọn phiên bản phù hợp với nhu cầu và ngân sách.
 
 Để em hỗ trợ Quý Anh/Chị nhanh chóng và chính xác nhất, Quý Anh/Chị vui lòng cho em xin số điện thoại hoặc Zalo. Em sẽ liên hệ trong thời gian sớm nhất để gửi báo giá, chương trình ưu đãi và tư vấn chi tiết theo đúng nhu cầu của mình.
 

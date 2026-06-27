@@ -3,6 +3,7 @@
 namespace Modules\Message\Services;
 
 use App\Models\User;
+use App\Support\InitialMessageTemplate;
 use Illuminate\Support\Facades\DB;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
@@ -10,6 +11,7 @@ use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
+use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -37,7 +39,7 @@ class MessageService
             }
         }
 
-        $message = DB::transaction(function () use ($data): Message {
+        [$message, $autoReply] = DB::transaction(function () use ($data): array {
             $facebookPageId = (string) data_get($data->metadata, 'facebook_page_id', '');
             $channel = CustomerChannel::query()->where('channel', $data->channel)->where('external_id', $data->externalCustomerId)->first();
             $customer = $channel?->customer ?? Customer::query()->create(['name' => $data->customerName, 'avatar' => $data->customerAvatar]);
@@ -58,11 +60,17 @@ class MessageService
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
             $conversation->incrementUnreadMessages();
             $this->markConversationAsWaitingForConsulting($conversation);
+            $autoReply = $this->createPhoneCaptureAutoReply($conversation, $data->channel);
 
-            return $message;
+            return [$message, $autoReply];
         });
 
         $this->broadcastNewMessage($message);
+
+        if ($autoReply) {
+            $this->broadcastNewMessage($autoReply);
+            SendOutboundMessageJob::dispatch($autoReply->id);
+        }
 
         return $message;
     }
@@ -139,6 +147,43 @@ class MessageService
             event(new NewMessageEvent($message));
         } catch (\Throwable) {
         }
+    }
+
+    private function createPhoneCaptureAutoReply(Conversation $conversation, string $channel): ?Message
+    {
+        $content = InitialMessageTemplate::phoneCaptureFor($conversation);
+
+        if ($content === '') {
+            return null;
+        }
+
+        $clientMessageId = 'auto-phone-capture-'.$conversation->id;
+        $existing = Message::query()
+            ->where('channel', $channel)
+            ->where('client_message_id', $clientMessageId)
+            ->first();
+
+        if ($existing) {
+            return null;
+        }
+
+        $message = $this->repository->create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'user',
+            'sender_id' => $conversation->assigned_to ?: User::role('Admin')->value('id') ?: User::query()->value('id'),
+            'channel' => $channel,
+            'content' => $content,
+            'message_type' => 'text',
+            'attachments' => [],
+            'client_message_id' => $clientMessageId,
+            'outbound_status' => 'queued',
+        ]);
+
+        $conversation->forceFill([
+            'last_message_at' => $message->created_at,
+        ])->save();
+
+        return $message;
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
