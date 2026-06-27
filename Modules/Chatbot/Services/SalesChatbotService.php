@@ -159,16 +159,13 @@ class SalesChatbotService
         $label = (string) ($state['label'] ?? 'Tu van');
         $topic = (string) ($state['topic'] ?? '');
         $query = trim(($state['search_prefix'] ?? $label).' '.$detail);
-        try {
-            $matches = collect($this->knowledgeBase->contextDocuments($query, $topic))
-                ->merge($this->vectors->search($query, 8))
-                ->unique('id')
-                ->take(10)
-                ->values()
-                ->all();
-        } catch (\Throwable) {
-            $matches = $this->knowledgeBase->contextDocuments($query, $topic);
+        $directMatches = $this->knowledgeBase->contextDocuments($query, $topic);
+
+        if ($directMatches === [] && $this->needsSpecificVehicle($topic, $detail)) {
+            return $this->askForVehicleModel($state);
         }
+
+        $matches = $directMatches;
         $context = collect($matches)->pluck('text')->implode("\n");
 
         try {
@@ -189,6 +186,34 @@ class SalesChatbotService
             : "Kính chào Anh/Chị,\n\nEm đã ghi nhận nhu cầu {$detail} của Anh/Chị.";
 
         return $summary."\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại ngay để tư vấn chi tiết và xác nhận báo giá/ưu đãi chính xác nhất ạ.";
+    }
+
+    private function needsSpecificVehicle(string $topic, string $detail): bool
+    {
+        $normalized = str($detail)->lower()->ascii()->squish()->toString();
+
+        if (preg_match('/(?:\+?84|0)(?:[\s.\-()]?\d){8,10}/', $detail)) {
+            return false;
+        }
+
+        if (in_array($topic, ['PRICE_BY_AREA', 'PROMOTIONS', 'INSTALLMENT_LOAN', 'VEHICLE_AVAILABILITY', 'VERSION_CONSULTING'], true)) {
+            return true;
+        }
+
+        return str_contains($normalized, 'gia')
+            || str_contains($normalized, 'bao gia')
+            || str_contains($normalized, 'khuyen mai')
+            || str_contains($normalized, 'uu dai')
+            || str_contains($normalized, 'tra gop')
+            || str_contains($normalized, 'mau xe')
+            || str_contains($normalized, 'phien ban');
+    }
+
+    private function askForVehicleModel(array $state): string
+    {
+        $label = (string) ($state['label'] ?? 'tư vấn');
+
+        return "Kính chào Anh/Chị,\n\nEm đã nhận nhu cầu {$label} của Anh/Chị. Để em kiểm tra đúng giá và chương trình ưu đãi hiện hành, Anh/Chị vui lòng cho em biết mẫu xe mình đang quan tâm ạ.\n\nVí dụ: Vios, Veloz Cross, Yaris Cross, Corolla Cross, Camry, Fortuner, Innova Cross, Raize hoặc Hilux.\n\nSau khi có mẫu xe, em sẽ gửi thông tin giá và khuyến mãi phù hợp nhất ạ.";
     }
 
     private function compactContext(string $context): string
