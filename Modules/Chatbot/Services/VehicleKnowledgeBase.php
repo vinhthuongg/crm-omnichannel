@@ -9,6 +9,7 @@ class VehicleKnowledgeBase
         return array_values(array_merge(
             $this->priceDocuments(),
             $this->promotionDocuments(),
+            $this->installmentDocuments(),
         ));
     }
 
@@ -48,8 +49,13 @@ class VehicleKnowledgeBase
             ->where('source', 'ctkm_json')
             ->take(8);
 
+        $installments = $matched
+            ->where('source', 'ctrinh_tragop')
+            ->take(8);
+
         return match ($topic) {
             'PROMOTIONS' => $promotions->merge($prices)->values()->all(),
+            'INSTALLMENT_LOAN' => $installments->merge($prices)->values()->all(),
             default => $prices->merge($promotions)->values()->all(),
         };
     }
@@ -181,9 +187,70 @@ class VehicleKnowledgeBase
             ->all();
     }
 
+    private function installmentDocuments(): array
+    {
+        $payload = $this->json('ctrinh_tragop.txt');
+        $program = $this->value($payload, 'ten_chuong_trinh');
+        $period = $this->value($payload, 'thoi_gian_ap_dung');
+
+        return collect((array) data_get($payload, 'cac_goi_uu_dai', []))
+            ->flatMap(function (array $row) use ($program, $period): array {
+                $package = $this->value($row, 'ten_goi');
+                $product = $this->value($row, 'san_pham');
+                $phaseOne = $this->value((array) data_get($row, 'lai_suat', []), 'giai_doan_1');
+                $phaseTwo = $this->value((array) data_get($row, 'lai_suat', []), 'giai_doan_2');
+                $customer = $this->value((array) data_get($row, 'dieu_kien', []), 'doi_tuong');
+                $minMonths = (string) (
+                    data_get($row, 'dieu_kien.thoi_gian_vay_toi_thieu_thang')
+                    ?: data_get($row, 'dieu_kien.thoi_gian_vay_ap_dung_thang')
+                    ?: ''
+                );
+
+                return collect((array) data_get($row, 'mau_xe_ap_dung', []))
+                    ->map(function (string $model) use ($row, $program, $period, $package, $product, $phaseOne, $phaseTwo, $customer, $minMonths): array {
+                        $text = trim(implode(' ', array_filter([
+                            "Chuong trinh tra gop Toyota Kien Giang {$program}.",
+                            $period,
+                            "Mau xe ap dung: {$model}.",
+                            "Goi uu dai: {$package}.",
+                            "San pham vay: {$product}.",
+                            $phaseOne !== '' ? "Lai suat giai doan 1: {$phaseOne}." : '',
+                            $phaseTwo !== '' ? "Lai suat giai doan 2: {$phaseTwo}." : '',
+                            $customer !== '' ? "Doi tuong/dieu kien: {$customer}." : '',
+                            $minMonths !== '' ? "Thoi gian vay: {$minMonths} thang." : '',
+                        ])));
+
+                        return [
+                            'id' => 'installment:'.md5(json_encode($row).$model),
+                            'source' => 'ctrinh_tragop',
+                            'metadata' => [
+                                'program' => $program,
+                                'period' => $period,
+                                'model' => $model,
+                                'package' => $package,
+                                'product' => $product,
+                                'phase_one' => $phaseOne,
+                                'phase_two' => $phaseTwo,
+                                'customer' => $customer,
+                                'months' => $minMonths,
+                            ],
+                            'text' => $text,
+                        ];
+                    })
+                    ->all();
+            })
+            ->filter(fn (array $doc): bool => $doc['text'] !== '')
+            ->values()
+            ->all();
+    }
+
     private function json(string $filename): array
     {
         $path = base_path('Modules/Chatbot/Data/'.$filename);
+
+        if (! is_file($path)) {
+            $path = base_path($filename);
+        }
 
         if (! is_file($path)) {
             return [];

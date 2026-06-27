@@ -90,9 +90,34 @@ class SalesChatbotService
             ])->save();
 
             return new ChatbotReply(
-                content: $this->detailAnswer($state, $content),
+                content: $this->detailAnswer($conversation, $state, $content),
                 clientMessageKey: $this->replyKey($conversation, $source, 'ask-phone'),
             );
+        }
+
+        if (($state['step'] ?? '') === 'awaiting_payment_method' && $content !== '') {
+            if ($this->wantsInstallment($content)) {
+                return new ChatbotReply(
+                    content: $this->installmentAnswer($conversation, $state, $content),
+                    clientMessageKey: $this->replyKey($conversation, $source, 'installment'),
+                );
+            }
+
+            if ($this->wantsCash($content)) {
+                $conversation->forceFill([
+                    'automation_state' => [
+                        ...$state,
+                        'step' => 'awaiting_phone',
+                        'payment_method' => 'cash',
+                        'payment_method_received_at' => now()->toISOString(),
+                    ],
+                ])->save();
+
+                return new ChatbotReply(
+                    content: "Dạ em đã nắm Anh/Chị muốn trả thẳng ạ.\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để xác nhận báo giá lăn bánh, ưu đãi và tình trạng xe chính xác nhất ạ.",
+                    clientMessageKey: $this->replyKey($conversation, $source, 'cash'),
+                );
+            }
         }
 
         if ($this->isGreeting($content)) {
@@ -131,7 +156,7 @@ class SalesChatbotService
 
         if ($content !== '') {
             return new ChatbotReply(
-                content: $this->detailAnswer($state ?: ['label' => 'Tu van', 'search_prefix' => 'Toyota giá xe khuyến mãi tư vấn'], $content),
+                content: $this->detailAnswer($conversation, $state ?: ['label' => 'Tu van', 'search_prefix' => 'Toyota giá xe khuyến mãi tư vấn'], $content),
                 clientMessageKey: $this->replyKey($conversation, $source, 'continuous'),
             );
         }
@@ -164,7 +189,7 @@ class SalesChatbotService
         $this->tagCustomer($customer, $flow['label'], '#2563eb');
     }
 
-    private function detailAnswer(array $state, string $detail): string
+    private function detailAnswer(Conversation $conversation, array $state, string $detail): string
     {
         $label = (string) ($state['label'] ?? 'Tu van');
         $topic = (string) ($state['topic'] ?? '');
@@ -177,7 +202,7 @@ class SalesChatbotService
 
         $matches = $directMatches;
         if ($matches !== []) {
-            return $this->structuredVehicleAnswer($state, $detail, $matches);
+            return $this->structuredVehicleAnswer($conversation, $state, $detail, $matches);
         }
 
         $context = collect($matches)->pluck('text')->implode("\n");
@@ -227,7 +252,7 @@ class SalesChatbotService
             || str_contains($normalized, 'phien ban');
     }
 
-    private function structuredVehicleAnswer(array $state, string $detail, array $matches): string
+    private function structuredVehicleAnswer(Conversation $conversation, array $state, string $detail, array $matches): string
     {
         $prices = collect($matches)
             ->where('source', 'giaxe_json')
@@ -293,7 +318,103 @@ class SalesChatbotService
 
         $lines[] = '';
         $lines[] = 'Giá lăn bánh còn phụ thuộc khu vực đăng ký, phiên bản, màu xe và chương trình tại thời điểm ký hợp đồng.';
-        $lines[] = 'Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để xác nhận báo giá lăn bánh và ưu đãi chính xác nhất ạ.';
+        $lines[] = 'Anh/Chị muốn trả góp hay trả thẳng để em kiểm tra thêm ưu đãi phù hợp cho Anh/Chị ạ?';
+
+        $conversation->forceFill([
+            'automation_state' => [
+                ...$state,
+                'step' => 'awaiting_payment_method',
+                'model' => $model,
+                'quoted_at' => now()->toISOString(),
+            ],
+        ])->save();
+
+        return implode("\n", $lines);
+    }
+
+    private function wantsInstallment(string $content): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        return str_contains($normalized, 'tra gop')
+            || str_contains($normalized, 'vay')
+            || str_contains($normalized, 'lai suat')
+            || str_contains($normalized, 'ngan hang')
+            || str_contains($normalized, 'installment');
+    }
+
+    private function wantsCash(string $content): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        return str_contains($normalized, 'tra thang')
+            || str_contains($normalized, 'tien mat')
+            || str_contains($normalized, 'mua thang')
+            || str_contains($normalized, 'khong gop');
+    }
+
+    private function installmentAnswer(Conversation $conversation, array $state, string $content): string
+    {
+        $model = (string) ($state['model'] ?? '');
+        $query = trim('tra gop lai suat '.$model.' '.$content);
+        $matches = collect($this->knowledgeBase->contextDocuments($query, 'INSTALLMENT_LOAN'))
+            ->where('source', 'ctrinh_tragop')
+            ->values();
+
+        if ($matches->isEmpty()) {
+            try {
+                $matches = collect($this->vectors->search($query, 8))
+                    ->where('source', 'ctrinh_tragop')
+                    ->values();
+            } catch (\Throwable) {
+                $matches = collect();
+            }
+        }
+
+        if ($matches->isEmpty()) {
+            return "Dạ em đã nhận nhu cầu trả góp của Anh/Chị.\n\nHiện em chưa thấy chương trình lãi suất phù hợp với mẫu {$model} trong file dữ liệu trả góp. Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ kiểm tra trực tiếp với bộ phận tài chính và phản hồi lại ngay ạ.";
+        }
+
+        $lines = [
+            'Dạ em gửi Anh/Chị thông tin trả góp tham khảo theo chương trình hiện có:',
+            '',
+        ];
+
+        foreach ($matches->take(5) as $document) {
+            $package = (string) data_get($document, 'metadata.package', '');
+            $product = (string) data_get($document, 'metadata.product', '');
+            $phaseOne = (string) data_get($document, 'metadata.phase_one', '');
+            $phaseTwo = (string) data_get($document, 'metadata.phase_two', '');
+            $months = (string) data_get($document, 'metadata.months', '');
+
+            $lines[] = "- {$package}";
+            $lines[] = "  Sản phẩm: {$product}";
+
+            if ($phaseOne !== '') {
+                $lines[] = "  Lãi suất giai đoạn 1: {$phaseOne}";
+            }
+
+            if ($phaseTwo !== '') {
+                $lines[] = "  Lãi suất giai đoạn 2: {$phaseTwo}";
+            }
+
+            if ($months !== '') {
+                $lines[] = "  Thời gian vay áp dụng/tối thiểu: {$months} tháng";
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'Thông tin trên là tham khảo theo chương trình trong file dữ liệu. Hồ sơ thực tế còn phụ thuộc số tiền trả trước, thời hạn vay và phê duyệt của đơn vị tài chính.';
+        $lines[] = 'Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để tính phương án trả góp chi tiết cho mình ạ.';
+
+        $conversation->forceFill([
+            'automation_state' => [
+                ...$state,
+                'step' => 'awaiting_phone',
+                'payment_method' => 'installment',
+                'payment_method_received_at' => now()->toISOString(),
+            ],
+        ])->save();
 
         return implode("\n", $lines);
     }
