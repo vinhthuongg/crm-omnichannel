@@ -323,6 +323,7 @@ class GetMessengerViewDataAction
     private function normalizedAttachments(array $attachments): array
     {
         return collect($attachments)
+            ->reject(fn (array $attachment): bool => ($attachment['type'] ?? '') === 'quick_reply')
             ->map(function (array $attachment): array {
                 $mimeType = (string) data_get($attachment, 'mime_type', '');
                 $type = (string) data_get($attachment, 'type', '');

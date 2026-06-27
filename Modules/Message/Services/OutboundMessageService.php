@@ -64,12 +64,20 @@ class OutboundMessageService
 
     private function sendFacebook(string $recipientId, string $content, array $attachments, ?string $pageAccessToken = null): array
     {
+        $quickReplyType = $this->quickReplyType($attachments);
         $response = $content !== ''
-            ? $this->facebook->sendText($recipientId, $content, $pageAccessToken)
+            ? match ($quickReplyType) {
+                'user_phone_number' => $this->facebook->sendTextWithPhoneQuickReply($recipientId, $content, $pageAccessToken),
+                default => $this->facebook->sendText($recipientId, $content, $pageAccessToken),
+            }
             : [];
         $sentAttachments = [];
 
         foreach ($attachments as $index => $attachment) {
+            if (($attachment['type'] ?? '') === 'quick_reply') {
+                continue;
+            }
+
             $type = (string) ($attachment['type'] ?? $this->facebookAttachmentType((string) ($attachment['mime_type'] ?? '')));
 
             if (! empty($attachment['facebook_attachment_id'])) {
@@ -117,6 +125,17 @@ class OutboundMessageService
         }
 
         return $response;
+    }
+
+    private function quickReplyType(array $attachments): ?string
+    {
+        foreach ($attachments as $attachment) {
+            if (($attachment['type'] ?? '') === 'quick_reply') {
+                return (string) ($attachment['content_type'] ?? '');
+            }
+        }
+
+        return null;
     }
 
     private function sendZalo(string $userId, string $content, array $attachments): array

@@ -52,6 +52,7 @@ class MessageResource extends JsonResource
     private function normalizedAttachments(): array
     {
         return collect($this->attachments ?? [])
+            ->reject(fn (array $attachment): bool => ($attachment['type'] ?? '') === 'quick_reply')
             ->map(function (array $attachment): array {
                 $mimeType = (string) data_get($attachment, 'mime_type', '');
                 $type = (string) data_get($attachment, 'type', '');

@@ -174,7 +174,9 @@ class MessageService
             'channel' => $channel,
             'content' => $content,
             'message_type' => 'text',
-            'attachments' => [],
+            'attachments' => $channel === 'facebook'
+                ? [['type' => 'quick_reply', 'content_type' => 'user_phone_number']]
+                : [],
             'client_message_id' => $clientMessageId,
             'outbound_status' => 'queued',
         ]);

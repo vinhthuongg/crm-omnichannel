@@ -15,6 +15,21 @@ class FacebookMessengerService
 
     public function sendText(string $recipientId, string $message, ?string $pageAccessToken = null): array
     {
+        return $this->sendTextPayload($recipientId, ['text' => $message], $pageAccessToken);
+    }
+
+    public function sendTextWithPhoneQuickReply(string $recipientId, string $message, ?string $pageAccessToken = null): array
+    {
+        return $this->sendTextPayload($recipientId, [
+            'text' => $message,
+            'quick_replies' => [
+                ['content_type' => 'user_phone_number'],
+            ],
+        ], $pageAccessToken);
+    }
+
+    private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken = null): array
+    {
         $response = $this->http
             ->connectTimeout(10)
             ->timeout(30)
@@ -22,7 +37,7 @@ class FacebookMessengerService
             ->post($this->graphUrl('/me/messages'), [
                 'messaging_type' => 'RESPONSE',
                 'recipient' => ['id' => $recipientId],
-                'message' => ['text' => $message],
+                'message' => $message,
             ]);
         $response->throw();
         return $response->json();
