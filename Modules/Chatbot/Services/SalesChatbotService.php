@@ -198,11 +198,19 @@ class SalesChatbotService
     {
         $label = (string) ($state['label'] ?? 'Tu van');
         $topic = (string) ($state['topic'] ?? '');
+        $model = $this->conversationModel($state, $detail);
+
         if ($this->wantsInstallment($detail)) {
             $topic = 'INSTALLMENT_LOAN';
             $label = 'Vay tra gop';
         }
-        $query = trim(($state['search_prefix'] ?? $label).' '.$detail);
+
+        if ($topic === '' && $model !== '' && $this->isVehicleBuyingIntent($detail)) {
+            $topic = 'PRICE_BY_AREA';
+            $label = 'Bao gia lan banh';
+        }
+
+        $query = trim(($state['search_prefix'] ?? $label).' '.$detail.' '.$model);
         $directMatches = $this->knowledgeBase->contextDocuments($query, $topic);
 
         if ($directMatches === [] && $this->needsSpecificVehicle($topic, $detail)) {
@@ -394,7 +402,14 @@ class SalesChatbotService
     {
         $normalized = str($content)->lower()->ascii()->squish()->toString();
 
+        if (str_contains($normalized, 'khong gop')
+            || str_contains($normalized, 'ko gop')
+            || str_contains($normalized, 'khong tra gop')) {
+            return false;
+        }
+
         return str_contains($normalized, 'tra gop')
+            || preg_match('/\bgop\b/', $normalized) === 1
             || str_contains($normalized, 'vay')
             || str_contains($normalized, 'lai suat')
             || str_contains($normalized, 'ngan hang')
@@ -479,6 +494,30 @@ class SalesChatbotService
         $product = trim($product);
 
         return trim("Gói trả góp {$model}".($product !== '' ? " - {$product}" : ''));
+    }
+
+    private function conversationModel(array $state, string $content): string
+    {
+        $model = (string) collect($this->knowledgeBase->detectModels($content))->first();
+
+        if ($model !== '') {
+            return $model;
+        }
+
+        return (string) ($state['model'] ?? '');
+    }
+
+    private function isVehicleBuyingIntent(string $content): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        return str_contains($normalized, 'mua xe')
+            || str_contains($normalized, 'muon mua')
+            || str_contains($normalized, 'quan tam')
+            || str_contains($normalized, 'tu van')
+            || str_contains($normalized, 'bao gia')
+            || str_contains($normalized, 'gia xe')
+            || str_contains($normalized, 'lan banh');
     }
 
     private function isGreeting(string $content): bool
