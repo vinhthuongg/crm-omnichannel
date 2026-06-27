@@ -1,0 +1,105 @@
+{
+  "ten_format": "FORMAT DOI THOAI TU VAN ONLINE - HANH TRINH MUA XE LAN DAU",
+  "muc_tieu": "Tap trung cau hoi san pham",
+  "boi_canh": {
+    "doi_tuong_khach_hang": "Khach hang mua xe o to lan dau",
+    "cac_tinh_huong": [
+      "Tinh huong 1: Chua biet gi ve xe",
+      "Tinh huong 2: Da chon duoc mau xe ung y"
+    ],
+    "kenh_tu_van": "Zalo / Messenger"
+  },
+  "kich_ban_chi_tiet": {
+    "tinh_huong_1": {
+      "ten_tinh_huong": "KHACH CHUA BIET GI VE XE",
+      "cac_buoc": [
+        {
+          "buoc": 1,
+          "ten_buoc": "Khoi dau: Khach tham do - chua biet gi",
+          "loi_thoai_nhan_vien_1": "Em chao Anh/Chi. Em la tu van vien Toyota Kien Giang. Khong biet hom nay minh da co mau xe nao trong dau chua, hay dang can em tu van tu dau a?",
+          "loi_thoai_khach_hang": "Anh/chi chua biet gi luon em oi. Lan dau mua xe, cung khong biet chon xe nao.",
+          "loi_thoai_nhan_vien_2": "Da khong sao dau a. Da so khach hang lan dau deu nhu vay. Em hoi nhanh vai cau de tu van dung nhu cau cho minh nha:",
+          "cau_hoi_khai_thac_nhu_cau": [
+            "Minh mua xe de di lam, di gia dinh hay cho khach a?",
+            "Thuong xuyen di khoang bao nhieu nguoi a?",
+            "Minh di trong pho la chinh hay co di xa, di tinh nhieu a?"
+          ]
+        },
+        {
+          "buoc": 2,
+          "ten_buoc": "Khach bat dau hoi cac cau hoi ve san pham",
+          "ghi_chu": "Tap trung tra loi nhung cau hoi ve camera, man hinh, ghe da, tui khi, phanh ABS, ket noi dien thoai, cua gio hang ghe sau, gam cao, tiet kiem xang va khac nhau giua cac phien ban."
+        },
+        {
+          "buoc": 3,
+          "ten_buoc": "Goi y san pham phu hop - ket hop thong tin san pham",
+          "loi_thoai_nhan_vien": "Dua vao nhung gi Anh/Chi vua chia se, em thay 2 mau sau la phu hop de minh tham khao:",
+          "goi_y_san_pham": [
+            {
+              "ten_xe": "Toyota Vios E CVT",
+              "dac_diem": "Nho gon, tiet kiem, de lai, ben, rat nhieu khach hang mua xe lan dau chon mau nay."
+            },
+            {
+              "ten_xe": "Toyota Veloz Cross Top",
+              "dac_diem": "Phu hop neu minh muon xe rong, di gia dinh, 7 cho tien loi va nhieu tien nghi."
+            }
+          ],
+          "hanh_dong_tiep_theo": "Em co the gui Anh/Chi bang so sanh va tinh nang tung phien ban de minh de tham khao hon a."
+        }
+      ]
+    },
+    "tinh_huong_2": {
+      "ten_tinh_huong": "KHACH DA CHON DUOC MAU XE UNG Y",
+      "cac_buoc": [
+        {
+          "buoc": 1,
+          "ten_buoc": "Mo dau: Khach chu dong",
+          "loi_thoai_khach_hang": "Em oi, anh/chi dang quan tam xe Veloz Cross ban Top. Thay cung hop nhu cau nhung muon hoi them chut.",
+          "loi_thoai_nhan_vien": "Da, mau nay rat phu hop voi khach di gia dinh. Em ho tro minh ngay a."
+        },
+        {
+          "buoc": 2,
+          "ten_buoc": "Khach hoi ky hon ve san pham da chon",
+          "hoi_dap": [
+            {
+              "khach_hang": "Ban Top co khac ban thuong gi khong em?",
+              "nhan_vien": "Da khac kha nhieu a. Ban Top co ghe da, camera 360, canh bao diem mu, dieu hoa tu dong, sac khong day, 6 loa, cua gio hang ghe sau va 7 cho rong rai."
+            },
+            {
+              "khach_hang": "Xe co tiet kiem khong?",
+              "nhan_vien": "Da xe dung dong co Dual VVT-i, muc tieu hao nhien lieu tiet kiem, di gia dinh rat phu hop. Muc thuc te con tuy cung duong va cach lai a."
+            },
+            {
+              "khach_hang": "Co can phai do xang A95 khong?",
+              "nhan_vien": "Da khong can dau a, minh co the su dung xang theo khuyen nghi cua hang. Chi phi su dung hang ngay kha hop ly."
+            },
+            {
+              "khach_hang": "Giao xe mat bao lau?",
+              "nhan_vien": "Da thoi gian giao xe tuy mau, mau sac va ho so dang ky. Neu xe co san, ben em se ho tro ho so de giao xe som nhat cho minh a."
+            },
+            {
+              "khach_hang": "Anh tra thang luon thi co uu dai gi them khong em?",
+              "nhan_vien": "Da neu tra thang, ben em se kiem tra chuong trinh uu dai hien hanh, qua tang va lich giao xe som nhat tai thoi diem minh chot a."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bo_cau_hoi_goi_y": {
+    "tieu_de": "CAC CAU HOI VE SAN PHAM THUONG GAP",
+    "danh_sach_cau_hoi": [
+      "Xe so san hay so tu dong?",
+      "Xe tiet kiem xang khong?",
+      "Co camera lui, cam bien khong?",
+      "Man hinh co ket noi dien thoai khong?",
+      "Ghe da hay ni? Co chinh dien khong?",
+      "Co cua gio hang ghe sau khong?",
+      "Gam cao khong? Di duong tinh co on khong?",
+      "Bao nhieu tui khi? Co an toan khong?",
+      "He thong phanh co ABS khong?",
+      "Ban cao cap voi ban thuong khac nhau gi?"
+    ]
+  },
+  "ghi_chu_he_thong": "Format nay linh hoat dung cho khach hoan toan moi va khach da co quyet dinh ve san pham. Uu tien hoi nhu cau san pham truoc, tranh lam khach bi roi."
+}

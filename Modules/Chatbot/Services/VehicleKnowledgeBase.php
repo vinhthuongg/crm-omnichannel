@@ -11,6 +11,7 @@ class VehicleKnowledgeBase
             $this->promotionDocuments(),
             $this->installmentDocuments(),
             $this->bankLoanProcessDocuments(),
+            $this->firstTimeBuyerDocuments(),
         ));
     }
 
@@ -21,10 +22,13 @@ class VehicleKnowledgeBase
         $processes = collect($this->bankLoanProcessDocuments())
             ->filter(fn (array $document): bool => $this->matchesBankLoanProcess($query, $document))
             ->take(6);
+        $firstTimeBuyerScripts = collect($this->firstTimeBuyerDocuments())
+            ->filter(fn (array $document): bool => $this->matchesFirstTimeBuyerScript($query, $document))
+            ->take(5);
 
         if ($matchedModels->isEmpty()) {
-            return $topic === 'INSTALLMENT_LOAN' || $processes->isNotEmpty()
-                ? $processes->values()->all()
+            return $topic === 'INSTALLMENT_LOAN' || $processes->isNotEmpty() || $firstTimeBuyerScripts->isNotEmpty()
+                ? $processes->merge($firstTimeBuyerScripts)->values()->all()
                 : [];
         }
 
@@ -52,7 +56,8 @@ class VehicleKnowledgeBase
         return match ($topic) {
             'PROMOTIONS' => $promotions->merge($prices)->values()->all(),
             'INSTALLMENT_LOAN' => $installments->merge($prices)->merge($promotions)->merge($processes)->values()->all(),
-            default => $prices->merge($promotions)->values()->all(),
+            'VERSION_CONSULTING' => $firstTimeBuyerScripts->merge($prices)->merge($promotions)->values()->all(),
+            default => $prices->merge($promotions)->merge($firstTimeBuyerScripts)->values()->all(),
         };
     }
 
@@ -343,6 +348,154 @@ class VehicleKnowledgeBase
         return collect(explode(' ', $normalizedQuery))
             ->filter(fn (string $word): bool => strlen($word) >= 4)
             ->contains(fn (string $word): bool => str_contains($normalizedText, $word));
+    }
+
+    private function firstTimeBuyerDocuments(): array
+    {
+        $payload = $this->json('format_mua_xe_lan_dau.txt');
+        $formatName = $this->value($payload, 'ten_format');
+        $goal = $this->value($payload, 'muc_tieu');
+        $situations = (array) data_get($payload, 'kich_ban_chi_tiet', []);
+        $documents = collect($situations)
+            ->flatMap(function (array $situation, string $key) use ($formatName, $goal): array {
+                $situationName = $this->value($situation, 'ten_tinh_huong');
+
+                return collect((array) data_get($situation, 'cac_buoc', []))
+                    ->map(function (array $row) use ($formatName, $goal, $key, $situationName): array {
+                        $step = (string) ($row['buoc'] ?? '');
+                        $title = $this->value($row, 'ten_buoc');
+                        $questions = (array) ($row['cau_hoi_khai_thac_nhu_cau'] ?? []);
+                        $suggestions = (array) ($row['goi_y_san_pham'] ?? []);
+                        $qa = (array) ($row['hoi_dap'] ?? $row['Hoi_Dap'] ?? []);
+
+                        $parts = [
+                            $formatName,
+                            $goal,
+                            $situationName,
+                            "Buoc {$step}: {$title}.",
+                            $this->value($row, 'loi_thoai_nhan_vien_1'),
+                            $this->value($row, 'loi_thoai_nhan_vien_2'),
+                            $this->value($row, 'loi_thoai_nhan_vien'),
+                            $this->value($row, 'loi_thoai_khach_hang'),
+                            $this->listText($questions, 'Cau hoi khai thac nhu cau'),
+                            $this->vehicleSuggestionsText($suggestions),
+                            $this->productQaText($qa),
+                            $this->value($row, 'ghi_chu'),
+                            $this->value($row, 'hanh_dong_tiep_theo'),
+                        ];
+
+                        return [
+                            'id' => 'first-time-buyer:'.$key.':'.$step,
+                            'source' => 'format_mua_xe_lan_dau',
+                            'metadata' => [
+                                'situation' => $key,
+                                'situation_name' => $situationName,
+                                'step' => $step,
+                                'title' => $title,
+                                'staff_opening' => $this->value($row, 'loi_thoai_nhan_vien_1') ?: $this->value($row, 'loi_thoai_nhan_vien'),
+                                'staff_follow_up' => $this->value($row, 'loi_thoai_nhan_vien_2'),
+                                'need_questions' => $questions,
+                                'vehicle_suggestions' => $suggestions,
+                                'product_qa' => $qa,
+                                'next_action' => $this->value($row, 'hanh_dong_tiep_theo'),
+                            ],
+                            'text' => trim(implode(' ', array_filter($parts))),
+                        ];
+                    })
+                    ->all();
+            });
+
+        $commonQuestions = (array) data_get($payload, 'bo_cau_hoi_goi_y.danh_sach_cau_hoi', []);
+        if ($commonQuestions !== []) {
+            $documents->push([
+                'id' => 'first-time-buyer:common-product-questions',
+                'source' => 'format_mua_xe_lan_dau',
+                'metadata' => [
+                    'situation' => 'common_questions',
+                    'situation_name' => 'Cac cau hoi ve san pham thuong gap',
+                    'step' => 'common',
+                    'title' => 'Cac cau hoi ve san pham thuong gap',
+                    'need_questions' => [],
+                    'vehicle_suggestions' => [],
+                    'product_qa' => [],
+                    'common_questions' => $commonQuestions,
+                    'next_action' => '',
+                ],
+                'text' => 'Cac cau hoi san pham thuong gap: '.implode('; ', array_map('strval', $commonQuestions)),
+            ]);
+        }
+
+        return $documents
+            ->filter(fn (array $doc): bool => $doc['text'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private function matchesFirstTimeBuyerScript(string $query, array $document): bool
+    {
+        $normalizedQuery = $this->normalize($query);
+        $normalizedText = $this->normalize((string) ($document['text'] ?? ''));
+        $keywords = [
+            'lan dau',
+            'mua xe lan dau',
+            'chua biet',
+            'khong biet chon xe',
+            'tu van tu dau',
+            'chon xe nao',
+            'di gia dinh',
+            'di lam',
+            'cho khach',
+            'camera',
+            'cam bien',
+            'man hinh',
+            'ghe da',
+            'ghe ni',
+            'tui khi',
+            'abs',
+            'phanh',
+            'gam cao',
+            'tiet kiem xang',
+            'cua gio',
+            'ban top',
+            'ban thuong',
+            'khac nhau',
+            'so tu dong',
+            'so san',
+        ];
+
+        foreach ($keywords as $keyword) {
+            if (str_contains($normalizedQuery, $keyword)) {
+                return true;
+            }
+        }
+
+        return collect(explode(' ', $normalizedQuery))
+            ->filter(fn (string $word): bool => strlen($word) >= 4)
+            ->contains(fn (string $word): bool => str_contains($normalizedText, $word));
+    }
+
+    private function vehicleSuggestionsText(array $suggestions): string
+    {
+        if ($suggestions === []) {
+            return '';
+        }
+
+        return collect($suggestions)
+            ->map(fn (array $item): string => trim($this->value($item, 'ten_xe').' '.$this->value($item, 'dac_diem')))
+            ->filter()
+            ->implode(' ');
+    }
+
+    private function productQaText(array $qa): string
+    {
+        if ($qa === []) {
+            return '';
+        }
+
+        return collect($qa)
+            ->map(fn (array $item): string => trim($this->value($item, 'khach_hang').' '.$this->value($item, 'nhan_vien')))
+            ->filter()
+            ->implode(' ');
     }
 
     private function listText(array $items, string $label): string

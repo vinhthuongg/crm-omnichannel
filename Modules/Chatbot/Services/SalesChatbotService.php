@@ -283,6 +283,9 @@ class SalesChatbotService
         $bankLoanProcesses = collect($matches)
             ->where('source', 'quytrinh_vay_nganhang')
             ->values();
+        $firstTimeBuyerScripts = collect($matches)
+            ->where('source', 'format_mua_xe_lan_dau')
+            ->values();
 
         $prices = collect($matches)
             ->where('source', 'giaxe_json')
@@ -316,6 +319,11 @@ class SalesChatbotService
 
         if ($prices->isEmpty() && $promotions->isEmpty() && $installments->isEmpty() && $bankLoanProcesses->isNotEmpty()) {
             return $this->bankLoanProcessAnswer($conversation, $state, $detail, $bankLoanProcesses);
+        }
+
+        if ($firstTimeBuyerScripts->isNotEmpty()
+            && ($prices->isEmpty() || $this->isProductConsultingIntent($detail))) {
+            return $this->firstTimeBuyerAnswer($conversation, $state, $detail, $firstTimeBuyerScripts);
         }
 
         $model = (string) (
@@ -529,6 +537,171 @@ class SalesChatbotService
         ])->save();
 
         return implode("\n", $lines);
+    }
+
+    private function firstTimeBuyerAnswer(Conversation $conversation, array $state, string $content, $scripts): string
+    {
+        $document = $this->selectFirstTimeBuyerDocument($content, $scripts);
+        $situation = (string) data_get($document, 'metadata.situation', 'tinh_huong_1');
+        $title = (string) data_get($document, 'metadata.title', 'Tư vấn mua xe lần đầu');
+        $opening = (string) data_get($document, 'metadata.staff_opening', '');
+        $followUp = (string) data_get($document, 'metadata.staff_follow_up', '');
+        $needQuestions = (array) data_get($document, 'metadata.need_questions', []);
+        $suggestions = (array) data_get($document, 'metadata.vehicle_suggestions', []);
+        $qa = (array) data_get($document, 'metadata.product_qa', []);
+        $commonQuestions = (array) data_get($document, 'metadata.common_questions', []);
+        $nextAction = (string) data_get($document, 'metadata.next_action', '');
+        $lines = [];
+
+        if ($opening !== '') {
+            $lines[] = $opening;
+        } else {
+            $lines[] = "Dạ em hỗ trợ Anh/Chị theo hướng {$title} ạ.";
+        }
+
+        if ($followUp !== '') {
+            $lines[] = '';
+            $lines[] = $followUp;
+        }
+
+        $matchedQa = $this->matchedProductAnswer($content, $qa);
+        if ($matchedQa !== '') {
+            $lines[] = '';
+            $lines[] = $matchedQa;
+        }
+
+        if ($needQuestions !== []) {
+            $lines[] = '';
+            $lines[] = 'Để em tư vấn đúng nhu cầu, Anh/Chị cho em xin thêm vài thông tin:';
+            foreach (array_slice($needQuestions, 0, 3) as $question) {
+                $lines[] = '- '.trim((string) $question);
+            }
+        }
+
+        if ($suggestions !== []) {
+            $lines[] = '';
+            $lines[] = 'Gợi ý ban đầu để Anh/Chị tham khảo:';
+            foreach ($suggestions as $item) {
+                $name = (string) ($item['ten_xe'] ?? '');
+                $description = (string) ($item['dac_diem'] ?? '');
+                $lines[] = "- {$name}: {$description}";
+            }
+        }
+
+        if ($commonQuestions !== []) {
+            $lines[] = '';
+            $lines[] = 'Một số điểm sản phẩm em có thể kiểm tra thêm cho mình:';
+            foreach (array_slice($commonQuestions, 0, 5) as $question) {
+                $lines[] = '- '.trim((string) $question);
+            }
+        }
+
+        if ($nextAction !== '') {
+            $lines[] = '';
+            $lines[] = $nextAction;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Anh/Chị nhắn giúp em nhu cầu sử dụng chính hoặc mẫu xe đang phân vân, em sẽ lọc mẫu phù hợp và gửi tiếp giá/ưu đãi nếu mình cần ạ.';
+
+        $conversation->forceFill([
+            'automation_state' => [
+                ...$state,
+                'topic' => 'VERSION_CONSULTING',
+                'label' => 'Tu van phien ban',
+                'step' => $situation === 'tinh_huong_1' ? 'awaiting_detail' : ($state['step'] ?? 'awaiting_detail'),
+                'first_time_buyer_situation' => $situation,
+                'first_time_buyer_step' => data_get($document, 'metadata.step'),
+                'first_time_buyer_at' => now()->toISOString(),
+            ],
+        ])->save();
+
+        return implode("\n", array_values(array_filter($lines, fn (string $line): bool => $line !== '')));
+    }
+
+    private function selectFirstTimeBuyerDocument(string $content, $scripts): array
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+        $situation = match (true) {
+            str_contains($normalized, 'chua biet')
+                || str_contains($normalized, 'lan dau')
+                || str_contains($normalized, 'khong biet chon')
+                || str_contains($normalized, 'tu van tu dau') => 'tinh_huong_1',
+            str_contains($normalized, 'ban top')
+                || str_contains($normalized, 'ban thuong')
+                || str_contains($normalized, 'khac nhau')
+                || str_contains($normalized, 'camera')
+                || str_contains($normalized, 'tiet kiem')
+                || str_contains($normalized, 'giao xe')
+                || str_contains($normalized, 'tra thang') => 'tinh_huong_2',
+            default => '',
+        };
+
+        if ($situation !== '') {
+            return (array) ($scripts->firstWhere('metadata.situation', $situation) ?? $scripts->first() ?? []);
+        }
+
+        return (array) ($scripts->first() ?? []);
+    }
+
+    private function matchedProductAnswer(string $content, array $qa): string
+    {
+        if ($qa === []) {
+            return '';
+        }
+
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        foreach ($qa as $item) {
+            $question = (string) ($item['khach_hang'] ?? '');
+            $answer = (string) ($item['nhan_vien'] ?? '');
+            $questionNormalized = str($question)->lower()->ascii()->squish()->toString();
+
+            if ($answer !== '' && collect(explode(' ', $normalized))
+                ->filter(fn (string $word): bool => strlen($word) >= 4)
+                ->contains(fn (string $word): bool => str_contains($questionNormalized, $word))) {
+                return $answer;
+            }
+        }
+
+        return '';
+    }
+
+    private function isProductConsultingIntent(string $content): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+        $keywords = [
+            'lan dau',
+            'chua biet',
+            'chon xe',
+            'tu van tu dau',
+            'di gia dinh',
+            'di lam',
+            'camera',
+            'cam bien',
+            'man hinh',
+            'ghe da',
+            'ghe ni',
+            'tui khi',
+            'abs',
+            'phanh',
+            'gam cao',
+            'tiet kiem',
+            'cua gio',
+            'ban top',
+            'ban thuong',
+            'khac nhau',
+            'so tu dong',
+            'so san',
+        ];
+
+        foreach ($keywords as $keyword) {
+            if (str_contains($normalized, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function bankLoanProcessAnswer(Conversation $conversation, array $state, string $content, $processes): string
