@@ -176,7 +176,15 @@ class SalesChatbotService
         }
 
         $matches = $directMatches;
+        if ($matches !== []) {
+            return $this->structuredVehicleAnswer($state, $detail, $matches);
+        }
+
         $context = collect($matches)->pluck('text')->implode("\n");
+
+        if ($context === '') {
+            return $this->askForVehicleModel($state);
+        }
 
         try {
             $answer = $this->nim->chat(
@@ -217,6 +225,77 @@ class SalesChatbotService
             || str_contains($normalized, 'tra gop')
             || str_contains($normalized, 'mau xe')
             || str_contains($normalized, 'phien ban');
+    }
+
+    private function structuredVehicleAnswer(array $state, string $detail, array $matches): string
+    {
+        $prices = collect($matches)
+            ->where('source', 'giaxe_json')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.grade'),
+                data_get($document, 'metadata.price'),
+            ]))
+            ->take(8)
+            ->values();
+
+        $promotions = collect($matches)
+            ->where('source', 'ctkm_json')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.grade'),
+                data_get($document, 'metadata.discount'),
+            ]))
+            ->take(8)
+            ->values();
+
+        $model = (string) (
+            data_get($prices->first(), 'metadata.model')
+            ?: data_get($promotions->first(), 'metadata.model')
+            ?: $detail
+        );
+
+        $lines = [
+            'Kính chào Anh/Chị,',
+            '',
+            "Em gửi Anh/Chị thông tin tham khảo cho mẫu {$model} theo dữ liệu hiện có của Toyota Kiên Giang:",
+        ];
+
+        if ($prices->isNotEmpty()) {
+            $lines[] = '';
+            $lines[] = 'Giá niêm yết:';
+
+            foreach ($prices as $document) {
+                $grade = (string) data_get($document, 'metadata.grade', '');
+                $price = (string) data_get($document, 'metadata.price', '');
+                $color = (string) data_get($document, 'metadata.color', '');
+                $suffix = $color !== '' ? " ({$color})" : '';
+
+                $lines[] = "- {$model} {$grade}{$suffix}: {$price} đồng";
+            }
+        }
+
+        if ($promotions->isNotEmpty()) {
+            $lines[] = '';
+            $lines[] = 'Khuyến mãi/ưu đãi hiện hành:';
+
+            foreach ($promotions as $document) {
+                $grade = (string) data_get($document, 'metadata.grade', '');
+                $discount = (int) data_get($document, 'metadata.discount', 0);
+                $discountText = $discount > 0 ? number_format($discount, 0, ',', '.').' đồng' : 'theo chương trình hiện hành';
+
+                $lines[] = "- {$model} {$grade}: ưu đãi {$discountText}";
+            }
+        } else {
+            $lines[] = '';
+            $lines[] = 'Hiện em chưa thấy dữ liệu khuyến mãi riêng cho mẫu xe này trong file chương trình.';
+        }
+
+        $lines[] = '';
+        $lines[] = 'Giá lăn bánh còn phụ thuộc khu vực đăng ký, phiên bản, màu xe và chương trình tại thời điểm ký hợp đồng.';
+        $lines[] = 'Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để xác nhận báo giá lăn bánh và ưu đãi chính xác nhất ạ.';
+
+        return implode("\n", $lines);
     }
 
     private function isGreeting(string $content): bool
