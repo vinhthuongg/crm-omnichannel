@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Modules\Chatbot\Services\SalesChatbotService;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
@@ -69,7 +70,7 @@ class SendChatbotReplyJob implements ShouldQueue
         $outbound = Message::query()->create([
             'conversation_id' => $conversation->id,
             'sender_type' => 'user',
-            'sender_id' => $conversation->assigned_to ?: User::role('Admin')->value('id') ?: User::query()->value('id'),
+            'sender_id' => $this->autoReplySenderId($conversation),
             'channel' => $inbound->channel,
             'content' => $reply->content,
             'message_type' => 'text',
@@ -90,5 +91,29 @@ class SendChatbotReplyJob implements ShouldQueue
         }
 
         SendOutboundMessageJob::dispatch($outbound->id);
+    }
+
+    private function autoReplySenderId($conversation): ?int
+    {
+        if ($conversation->assigned_to) {
+            return (int) $conversation->assigned_to;
+        }
+
+        try {
+            $adminId = User::role('Admin')->value('id');
+
+            if ($adminId) {
+                return (int) $adminId;
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Chatbot async reply admin sender lookup failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        $fallbackId = User::query()->value('id');
+
+        return $fallbackId ? (int) $fallbackId : null;
     }
 }
