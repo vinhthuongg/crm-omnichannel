@@ -233,7 +233,7 @@ PROMPT;
 
     private function replyKey(Conversation $conversation, string $source, string $suffix): string
     {
-        return 'auto-chatbot-'.$conversation->id.'-'.$source.'-'.$suffix;
+        return 'auto-chatbot-'.$conversation->id.'-'.md5($source.'|'.$suffix);
     }
 
     private function tagCustomer(Customer $customer, string $name, string $color): void

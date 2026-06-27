@@ -210,6 +210,9 @@ class MessageService
         }
 
         $clientMessageId = $reply->clientMessageKey ?: 'auto-chatbot-'.$conversation->id.'-'.md5($reply->content);
+        if (strlen($clientMessageId) > 80) {
+            $clientMessageId = 'auto-chatbot-'.$conversation->id.'-'.md5($clientMessageId);
+        }
         $existing = Message::query()
             ->where('channel', $channel)
             ->where('client_message_id', $clientMessageId)
