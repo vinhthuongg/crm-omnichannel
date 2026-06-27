@@ -154,8 +154,20 @@
                 </div>
                 <nav class="chat-actions" aria-label="Conversation actions">
                     <a href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}">Info</a>
-                <a href="{{ route('crm.channels', ['channel' => $activeChannel]) }}" data-chat-channel>{{ ucfirst($activeChannel) }}</a>
+                    <a href="{{ route('crm.channels', ['channel' => $activeChannel]) }}" data-chat-channel>{{ ucfirst($activeChannel) }}</a>
                     <a href="{{ route('dashboard') }}">Dashboard</a>
+                    <button
+                        type="button"
+                        class="chat-delete-messages"
+                        title="Xoa tin nhan"
+                        aria-label="Xoa tat ca tin nhan trong hoi thoai"
+                        data-clear-messages-url="{{ route('crm.conversations.messages.clear', $activeConversation) }}"
+                        data-clear-messages-button
+                    >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" fill="currentColor"/>
+                        </svg>
+                    </button>
                 </nav>
             </header>
             <div class="conversation-claim-bar {{ $canClaim || ! $canReply ? '' : 'is-hidden' }}" data-claim-bar>
@@ -439,6 +451,17 @@
 
     window.addEventListener('popstate', function () {
         loadConversation(window.location.href);
+    });
+
+    document.querySelector('.chat-actions')?.addEventListener('click', function (event) {
+        const clearButton = event.target.closest('[data-clear-messages-button]');
+
+        if (!clearButton) {
+            return;
+        }
+
+        event.preventDefault();
+        clearConversationMessages(clearButton);
     });
 
     document.querySelector('[data-profile-panel]')?.addEventListener('keydown', function (event) {
@@ -1144,6 +1167,7 @@
         const chatPhone = document.querySelector('[data-chat-customer-phone]');
         const chatAssignee = document.querySelector('[data-chat-assignee]');
         const chatChannel = document.querySelector('[data-chat-channel]');
+        const clearButton = document.querySelector('[data-clear-messages-button]');
 
         if (chatAvatar) {
             chatAvatar.innerHTML = avatarHtml(conversation.customer_avatar, customerName);
@@ -1166,6 +1190,10 @@
         if (chatChannel) {
             chatChannel.textContent = (conversation.active_channel || 'facebook').replace(/^./, (char) => char.toUpperCase());
             chatChannel.href = `/channels?channel=${encodeURIComponent(conversation.active_channel || 'facebook')}`;
+        }
+
+        if (clearButton) {
+            clearButton.dataset.clearMessagesUrl = conversation.clear_messages_url || '';
         }
 
         timeline.dataset.conversationId = conversation.id;
@@ -1894,6 +1922,38 @@
         (messageIds || []).forEach(function (messageId) {
             timeline?.querySelector(`[data-message-id="${messageId}"]`)?.remove();
         });
+    }
+
+    async function clearConversationMessages(button) {
+        const url = button?.dataset.clearMessagesUrl;
+
+        if (!url || !window.confirm('Xoa toan bo tin nhan trong hoi thoai nay?')) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.message || 'Khong xoa duoc tin nhan.');
+            }
+
+            handleDeletedMessages(payload.data || {});
+        } catch (error) {
+            window.alert(error.message || 'Khong xoa duoc tin nhan.');
+        } finally {
+            button.disabled = false;
+        }
     }
 
     function handleDeletedMessages(payload) {

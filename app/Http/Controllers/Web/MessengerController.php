@@ -185,6 +185,7 @@ class MessengerController extends Controller
                 'read_url' => route('crm.conversations.read', $conversation),
                 'stream_url' => route('crm.conversations.messages.stream', $conversation),
                 'send_url' => route('crm.conversations.messages.store', $conversation),
+                'clear_messages_url' => route('crm.conversations.messages.clear', $conversation),
                 'attachments_url' => route('crm.conversations.attachments.store', $conversation),
                 'claim_url' => route('crm.conversations.claim', $conversation),
                 'tags_url' => route('crm.conversations.tags.store', $conversation),

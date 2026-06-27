@@ -1362,17 +1362,42 @@ kbd {
     gap: 8px;
 }
 
-.chat-actions a {
+.chat-actions a,
+.chat-actions button {
     min-height: 34px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     border: 1px solid #e5e7eb;
     border-radius: 999px;
+    background: #fff;
     padding: 0 12px;
     color: #111;
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
+}
+
+.chat-actions button {
+    width: 38px;
+    padding: 0;
+    cursor: pointer;
+}
+
+.chat-actions button:hover {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.chat-actions button:disabled {
+    cursor: wait;
+    opacity: .55;
+}
+
+.chat-actions svg {
+    width: 17px;
+    height: 17px;
 }
 
 .messenger-profile-panel {
