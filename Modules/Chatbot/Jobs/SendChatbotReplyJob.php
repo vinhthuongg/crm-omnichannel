@@ -51,6 +51,10 @@ class SendChatbotReplyJob implements ShouldQueue
             return;
         }
 
+        if ($this->humanIsHandlingConversation($conversation, $inbound)) {
+            return;
+        }
+
         $reply = $chatbot->replyForMessage($conversation, $customer, $inbound);
 
         if (! $reply || $reply->content === '') {
@@ -115,5 +119,23 @@ class SendChatbotReplyJob implements ShouldQueue
         $fallbackId = User::query()->value('id');
 
         return $fallbackId ? (int) $fallbackId : null;
+    }
+
+    private function humanIsHandlingConversation($conversation, Message $inbound): bool
+    {
+        $state = (array) ($conversation->automation_state ?? []);
+
+        if (filled($state['paused_by_user_at'] ?? null)) {
+            return true;
+        }
+
+        return $conversation->messages()
+            ->where('sender_type', 'user')
+            ->where('created_at', '>=', $inbound->created_at)
+            ->where(function ($query): void {
+                $query->whereNull('client_message_id')
+                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
+            })
+            ->exists();
     }
 }

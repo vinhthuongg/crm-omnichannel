@@ -80,6 +80,17 @@ class MessageService
             'unread_messages_count' => (int) $conversation->unread_messages_count,
         ]);
 
+        if ($this->shouldSkipChatbotReply($conversation, $message)) {
+            Log::info('Chatbot auto reply skipped because human is handling conversation', [
+                'message_id' => $message->id,
+                'conversation_id' => $conversation->id,
+                'automation_state' => $conversation->automation_state,
+                'last_read_at' => $conversation->last_read_at?->toISOString(),
+            ]);
+
+            return $message;
+        }
+
         if (config('chatbot.async', false)) {
             Log::info('Chatbot auto reply dispatched async', [
                 'message_id' => $message->id,
@@ -345,6 +356,28 @@ class MessageService
                 ]);
             }
         });
+    }
+
+    private function shouldSkipChatbotReply(Conversation $conversation, Message $inbound): bool
+    {
+        $state = (array) ($conversation->automation_state ?? []);
+
+        if (filled($state['paused_by_user_at'] ?? null)) {
+            return true;
+        }
+
+        if ($conversation->last_read_at && $conversation->last_read_at->gte($inbound->created_at)) {
+            return true;
+        }
+
+        return $conversation->messages()
+            ->where('sender_type', 'user')
+            ->where('created_at', '>=', $inbound->created_at)
+            ->where(function ($query): void {
+                $query->whereNull('client_message_id')
+                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
+            })
+            ->exists();
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void

@@ -60,6 +60,12 @@ class SendMessengerMessageAction
                 'last_read_at' => now(),
                 'status' => 'open',
                 'unread_messages_count' => 0,
+                'automation_state' => $isWhisper
+                    ? $conversation->automation_state
+                    : [
+                        ...(array) ($conversation->automation_state ?? []),
+                        'paused_by_user_at' => now()->toISOString(),
+                    ],
             ])->save();
 
             if (! $isWhisper) {

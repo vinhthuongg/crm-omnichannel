@@ -120,6 +120,15 @@ class SalesChatbotService
             }
         }
 
+        if (($state['step'] ?? '') === 'awaiting_phone'
+            && ($state['payment_method'] ?? '') === 'installment'
+            && $this->downPaymentAmount($content) !== '') {
+            return new ChatbotReply(
+                content: $this->installmentAnswer($conversation, $state, $content),
+                clientMessageKey: $this->replyKey($conversation, $source, 'installment-down-payment'),
+            );
+        }
+
         if ($this->isGreeting($content)) {
             $menu = InitialMessageTemplate::serviceMenuFor($conversation);
             $alreadyGreeted = $this->hasGreeted($conversation, $state);
@@ -424,6 +433,21 @@ class SalesChatbotService
             || str_contains($normalized, 'tien mat')
             || str_contains($normalized, 'mua thang')
             || str_contains($normalized, 'khong gop');
+    }
+
+    private function downPaymentAmount(string $content): string
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        if (preg_match('/\b(\d{1,4})\s*(tr|trieu|trieu dong|triệu|triệu đồng)\b/u', $normalized, $matches)) {
+            return $matches[1].' triệu đồng';
+        }
+
+        if (preg_match('/\b(\d{1,3})(?:[.,]\d{3}){2,}\b/', $normalized, $matches)) {
+            return $matches[1].' đồng';
+        }
+
+        return '';
     }
 
     private function installmentAnswer(Conversation $conversation, array $state, string $content): string
