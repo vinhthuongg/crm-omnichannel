@@ -109,14 +109,20 @@ class SalesChatbotService
     private function detailAnswer(array $state, string $detail): string
     {
         $label = (string) ($state['label'] ?? 'Tu van');
+        $topic = (string) ($state['topic'] ?? '');
         $query = trim(($state['search_prefix'] ?? $label).' '.$detail);
-        $matches = $this->vectors->search($query);
-        $context = collect($matches)->pluck('text')->take(5)->implode("\n");
+        $matches = collect($this->knowledgeBase->contextDocuments($query, $topic))
+            ->merge($this->vectors->search($query, 8))
+            ->unique('id')
+            ->take(10)
+            ->values()
+            ->all();
+        $context = collect($matches)->pluck('text')->implode("\n");
 
         try {
             $answer = $this->nim->chat(
-                'Bạn là trợ lý tư vấn Toyota Kiên Giang. Chỉ dùng dữ liệu trong CONTEXT. Trả lời ngắn, lịch sự, không bịa số liệu. Luôn kết thúc bằng câu xin số điện thoại/Zalo để nhân viên gọi ngay.',
-                "NHU CẦU: {$label}\nKHÁCH NHẮN: {$detail}\nCONTEXT:\n{$context}",
+                $this->systemPrompt(),
+                "NHU CẦU: {$label}\nKHÁCH NHẮN: {$detail}\nYÊU CẦU BẮT BUỘC: Nếu có dữ liệu giá xe trong CONTEXT thì phải báo giá. Nếu có dữ liệu khuyến mãi/ưu đãi cùng mẫu xe trong CONTEXT thì phải báo luôn khuyến mãi.\nCONTEXT:\n{$context}",
             );
         } catch (\Throwable) {
             $answer = null;
@@ -127,10 +133,10 @@ class SalesChatbotService
         }
 
         $summary = $context !== ''
-            ? "Dạ em đã ghi nhận {$detail}. Theo dữ liệu hiện có:\n".$this->compactContext($context)
-            : "Dạ em đã ghi nhận nhu cầu {$detail} của Anh/Chị.";
+            ? "Kính chào Anh/Chị,\n\nEm xin gửi thông tin tham khảo cho {$detail}:\n".$this->compactContext($context)
+            : "Kính chào Anh/Chị,\n\nEm đã ghi nhận nhu cầu {$detail} của Anh/Chị.";
 
-        return $summary."\n\nAnh/Chị cho em xin số điện thoại hoặc Zalo, bên em sẽ gọi ngay để tư vấn và gửi thông tin chính xác ạ.";
+        return $summary."\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại ngay để tư vấn chi tiết và xác nhận báo giá/ưu đãi chính xác nhất ạ.";
     }
 
     private function compactContext(string $context): string
@@ -140,6 +146,32 @@ class SalesChatbotService
             ->take(3)
             ->map(fn (string $line): string => '- '.trim($line))
             ->implode("\n");
+    }
+
+    private function systemPrompt(): string
+    {
+        return <<<'PROMPT'
+Bạn là trợ lý tư vấn bán hàng của Toyota Kiên Giang.
+
+Nguyên tắc:
+- Chỉ dùng dữ liệu trong CONTEXT, không tự bịa giá, khuyến mãi, màu xe, thời gian giao xe.
+- Giọng điệu chuyên nghiệp, lịch sự, chuẩn mực kiểu tư vấn Nhật: rõ ràng, khiêm tốn, chính xác, không phóng đại.
+- Trả lời bằng tiếng Việt, xưng "em", gọi khách là "Anh/Chị".
+- Format tin nhắn thành các dòng dễ đọc.
+- Nếu khách hỏi giá xe hoặc báo giá lăn bánh: phải nêu giá xe tìm được và phải nêu khuyến mãi/ưu đãi cùng mẫu xe nếu CONTEXT có.
+- Nếu CONTEXT có nhiều phiên bản/màu, tóm tắt tối đa 5 dòng quan trọng, tránh quá dài.
+- Cuối tin luôn mời khách để lại số điện thoại hoặc Zalo để Toyota Kiên Giang gọi lại xác nhận báo giá/ưu đãi chính xác.
+
+Format đề xuất:
+Kính chào Anh/Chị,
+
+Em gửi Anh/Chị thông tin tham khảo:
+- Giá xe: ...
+- Khuyến mãi/ưu đãi: ...
+- Ghi chú: ...
+
+Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại ngay để tư vấn chi tiết và xác nhận thông tin chính xác nhất ạ.
+PROMPT;
     }
 
     private function quickReplyPayload(InboundMessageData $data): string

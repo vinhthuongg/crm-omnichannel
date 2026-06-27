@@ -12,6 +12,48 @@ class VehicleKnowledgeBase
         ));
     }
 
+    public function contextDocuments(string $query, ?string $topic = null): array
+    {
+        $documents = collect($this->documents());
+        $models = $documents
+            ->pluck('metadata.model')
+            ->filter()
+            ->unique()
+            ->sortByDesc(fn (string $model): int => strlen($model))
+            ->values();
+        $normalizedQuery = $this->normalize($query);
+
+        $matchedModels = $models
+            ->filter(fn (string $model): bool => str_contains($normalizedQuery, $this->normalize($model)))
+            ->values();
+
+        if ($matchedModels->isEmpty()) {
+            return [];
+        }
+
+        $matched = $documents->filter(function (array $document) use ($matchedModels): bool {
+            return $matchedModels->contains((string) data_get($document, 'metadata.model'));
+        });
+
+        $prices = $matched
+            ->where('source', 'giaxe_json')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.grade'),
+                data_get($document, 'metadata.price'),
+            ]))
+            ->take(10);
+
+        $promotions = $matched
+            ->where('source', 'ctkm_json')
+            ->take(8);
+
+        return match ($topic) {
+            'PROMOTIONS' => $promotions->merge($prices)->values()->all(),
+            default => $prices->merge($promotions)->values()->all(),
+        };
+    }
+
     public function quickReplies(): array
     {
         return [
@@ -141,5 +183,10 @@ class VehicleKnowledgeBase
     private function value(array $row, string $key): string
     {
         return trim((string) ($row[$key] ?? ''));
+    }
+
+    private function normalize(string $value): string
+    {
+        return str((string) $value)->lower()->ascii()->squish()->toString();
     }
 }

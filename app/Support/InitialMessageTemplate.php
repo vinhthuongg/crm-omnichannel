@@ -7,11 +7,11 @@ use Modules\Conversation\Models\Conversation;
 class InitialMessageTemplate
 {
     private const SERVICE_MENU_MESSAGE = <<<'TEXT'
-Kính chào Quý Anh/Chị,
+Kính chào Anh/Chị,
 
-Toyota Kiên Giang cảm ơn Quý Anh/Chị đã quan tâm đến sản phẩm và dịch vụ của chúng em.
+Toyota Kiên Giang cảm ơn Anh/Chị đã quan tâm đến sản phẩm và dịch vụ của chúng em.
 
-Quý Anh/Chị vui lòng chọn nhu cầu cần tư vấn bên dưới, hoặc để lại số điện thoại/Zalo để em liên hệ nhanh và hỗ trợ chính xác nhất.
+Anh/Chị vui lòng chọn nhu cầu cần tư vấn bên dưới. Nếu thuận tiện, Anh/Chị có thể để lại số điện thoại hoặc Zalo để Toyota Kiên Giang liên hệ hỗ trợ nhanh và chính xác hơn ạ.
 TEXT;
 
     public static function serviceMenuFor(?Conversation $conversation): string
