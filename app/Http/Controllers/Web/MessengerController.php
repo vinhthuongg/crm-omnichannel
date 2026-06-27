@@ -34,11 +34,6 @@ class MessengerController extends Controller
             'channel' => $request->string('channel')->toString(),
         ]);
 
-        if (! $request->ajax()) {
-            $this->markConversationRead($data['activeConversation']);
-            $this->syncReadStateInViewData($data);
-        }
-
         return view('messenger.index', $data);
     }
 
@@ -49,8 +44,6 @@ class MessengerController extends Controller
             'tag' => $request->string('tag')->toString(),
             'channel' => $request->string('channel')->toString(),
         ]);
-        $this->markConversationRead($data['activeConversation']);
-        $this->syncReadStateInViewData($data);
 
         if ($request->expectsJson()) {
             $messages = $conversation->messages()
@@ -109,10 +102,6 @@ class MessengerController extends Controller
                 ->oldest()
                 ->limit($limit)
                 ->get();
-
-            if ($messages->where('sender_type', 'customer')->isNotEmpty()) {
-                $this->markConversationRead($conversation);
-            }
 
             return response()->json([
                 'data' => MessageResource::collection($messages)->resolve(),
@@ -287,7 +276,7 @@ class MessengerController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'data' => (new MessageResource($message->loadMissing('sender')))->resolve(),
+                'data' => (new MessageResource($message->loadMissing(['sender', 'conversation.customer', 'conversation.tags'])))->resolve(),
             ], 201);
         }
 

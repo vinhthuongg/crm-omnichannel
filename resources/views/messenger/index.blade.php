@@ -1159,7 +1159,6 @@
 
         document.querySelectorAll('.messenger-thread.active').forEach((thread) => thread.classList.remove('active'));
         document.querySelector(`[data-thread-conversation-id="${conversation.id}"]`)?.classList.add('active');
-        markThreadRead(conversation.id);
 
         const customerName = conversation.customer_name || 'Customer';
         const chatAvatar = document.querySelector('[data-chat-avatar]');
@@ -1711,14 +1710,13 @@
         }
 
         updateThreadPreview(message);
+        updateThreadTags(message.conversation_id, message.conversation_tags || []);
 
         const isActiveThread = String(message.conversation_id) === String(timeline?.dataset.conversationId);
 
         if (isActiveThread) {
-            markThreadRead(message.conversation_id);
-
-            if (message.sender_type === 'customer') {
-                markActiveConversationRead();
+            if (message.conversation_unread_messages_count !== undefined) {
+                updateThreadUnread(thread, message.conversation_unread_messages_count);
             }
 
             return;
@@ -1778,7 +1776,6 @@
 
             if (activeId) {
                 list.querySelector(`[data-thread-conversation-id="${activeId}"]`)?.classList.add('active');
-                markThreadRead(activeId);
             }
         }
     }
@@ -1805,10 +1802,6 @@
         const payload = await response.json();
         const messages = payload.data || [];
         messages.forEach(appendMessage);
-
-        if (messages.some((message) => message.sender_type === 'customer')) {
-            markThreadRead(timeline.dataset.conversationId);
-        }
     }
 
     async function loadOlderMessages() {
@@ -2279,6 +2272,10 @@
 
             const payload = await response.json();
             replacePendingMessage(pendingId, payload.data);
+            if (Array.isArray(payload.data?.conversation_tags)) {
+                updateConversationTags(document.querySelector('[data-conversation-tags]')?.dataset.tagsUrl || '', payload.data.conversation_tags);
+                updateThreadTags(payload.data.conversation_id, payload.data.conversation_tags);
+            }
             if (fileInput) {
                 fileInput.value = '';
             }

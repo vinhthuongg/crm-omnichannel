@@ -16,7 +16,8 @@ class NewMessageEvent implements ShouldBroadcastNow
 
     public function __construct(public Message $message)
     {
-        $this->message->loadMissing(['sender', 'conversation.customer']);
+        $this->message->unsetRelation('conversation');
+        $this->message->loadMissing(['sender', 'conversation.customer', 'conversation.tags']);
     }
 
     public function broadcastOn(): array

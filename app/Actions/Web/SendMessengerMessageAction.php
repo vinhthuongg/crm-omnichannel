@@ -5,6 +5,7 @@ namespace App\Actions\Web;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Models\Conversation;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Events\MessageUpdatedEvent;
@@ -60,6 +61,10 @@ class SendMessengerMessageAction
                 'status' => 'open',
                 'unread_messages_count' => 0,
             ])->save();
+
+            if (! $isWhisper) {
+                $this->markConversationAsConsulting($conversation);
+            }
 
             return $message;
         });
@@ -147,6 +152,17 @@ class SendMessengerMessageAction
                 ]);
             }
         });
+    }
+
+    private function markConversationAsConsulting(Conversation $conversation): void
+    {
+        $tag = Tag::query()->firstOrCreate(
+            ['name' => 'Dang tu van'],
+            ['color' => '#e11d48'],
+        );
+
+        $conversation->tags()->sync([$tag->id]);
+        $conversation->load('tags');
     }
 
     private function storeAttachments(array $files): array
