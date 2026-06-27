@@ -426,7 +426,7 @@ class VehicleKnowledgeBase
                     'common_questions' => $commonQuestions,
                     'next_action' => '',
                 ],
-                'text' => 'Cac cau hoi san pham thuong gap: '.implode('; ', array_map('strval', $commonQuestions)),
+                'text' => 'Cac cau hoi san pham thuong gap: '.implode('; ', array_filter(array_map(fn ($item): string => $this->stringifyValue($item), $commonQuestions))),
             ]);
         }
 
@@ -612,7 +612,7 @@ class VehicleKnowledgeBase
 
     private function listText(array $items, string $label): string
     {
-        $values = array_values(array_filter(array_map(fn ($item): string => trim((string) $item), $items)));
+        $values = array_values(array_filter(array_map(fn ($item): string => $this->stringifyValue($item), $items)));
 
         return $values === []
             ? ''
@@ -627,7 +627,7 @@ class VehicleKnowledgeBase
 
         return collect($groups)
             ->map(function (array $items, string $group): string {
-                return str_replace('_', ' ', $group).': '.implode('; ', array_filter(array_map('strval', $items)));
+                return str_replace('_', ' ', $group).': '.implode('; ', array_filter(array_map(fn ($item): string => $this->stringifyValue($item), $items)));
             })
             ->implode('. ');
     }
@@ -639,7 +639,7 @@ class VehicleKnowledgeBase
         }
 
         return collect($estimate)
-            ->map(fn ($value, string $key): string => str_replace('_', ' ', $key).': '.trim((string) $value))
+            ->map(fn ($value, string $key): string => str_replace('_', ' ', $key).': '.$this->stringifyValue($value))
             ->implode('; ');
     }
 
@@ -674,7 +674,41 @@ class VehicleKnowledgeBase
 
     private function value(array $row, string $key): string
     {
-        return trim((string) ($row[$key] ?? ''));
+        return $this->stringifyValue($row[$key] ?? '');
+    }
+
+    private function stringifyValue(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'co' : 'khong';
+        }
+
+        if (is_scalar($value)) {
+            return trim((string) $value);
+        }
+
+        if (is_array($value)) {
+            return collect($value)
+                ->map(function ($item, $key): string {
+                    $text = $this->stringifyValue($item);
+
+                    if ($text === '') {
+                        return '';
+                    }
+
+                    return is_string($key) && ! is_numeric($key)
+                        ? str_replace('_', ' ', $key).': '.$text
+                        : $text;
+                })
+                ->filter()
+                ->implode('; ');
+        }
+
+        return '';
     }
 
     private function normalize(string $value): string
