@@ -193,6 +193,10 @@ class SalesChatbotService
     {
         $label = (string) ($state['label'] ?? 'Tu van');
         $topic = (string) ($state['topic'] ?? '');
+        if ($this->wantsInstallment($detail)) {
+            $topic = 'INSTALLMENT_LOAN';
+            $label = 'Vay tra gop';
+        }
         $query = trim(($state['search_prefix'] ?? $label).' '.$detail);
         $directMatches = $this->knowledgeBase->contextDocuments($query, $topic);
 
@@ -274,9 +278,20 @@ class SalesChatbotService
             ->take(8)
             ->values();
 
+        $installments = collect($matches)
+            ->where('source', 'ctrinh_tragop')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.package'),
+                data_get($document, 'metadata.product'),
+            ]))
+            ->take(5)
+            ->values();
+
         $model = (string) (
             data_get($prices->first(), 'metadata.model')
             ?: data_get($promotions->first(), 'metadata.model')
+            ?: data_get($installments->first(), 'metadata.model')
             ?: $detail
         );
 
@@ -317,16 +332,57 @@ class SalesChatbotService
         }
 
         $lines[] = '';
-        $lines[] = 'Giá lăn bánh còn phụ thuộc khu vực đăng ký, phiên bản, màu xe và chương trình tại thời điểm ký hợp đồng.';
-        $lines[] = 'Anh/Chị muốn trả góp hay trả thẳng để em kiểm tra thêm ưu đãi phù hợp cho Anh/Chị ạ?';
+        if ($installments->isNotEmpty()) {
+            $lines[] = 'Chương trình trả góp tham khảo:';
 
-        $conversation->forceFill([
-            'automation_state' => [
+            foreach ($installments as $document) {
+                $package = (string) data_get($document, 'metadata.package', '');
+                $product = (string) data_get($document, 'metadata.product', '');
+                $phaseOne = (string) data_get($document, 'metadata.phase_one', '');
+                $phaseTwo = (string) data_get($document, 'metadata.phase_two', '');
+                $months = (string) data_get($document, 'metadata.months', '');
+
+                $lines[] = "- {$package}";
+                $lines[] = "  Sản phẩm: {$product}";
+
+                if ($phaseOne !== '') {
+                    $lines[] = "  Lãi suất giai đoạn 1: {$phaseOne}";
+                }
+
+                if ($phaseTwo !== '') {
+                    $lines[] = "  Lãi suất giai đoạn 2: {$phaseTwo}";
+                }
+
+                if ($months !== '') {
+                    $lines[] = "  Thời gian vay áp dụng/tối thiểu: {$months} tháng";
+                }
+            }
+
+            $lines[] = '';
+            $lines[] = 'Giá lăn bánh và phương án trả góp thực tế còn phụ thuộc khu vực đăng ký, số tiền trả trước, thời hạn vay và phê duyệt của đơn vị tài chính.';
+            $lines[] = 'Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại để tính phương án trả góp chi tiết cho mình ạ.';
+
+            $nextState = [
+                ...$state,
+                'step' => 'awaiting_phone',
+                'model' => $model,
+                'payment_method' => 'installment',
+                'quoted_at' => now()->toISOString(),
+            ];
+        } else {
+            $lines[] = 'Giá lăn bánh còn phụ thuộc khu vực đăng ký, phiên bản, màu xe và chương trình tại thời điểm ký hợp đồng.';
+            $lines[] = 'Anh/Chị muốn trả góp hay trả thẳng để em kiểm tra thêm ưu đãi phù hợp cho Anh/Chị ạ?';
+
+            $nextState = [
                 ...$state,
                 'step' => 'awaiting_payment_method',
                 'model' => $model,
                 'quoted_at' => now()->toISOString(),
-            ],
+            ];
+        }
+
+        $conversation->forceFill([
+            'automation_state' => $nextState,
         ])->save();
 
         return implode("\n", $lines);
@@ -356,20 +412,18 @@ class SalesChatbotService
     private function installmentAnswer(Conversation $conversation, array $state, string $content): string
     {
         $model = (string) ($state['model'] ?? '');
+        if ($model === '') {
+            $model = (string) collect($this->knowledgeBase->detectModels($content))->first();
+        }
+
+        if ($model === '') {
+            return $this->askForVehicleModel(['label' => 'Vay tra gop']);
+        }
+
         $query = trim('tra gop lai suat '.$model.' '.$content);
         $matches = collect($this->knowledgeBase->contextDocuments($query, 'INSTALLMENT_LOAN'))
             ->where('source', 'ctrinh_tragop')
             ->values();
-
-        if ($matches->isEmpty()) {
-            try {
-                $matches = collect($this->vectors->search($query, 8))
-                    ->where('source', 'ctrinh_tragop')
-                    ->values();
-            } catch (\Throwable) {
-                $matches = collect();
-            }
-        }
 
         if ($matches->isEmpty()) {
             return "Dạ em đã nhận nhu cầu trả góp của Anh/Chị.\n\nHiện em chưa thấy chương trình lãi suất phù hợp với mẫu {$model} trong file dữ liệu trả góp. Anh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ kiểm tra trực tiếp với bộ phận tài chính và phản hồi lại ngay ạ.";

@@ -16,17 +16,7 @@ class VehicleKnowledgeBase
     public function contextDocuments(string $query, ?string $topic = null): array
     {
         $documents = collect($this->documents());
-        $models = $documents
-            ->pluck('metadata.model')
-            ->filter()
-            ->unique()
-            ->sortByDesc(fn (string $model): int => strlen($model))
-            ->values();
-        $normalizedQuery = $this->normalize($query);
-
-        $matchedModels = $models
-            ->filter(fn (string $model): bool => str_contains($normalizedQuery, $this->normalize($model)))
-            ->values();
+        $matchedModels = collect($this->detectModels($query));
 
         if ($matchedModels->isEmpty()) {
             return [];
@@ -55,9 +45,23 @@ class VehicleKnowledgeBase
 
         return match ($topic) {
             'PROMOTIONS' => $promotions->merge($prices)->values()->all(),
-            'INSTALLMENT_LOAN' => $installments->merge($prices)->values()->all(),
+            'INSTALLMENT_LOAN' => $installments->merge($prices)->merge($promotions)->values()->all(),
             default => $prices->merge($promotions)->values()->all(),
         };
+    }
+
+    public function detectModels(string $text): array
+    {
+        $normalizedText = $this->normalize($text);
+
+        return collect($this->documents())
+            ->pluck('metadata.model')
+            ->filter()
+            ->unique()
+            ->sortByDesc(fn (string $model): int => strlen($model))
+            ->filter(fn (string $model): bool => str_contains($normalizedText, $this->normalize($model)))
+            ->values()
+            ->all();
     }
 
     public function quickReplies(): array
