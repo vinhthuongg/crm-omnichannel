@@ -16,21 +16,11 @@ TEXT;
 
     public static function serviceMenuFor(?Conversation $conversation): string
     {
-        if (! $conversation || filled($conversation->customer?->phone)) {
+        if (! $conversation || filled($conversation->customer?->phone) || (int) $conversation->unread_messages_count === 0) {
             return '';
         }
 
-        $hasAgentReply = $conversation->messages()
-            ->where('sender_type', 'user')
-            ->where('message_type', '!=', 'whisper')
-            ->where('channel', '!=', 'internal')
-            ->where(function ($query): void {
-                $query->whereNull('client_message_id')
-                    ->orWhere('client_message_id', 'not like', 'auto-%');
-            })
-            ->exists();
-
-        return $hasAgentReply ? '' : self::SERVICE_MENU_MESSAGE;
+        return self::SERVICE_MENU_MESSAGE;
     }
 
     public static function messengerQuickReplies(): array

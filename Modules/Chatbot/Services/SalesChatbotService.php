@@ -148,12 +148,16 @@ class SalesChatbotService
         $label = (string) ($state['label'] ?? 'Tu van');
         $topic = (string) ($state['topic'] ?? '');
         $query = trim(($state['search_prefix'] ?? $label).' '.$detail);
-        $matches = collect($this->knowledgeBase->contextDocuments($query, $topic))
-            ->merge($this->vectors->search($query, 8))
-            ->unique('id')
-            ->take(10)
-            ->values()
-            ->all();
+        try {
+            $matches = collect($this->knowledgeBase->contextDocuments($query, $topic))
+                ->merge($this->vectors->search($query, 8))
+                ->unique('id')
+                ->take(10)
+                ->values()
+                ->all();
+        } catch (\Throwable) {
+            $matches = $this->knowledgeBase->contextDocuments($query, $topic);
+        }
         $context = collect($matches)->pluck('text')->implode("\n");
 
         try {

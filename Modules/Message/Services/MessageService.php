@@ -4,6 +4,7 @@ namespace Modules\Message\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Chatbot\DTO\ChatbotReply;
 use Modules\Chatbot\Jobs\SendChatbotReplyJob;
 use Modules\Chatbot\Services\SalesChatbotService;
@@ -13,7 +14,7 @@ use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
-use Modules\Message\Jobs\SendOutboundMessageJob;
+use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -83,7 +84,7 @@ class MessageService
 
         if ($autoReply) {
             $this->broadcastNewMessage($autoReply);
-            SendOutboundMessageJob::dispatch($autoReply->id);
+            $this->sendAutoReplyAfterResponse($autoReply);
         }
 
         return $message;
@@ -198,6 +199,53 @@ class MessageService
         ])->save();
 
         return $message;
+    }
+
+    private function sendAutoReplyAfterResponse(Message $message): void
+    {
+        app()->terminating(function () use ($message): void {
+            $message = $message->fresh(['conversation.customer.channels']);
+
+            if (! $message?->conversation || $message->outbound_status !== 'queued') {
+                return;
+            }
+
+            try {
+                $message->forceFill([
+                    'outbound_status' => 'sending',
+                    'outbound_error' => null,
+                ])->save();
+                event(new MessageUpdatedEvent($message));
+
+                $externalMessageId = $this->outbound->send(
+                    $message->conversation,
+                    $message->channel,
+                    (string) $message->content,
+                    $message->attachments ?? [],
+                );
+
+                $message->forceFill([
+                    'external_message_id' => $externalMessageId,
+                    'outbound_status' => 'sent',
+                    'outbound_error' => null,
+                    'sent_at' => now(),
+                ])->save();
+                event(new MessageUpdatedEvent($message));
+            } catch (\Throwable $exception) {
+                $message->forceFill([
+                    'outbound_status' => 'failed',
+                    'outbound_error' => $exception->getMessage(),
+                ])->save();
+                event(new MessageUpdatedEvent($message));
+
+                Log::warning('Auto chatbot outbound send failed', [
+                    'message_id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'channel' => $message->channel,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
