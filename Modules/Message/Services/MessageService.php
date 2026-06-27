@@ -105,7 +105,20 @@ class MessageService
             return $message;
         }
 
-        $autoReply = $this->createChatbotReply($conversation, $data->channel, $reply);
+        try {
+            $autoReply = $this->createChatbotReply($conversation, $data->channel, $reply);
+        } catch (\Throwable $exception) {
+            Log::error('Chatbot auto reply create failed', [
+                'message_id' => $message->id,
+                'conversation_id' => $conversation->id,
+                'channel' => $data->channel,
+                'client_message_key' => $reply->clientMessageKey,
+                'error' => $exception->getMessage(),
+                'exception' => $exception::class,
+            ]);
+
+            return $message;
+        }
 
         if ($autoReply) {
             Log::info('Chatbot auto reply created', [
