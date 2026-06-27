@@ -43,10 +43,6 @@ class SendChatbotReplyJob implements ShouldQueue
             return;
         }
 
-        if ((int) $conversation->unread_messages_count === 0) {
-            return;
-        }
-
         if ($this->humanIsHandlingConversation($conversation, $inbound)) {
             return;
         }
@@ -120,30 +116,18 @@ class SendChatbotReplyJob implements ShouldQueue
     private function humanIsHandlingConversation($conversation, Message $inbound): bool
     {
         $state = (array) ($conversation->automation_state ?? []);
+        $pausedByMessageId = (int) ($state['paused_by_user_message_id'] ?? 0);
 
-        if (filled($state['paused_by_user_at'] ?? null)) {
-            return $this->hasHumanUserMessageSincePause($conversation, (string) $state['paused_by_user_at']);
-        }
-
-        return $conversation->messages()
-            ->where('sender_type', 'user')
-            ->where('created_at', '>=', $inbound->created_at)
-            ->where(function ($query): void {
-                $query->whereNull('client_message_id')
-                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
-            })
-            ->exists();
-    }
-
-    private function hasHumanUserMessageSincePause($conversation, string $pausedAt): bool
-    {
-        return $conversation->messages()
-            ->where('sender_type', 'user')
-            ->where('created_at', '>=', $pausedAt)
-            ->where(function ($query): void {
-                $query->whereNull('client_message_id')
-                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
-            })
-            ->exists();
+        return $pausedByMessageId > 0
+            && $conversation->messages()
+                ->whereKey($pausedByMessageId)
+                ->where('sender_type', 'user')
+                ->where(function ($query): void {
+                    $query->whereNull('client_message_id')
+                        ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
+                })
+                ->where('content', 'not like', '%Toyota Kiên Giang cảm ơn%')
+                ->where('content', 'not like', '%Toyota KiÃªn Giang%')
+                ->exists();
     }
 }
