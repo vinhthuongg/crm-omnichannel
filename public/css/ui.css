@@ -1387,7 +1387,7 @@ kbd {
 .profile-card-head {
     min-height: 94px;
     display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) 28px 24px;
+    grid-template-columns: 52px minmax(0, 1fr) 28px;
     align-items: center;
     gap: 8px;
     padding: 16px;
@@ -1405,20 +1405,28 @@ kbd {
     white-space: nowrap;
 }
 
-.profile-card-head a {
+.profile-card-head a,
+.profile-contact-toggle {
     color: #0b73d9;
     font-size: 13px;
     line-height: 1.25;
     text-decoration: none;
 }
 
-.profile-card-head a[hidden],
-.profile-next[hidden] {
+.profile-contact-toggle {
+    min-height: auto;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.profile-card-head a[hidden] {
     display: none;
 }
 
-.profile-card-head button,
-.profile-next {
+.profile-card-head button:not(.profile-contact-toggle) {
     width: 28px;
     height: 28px;
     display: grid;
@@ -1432,8 +1440,7 @@ kbd {
     text-decoration: none;
 }
 
-.profile-card-head button:hover,
-.profile-next:hover {
+.profile-card-head button:not(.profile-contact-toggle):hover {
     background: #eef2f7;
 }
 
@@ -1504,11 +1511,13 @@ kbd {
 }
 
 .profile-panel-main[hidden],
-.profile-notes-full[hidden] {
+.profile-notes-full[hidden],
+.profile-contact-full[hidden] {
     display: none;
 }
 
-.profile-notes-full {
+.profile-notes-full,
+.profile-contact-full {
     min-height: 100%;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -1516,7 +1525,8 @@ kbd {
     color: #e5e7eb;
 }
 
-.profile-notes-full header {
+.profile-notes-full header,
+.profile-contact-full header {
     min-height: 54px;
     display: flex;
     align-items: center;
@@ -1525,7 +1535,8 @@ kbd {
     padding: 0 14px;
 }
 
-.profile-notes-full header button {
+.profile-notes-full header button,
+.profile-contact-full header button {
     width: 32px;
     height: 32px;
     border: 1px solid #334155;
@@ -1535,10 +1546,23 @@ kbd {
     font-weight: 800;
 }
 
-.profile-notes-full h4 {
+.profile-notes-full > header h4,
+.profile-contact-full > header h4 {
     margin: 0;
     color: #f8fafc;
     font-size: 16px;
+}
+
+.profile-contact-full-body {
+    align-content: start;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.profile-contact-full .profile-section {
+    margin-bottom: 12px;
+    border: 1px solid #263349;
+    border-radius: 7px;
 }
 
 .profile-note-list.is-full {

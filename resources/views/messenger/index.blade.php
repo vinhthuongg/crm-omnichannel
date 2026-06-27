@@ -306,6 +306,52 @@
     </section>
     <aside class="messenger-profile-panel" data-profile-panel>
         @if($activeConversation)
+            <section class="profile-contact-full" data-contact-full hidden>
+                <header>
+                    <button type="button" data-contact-back>&lt;</button>
+                    <h4>Chi tiet lien he</h4>
+                </header>
+                <div class="profile-contact-full-body">
+                    <div class="profile-section profile-details">
+                        <h4>Thong tin cong khai</h4>
+                        <div class="profile-detail-list" data-public-detail-list>
+                            @if(count($profilePanel['details']) === 0)
+                                <p class="profile-empty">Chua co thong tin cong khai.</p>
+                            @endif
+                            @foreach($profilePanel['details'] as $detail)
+                                <span>{{ $detail['label'] }}</span>
+                                <strong>{{ $detail['value'] }}</strong>
+                            @endforeach
+                        </div>
+                    </div>
+                    <section class="profile-section profile-details" data-contact-section data-contact-url="{{ route('crm.conversations.customer.update', $activeConversation) }}">
+                        <h4>Cap nhat lien he</h4>
+                        <form class="profile-contact-form" data-contact-form>
+                            <label>
+                                <span>Ten khach hang</span>
+                                <input type="text" name="name" value="{{ $profilePanel['contact']['name'] }}" autocomplete="name" required>
+                            </label>
+                            <label>
+                                <span>So dien thoai</span>
+                                <input type="tel" name="phone" value="{{ $profilePanel['contact']['phone'] }}" autocomplete="tel">
+                            </label>
+                            <label>
+                                <span>Email</span>
+                                <input type="email" name="email" value="{{ $profilePanel['contact']['email'] }}" autocomplete="email">
+                            </label>
+                            <label>
+                                <span>Kenh lien he</span>
+                                <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chua co kenh' }}" data-contact-channel disabled>
+                            </label>
+                            <div class="profile-contact-actions">
+                                <button type="submit">Save</button>
+                                <small data-contact-status></small>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            </section>
+
             <section class="profile-notes-full" data-notes-full hidden>
                 <header>
                     <button type="button" data-notes-back>&lt;</button>
@@ -335,41 +381,10 @@
                 </span>
                 <div>
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
-                    @if($profilePanel['facebook_profile_url'] !== '#')
-                        <a href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" data-profile-link>Xem trang ca nhan</a>
-                    @else
-                        <a href="#" target="_blank" rel="noopener" data-profile-link hidden>Xem trang ca nhan</a>
-                    @endif
+                    <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi tiet lien he &gt;</button>
                 </div>
                 <button type="button" aria-label="More profile actions">...</button>
-                <a class="profile-next" href="{{ $profilePanel['facebook_profile_url'] }}" target="_blank" rel="noopener" aria-label="Open profile" @if($profilePanel['facebook_profile_url'] === '#') hidden @endif>&gt;</a>
             </header>
-
-            <section class="profile-section profile-details" data-contact-section data-contact-url="{{ route('crm.conversations.customer.update', $activeConversation) }}">
-                <h4>Chi tiet lien he</h4>
-                <form class="profile-contact-form" data-contact-form>
-                    <label>
-                        <span>Ten khach hang</span>
-                        <input type="text" name="name" value="{{ $profilePanel['contact']['name'] }}" autocomplete="name" required>
-                    </label>
-                    <label>
-                        <span>So dien thoai</span>
-                        <input type="tel" name="phone" value="{{ $profilePanel['contact']['phone'] }}" autocomplete="tel">
-                    </label>
-                    <label>
-                        <span>Email</span>
-                        <input type="email" name="email" value="{{ $profilePanel['contact']['email'] }}" autocomplete="email">
-                    </label>
-                    <label>
-                        <span>Kenh lien he</span>
-                        <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chua co kenh' }}" data-contact-channel disabled>
-                    </label>
-                    <div class="profile-contact-actions">
-                        <button type="submit">Save</button>
-                        <small data-contact-status></small>
-                    </div>
-                </form>
-            </section>
 
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
                 <header>
@@ -460,6 +475,8 @@
     document.querySelector('[data-profile-panel]')?.addEventListener('click', function (event) {
         const toggle = event.target.closest('[data-notes-toggle]');
         const back = event.target.closest('[data-notes-back]');
+        const contactToggle = event.target.closest('[data-contact-toggle]');
+        const contactBack = event.target.closest('[data-contact-back]');
         const selectedTag = event.target.closest('[data-select-customer-tag]');
 
         if (toggle) {
@@ -467,7 +484,17 @@
             showAllNotesPanel();
         }
 
+        if (contactToggle) {
+            event.preventDefault();
+            showContactDetailsPanel();
+        }
+
         if (back) {
+            event.preventDefault();
+            showMainProfilePanel();
+        }
+
+        if (contactBack) {
             event.preventDefault();
             showMainProfilePanel();
         }
@@ -690,11 +717,6 @@
         const customerAvatar = conversation.customer_avatar || conversation.conversation_customer_avatar || '';
         const avatar = panel.querySelector('[data-profile-avatar]');
         const name = panel.querySelector('[data-profile-name]');
-        const link = panel.querySelector('[data-profile-link]');
-        const next = panel.querySelector('.profile-next');
-        const hasProfileField = Object.prototype.hasOwnProperty.call(conversation, 'facebook_profile_url');
-        const profileUrl = conversation.facebook_profile_url || '#';
-        const hasProfileUrl = profileUrl !== '#';
 
         if (avatar) {
             avatar.innerHTML = avatarHtml(customerAvatar, customerName);
@@ -704,18 +726,6 @@
             name.textContent = customerName;
         }
 
-        if (link && hasProfileField) {
-            link.href = profileUrl;
-            link.hidden = !hasProfileUrl;
-            link.toggleAttribute('aria-disabled', !hasProfileUrl);
-        }
-
-        if (next && hasProfileField) {
-            next.href = profileUrl;
-            next.hidden = !hasProfileUrl;
-            next.toggleAttribute('aria-disabled', !hasProfileUrl);
-        }
-
         if (conversation.customer_contact || Object.prototype.hasOwnProperty.call(conversation, 'customer_email')) {
             renderCustomerContact(conversation.customer_contact || {
                 name: customerName,
@@ -723,6 +733,10 @@
                 email: conversation.customer_email || '',
                 channel: conversation.active_channel || '',
             });
+        }
+
+        if (Array.isArray(conversation.customer_public_details)) {
+            renderCustomerPublicDetails(conversation.customer_public_details);
         }
 
         if (Array.isArray(conversation.customer_notes)) {
@@ -745,15 +759,17 @@
             tags.dataset.tagsUrl = conversation.customer_tags_url;
         }
 
-        if (contact && conversation.customer_update_url) {
-            contact.dataset.contactUrl = conversation.customer_update_url;
+        if (conversation.customer_update_url) {
+            panel.querySelectorAll('[data-contact-section]').forEach(function (section) {
+                section.dataset.contactUrl = conversation.customer_update_url;
+            });
         }
     }
 
     function renderCustomerContact(contact) {
-        const form = document.querySelector('[data-contact-form]');
+        const forms = document.querySelectorAll('[data-contact-form]');
 
-        if (!form) {
+        if (!forms.length) {
             return;
         }
 
@@ -763,19 +779,41 @@
             email: contact?.email || '',
         };
 
-        Object.entries(fields).forEach(function ([field, value]) {
-            const input = form.querySelector(`[name="${field}"]`);
+        forms.forEach(function (form) {
+            Object.entries(fields).forEach(function ([field, value]) {
+                const input = form.querySelector(`[name="${field}"]`);
 
-            if (input) {
-                input.value = value;
+                if (input) {
+                    input.value = value;
+                }
+            });
+
+            const channel = form.querySelector('[data-contact-channel]');
+
+            if (channel) {
+                channel.value = contact?.channel || 'Chua co kenh';
             }
         });
+    }
 
-        const channel = form.querySelector('[data-contact-channel]');
+    function renderCustomerPublicDetails(details) {
+        const container = document.querySelector('[data-public-detail-list]');
 
-        if (channel) {
-            channel.value = contact?.channel || 'Chua co kenh';
+        if (!container) {
+            return;
         }
+
+        if (!Array.isArray(details) || !details.length) {
+            container.innerHTML = '<p class="profile-empty">Chua co thong tin cong khai.</p>';
+            return;
+        }
+
+        container.innerHTML = details.map(function (detail) {
+            return `
+                <span>${escapeHtml(detail.label || '')}</span>
+                <strong>${escapeHtml(detail.value || '')}</strong>
+            `;
+        }).join('');
     }
 
     async function saveCustomerContact(form) {
@@ -847,6 +885,7 @@
             email: conversation.customer_email || '',
             channel: '',
         });
+        renderCustomerPublicDetails(conversation.customer_public_details || []);
 
         if (chatAvatar) {
             chatAvatar.innerHTML = avatarHtml(customerAvatar, customerName);
@@ -908,24 +947,50 @@
     function showAllNotesPanel() {
         const main = document.querySelector('[data-profile-main]');
         const full = document.querySelector('[data-notes-full]');
+        const contact = document.querySelector('[data-contact-full]');
 
         if (!main || !full) {
             return;
         }
 
         main.hidden = true;
+        if (contact) {
+            contact.hidden = true;
+        }
         full.hidden = false;
+    }
+
+    function showContactDetailsPanel() {
+        const main = document.querySelector('[data-profile-main]');
+        const notes = document.querySelector('[data-notes-full]');
+        const contact = document.querySelector('[data-contact-full]');
+
+        if (!main || !contact) {
+            return;
+        }
+
+        main.hidden = true;
+        if (notes) {
+            notes.hidden = true;
+        }
+        contact.hidden = false;
     }
 
     function showMainProfilePanel() {
         const main = document.querySelector('[data-profile-main]');
         const full = document.querySelector('[data-notes-full]');
+        const contact = document.querySelector('[data-contact-full]');
 
-        if (!main || !full) {
+        if (!main) {
             return;
         }
 
-        full.hidden = true;
+        if (full) {
+            full.hidden = true;
+        }
+        if (contact) {
+            contact.hidden = true;
+        }
         main.hidden = false;
     }
 
