@@ -286,6 +286,9 @@ class SalesChatbotService
         $firstTimeBuyerScripts = collect($matches)
             ->where('source', 'format_mua_xe_lan_dau')
             ->values();
+        $roadPriceScripts = collect($matches)
+            ->where('source', 'format_gia_lan_banh')
+            ->values();
 
         $prices = collect($matches)
             ->where('source', 'giaxe_json')
@@ -319,6 +322,10 @@ class SalesChatbotService
 
         if ($prices->isEmpty() && $promotions->isEmpty() && $installments->isEmpty() && $bankLoanProcesses->isNotEmpty()) {
             return $this->bankLoanProcessAnswer($conversation, $state, $detail, $bankLoanProcesses);
+        }
+
+        if ($prices->isEmpty() && $promotions->isEmpty() && $installments->isEmpty() && $roadPriceScripts->isNotEmpty()) {
+            return $this->roadPriceScriptAnswer($conversation, $state, $detail, $roadPriceScripts);
         }
 
         if ($firstTimeBuyerScripts->isNotEmpty()
@@ -407,6 +414,7 @@ class SalesChatbotService
             ];
         } else {
             $lines[] = 'Giá lăn bánh còn phụ thuộc khu vực đăng ký, phiên bản, màu xe và chương trình tại thời điểm ký hợp đồng.';
+            $this->appendRoadPriceSummary($lines, $roadPriceScripts);
             $lines[] = 'Anh/Chị muốn trả góp hay trả thẳng để em kiểm tra thêm ưu đãi phù hợp cho Anh/Chị ạ?';
 
             $nextState = [
@@ -537,6 +545,118 @@ class SalesChatbotService
         ])->save();
 
         return implode("\n", $lines);
+    }
+
+    private function roadPriceScriptAnswer(Conversation $conversation, array $state, string $content, $scripts): string
+    {
+        $document = $this->selectRoadPriceScriptDocument($content, $scripts);
+        $title = (string) data_get($document, 'metadata.title', 'Giá lăn bánh');
+        $answer = (string) data_get($document, 'metadata.answer', '');
+        $questions = (array) data_get($document, 'metadata.questions', []);
+        $costItems = (array) data_get($document, 'metadata.cost_items', []);
+        $qa = (array) data_get($document, 'metadata.qa', []);
+        $sampleCost = (array) data_get($document, 'metadata.sample_cost', []);
+        $followUp = (string) data_get($document, 'metadata.follow_up', '');
+        $lines = [
+            "Dạ, em gửi Anh/Chị thông tin về {$title}:",
+        ];
+
+        if ($answer !== '') {
+            $lines[] = '';
+            $lines[] = $answer;
+        }
+
+        $matchedQa = $this->matchedProductAnswer($content, $qa);
+        if ($matchedQa !== '') {
+            $lines[] = '';
+            $lines[] = $matchedQa;
+        }
+
+        if ($costItems !== []) {
+            $lines[] = '';
+            $lines[] = 'Giá lăn bánh thường gồm:';
+            foreach ($costItems as $item) {
+                $lines[] = '- '.trim((string) $item);
+            }
+        }
+
+        if ($sampleCost !== []) {
+            $lines[] = '';
+            $lines[] = 'Khi tính chi tiết, em sẽ kiểm tra các khoản:';
+            foreach ($sampleCost as $key => $value) {
+                if (is_array($value)) {
+                    $value = implode(', ', array_map('strval', $value));
+                }
+                $lines[] = '- '.str_replace('_', ' ', (string) $key).': '.trim((string) $value);
+            }
+        }
+
+        if ($questions !== []) {
+            $lines[] = '';
+            $lines[] = 'Để em tính sát nhất cho mình, Anh/Chị cho em xin thêm:';
+            foreach (array_slice($questions, 0, 2) as $question) {
+                $lines[] = '- '.trim((string) $question);
+            }
+        }
+
+        if ($followUp !== '') {
+            $lines[] = '';
+            $lines[] = $followUp;
+        }
+
+        $conversation->forceFill([
+            'automation_state' => [
+                ...$state,
+                'topic' => 'PRICE_BY_AREA',
+                'label' => 'Bao gia lan banh',
+                'step' => 'awaiting_detail',
+                'road_price_situation' => data_get($document, 'metadata.situation'),
+                'road_price_step' => data_get($document, 'metadata.step'),
+                'road_price_at' => now()->toISOString(),
+            ],
+        ])->save();
+
+        return implode("\n", array_values(array_filter($lines, fn (string $line): bool => $line !== '')));
+    }
+
+    private function selectRoadPriceScriptDocument(string $content, $scripts): array
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+        $step = match (true) {
+            str_contains($normalized, 'la gi')
+                || str_contains($normalized, 'khac gi')
+                || str_contains($normalized, 'cao hon')
+                || str_contains($normalized, 'niem yet') => '2',
+            str_contains($normalized, 'truoc ba')
+                || str_contains($normalized, 'bao hiem')
+                || str_contains($normalized, 'phi')
+                || str_contains($normalized, 'phat sinh') => '3',
+            str_contains($normalized, 'tra gop')
+                || str_contains($normalized, 'tra truoc') => '5',
+            str_contains($normalized, 'bao gia nhanh')
+                || str_contains($normalized, 'tron goi')
+                || str_contains($normalized, 'uu dai') => '1',
+            default => '1',
+        };
+
+        return (array) (
+            $scripts->firstWhere('metadata.step', $step)
+            ?? $scripts->first()
+            ?? []
+        );
+    }
+
+    private function appendRoadPriceSummary(array &$lines, $scripts): void
+    {
+        if ($scripts->isEmpty()) {
+            return;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Để tính giá lăn bánh chính xác, em sẽ kiểm tra thêm:';
+        $lines[] = '- Tỉnh/thành đăng ký để áp đúng thuế trước bạ và phí biển số.';
+        $lines[] = '- Hình thức thanh toán: trả thẳng hay trả góp.';
+        $lines[] = '- Các khoản bảo hiểm, đăng kiểm, bảo trì đường bộ và phí hồ sơ nếu có.';
     }
 
     private function firstTimeBuyerAnswer(Conversation $conversation, array $state, string $content, $scripts): string

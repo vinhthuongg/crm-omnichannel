@@ -12,6 +12,7 @@ class VehicleKnowledgeBase
             $this->installmentDocuments(),
             $this->bankLoanProcessDocuments(),
             $this->firstTimeBuyerDocuments(),
+            $this->roadPriceScriptDocuments(),
         ));
     }
 
@@ -25,10 +26,13 @@ class VehicleKnowledgeBase
         $firstTimeBuyerScripts = collect($this->firstTimeBuyerDocuments())
             ->filter(fn (array $document): bool => $this->matchesFirstTimeBuyerScript($query, $document))
             ->take(5);
+        $roadPriceScripts = collect($this->roadPriceScriptDocuments())
+            ->filter(fn (array $document): bool => $this->matchesRoadPriceScript($query, $document))
+            ->take(5);
 
         if ($matchedModels->isEmpty()) {
-            return $topic === 'INSTALLMENT_LOAN' || $processes->isNotEmpty() || $firstTimeBuyerScripts->isNotEmpty()
-                ? $processes->merge($firstTimeBuyerScripts)->values()->all()
+            return $topic === 'INSTALLMENT_LOAN' || $topic === 'PRICE_BY_AREA' || $processes->isNotEmpty() || $firstTimeBuyerScripts->isNotEmpty() || $roadPriceScripts->isNotEmpty()
+                ? $processes->merge($firstTimeBuyerScripts)->merge($roadPriceScripts)->values()->all()
                 : [];
         }
 
@@ -56,8 +60,9 @@ class VehicleKnowledgeBase
         return match ($topic) {
             'PROMOTIONS' => $promotions->merge($prices)->values()->all(),
             'INSTALLMENT_LOAN' => $installments->merge($prices)->merge($promotions)->merge($processes)->values()->all(),
+            'PRICE_BY_AREA' => $prices->merge($promotions)->merge($roadPriceScripts)->values()->all(),
             'VERSION_CONSULTING' => $firstTimeBuyerScripts->merge($prices)->merge($promotions)->values()->all(),
-            default => $prices->merge($promotions)->merge($firstTimeBuyerScripts)->values()->all(),
+            default => $prices->merge($promotions)->merge($firstTimeBuyerScripts)->merge($roadPriceScripts)->values()->all(),
         };
     }
 
@@ -461,6 +466,113 @@ class VehicleKnowledgeBase
             'khac nhau',
             'so tu dong',
             'so san',
+        ];
+
+        foreach ($keywords as $keyword) {
+            if (str_contains($normalizedQuery, $keyword)) {
+                return true;
+            }
+        }
+
+        return collect(explode(' ', $normalizedQuery))
+            ->filter(fn (string $word): bool => strlen($word) >= 4)
+            ->contains(fn (string $word): bool => str_contains($normalizedText, $word));
+    }
+
+    private function roadPriceScriptDocuments(): array
+    {
+        $payload = $this->json('format_gia_lan_banh.txt');
+        $scriptName = $this->value($payload, 'ten_kich_ban');
+
+        return collect((array) data_get($payload, 'cac_tinh_huong', []))
+            ->flatMap(function (array $situation) use ($scriptName): array {
+                $situationCode = $this->value($situation, 'ma_tinh_huong');
+                $situationName = $this->value($situation, 'ten_tinh_huong');
+                $popularQuestions = (array) ($situation['cau_hoi_pho_bien'] ?? []);
+
+                return collect((array) data_get($situation, 'cac_buoc_trien_khai', []))
+                    ->map(function (array $row) use ($scriptName, $situationCode, $situationName, $popularQuestions): array {
+                        $step = (string) ($row['buoc'] ?? '');
+                        $title = $this->value($row, 'ten_buoc');
+                        $answer = $this->value($row, 'loi_thoai_nhan_vien')
+                            ?: $this->value($row, 'loi_thoai_nhan_vien_dan_nhap')
+                            ?: $this->value($row, 'loi_thoai_nhan_vien_chot_gia');
+                        $questions = (array) ($row['cau_hoi_khai_thac'] ?? []);
+                        $costItems = (array) ($row['cac_khoan_chi_phi'] ?? []);
+                        $qa = (array) ($row['cac_cap_hoi_dap'] ?? []);
+                        $sampleCost = (array) ($row['bang_tinh_mau'] ?? $row['uoc_tinh_chi_phi'] ?? []);
+
+                        $parts = [
+                            $scriptName,
+                            $situationName,
+                            "Buoc {$step}: {$title}.",
+                            $this->value($row, 'loi_thoai_khach_hang'),
+                            $answer,
+                            $this->listText($questions, 'Cau hoi khai thac'),
+                            $this->listText($costItems, 'Cac khoan chi phi lan banh'),
+                            $this->productQaText($qa),
+                            $this->estimateText($sampleCost),
+                            $this->value($row, 'loi_thoai_nhan_vien_tiep_tuc'),
+                            $this->value($row, 'loi_thoai_nhan_vien_phan_hoi'),
+                            $this->listText($popularQuestions, 'Cau hoi pho bien'),
+                        ];
+
+                        return [
+                            'id' => 'road-price-script:'.$situationCode.':'.$step,
+                            'source' => 'format_gia_lan_banh',
+                            'metadata' => [
+                                'situation' => $situationCode,
+                                'situation_name' => $situationName,
+                                'step' => $step,
+                                'title' => $title,
+                                'answer' => $answer,
+                                'questions' => $questions,
+                                'cost_items' => $costItems,
+                                'qa' => $qa,
+                                'sample_cost' => $sampleCost,
+                                'follow_up' => (string) (
+                                    $row['loi_thoai_nhan_vien_chot_gia']
+                                    ?? $row['loi_thoai_nhan_vien_tiep_tuc']
+                                    ?? $row['loi_thoai_nhan_vien_phan_hoi']
+                                    ?? ''
+                                ),
+                                'popular_questions' => $popularQuestions,
+                            ],
+                            'text' => trim(implode(' ', array_filter($parts))),
+                        ];
+                    })
+                    ->all();
+            })
+            ->filter(fn (array $doc): bool => $doc['text'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private function matchesRoadPriceScript(string $query, array $document): bool
+    {
+        $normalizedQuery = $this->normalize($query);
+        $normalizedText = $this->normalize((string) ($document['text'] ?? ''));
+        $keywords = [
+            'lan banh',
+            'gia lan banh',
+            'gia niem yet',
+            'niem yet',
+            'thue truoc ba',
+            'truoc ba',
+            'phi bien so',
+            'dang ky xe',
+            'dang kiem',
+            'bao tri duong bo',
+            'bao hiem vat chat',
+            'bao hiem',
+            'tra thang',
+            'tra gop',
+            'phat sinh',
+            'chon bien so',
+            'coc',
+            'giu xe',
+            'bao gia nhanh',
+            'tron goi',
         ];
 
         foreach ($keywords as $keyword) {

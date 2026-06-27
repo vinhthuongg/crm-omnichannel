@@ -1,0 +1,131 @@
+{
+  "ten_kich_ban": "Format doi thoai tu van online - Gia lan banh",
+  "cac_tinh_huong": [
+    {
+      "ma_tinh_huong": "TINH_HUONG_1",
+      "ten_tinh_huong": "Khach chua biet gi ve gia lan banh",
+      "cac_buoc_trien_khai": [
+        {
+          "buoc": 1,
+          "ten_buoc": "Khoi dau - Khach chi hoi gia xe",
+          "loi_thoai_khach_hang": "Em oi, xe Toyota Vios E CVT gia bao nhieu vay?",
+          "loi_thoai_nhan_vien": "Da, em se ho tro Anh/Chi tinh gia lan banh tron goi de minh biet tong chi phi nhan xe co bien so va chay duoc tren duong. Truoc tien em xin phep xac nhan nhanh vai thong tin:",
+          "cau_hoi_khai_thac": [
+            "Anh/Chi du dinh dang ky xe o tinh nao a?",
+            "Minh muon tra gop hay thanh toan mot lan a?"
+          ]
+        },
+        {
+          "buoc": 2,
+          "ten_buoc": "Giai thich khai niem gia lan banh",
+          "loi_thoai_khach_hang": "Gia lan banh la sao em? Khac gi gia niem yet?",
+          "loi_thoai_nhan_vien": "Da, gia lan banh la toan bo chi phi de minh nhan xe da co bien so va du dieu kien luu thong.",
+          "cac_khoan_chi_phi": [
+            "Gia xe niem yet",
+            "Thue truoc ba",
+            "Le phi dang ky bien so",
+            "Phi dang kiem, bao tri duong bo",
+            "Bao hiem trach nhiem dan su",
+            "Neu vay ngan hang se co them bao hiem vat chat va mot so phi ho so"
+          ]
+        },
+        {
+          "buoc": 3,
+          "ten_buoc": "Khach hoi sau ve cac khoan chi phi",
+          "cac_cap_hoi_dap": [
+            {
+              "khach_hang": "Thue truoc ba la bao nhieu? Co bat buoc khong?",
+              "nhan_vien": "Da, thue truoc ba la khoan bat buoc khi dang ky xe. Tai Kien Giang va nhieu tinh thanh thuong tinh 10% gia tri xe; mot so khu vuc nhu TP.HCM, Ha Noi co the ap dung 12%."
+            },
+            {
+              "khach_hang": "Bao hiem vat chat co bat buoc khong?",
+              "nhan_vien": "Da, neu minh mua xe tra gop thi ngan hang thuong yeu cau bao hiem vat chat. Neu thanh toan 100%, minh co the chu dong chon mua hoac khong tuy nhu cau."
+            }
+          ]
+        },
+        {
+          "buoc": 4,
+          "ten_buoc": "Bao gia lan banh cu the",
+          "loi_thoai_nhan_vien_dan_nhap": "Vi du minh dang ky tai Kien Giang va thanh toan mot lan, gia lan banh tron goi se gom:",
+          "bang_tinh_mau": {
+            "gia_xe_niem_yet": "Gia xe niem yet",
+            "thue_truoc_ba": "Khoang 10% gia tri xe tai Kien Giang",
+            "phi_bien_so": "Phi cap bien so theo dia phuong",
+            "dang_kiem_bao_tri_bh_dan_su": "Dang kiem, bao tri duong bo, bao hiem trach nhiem dan su",
+            "bao_hiem_vat_chat_tuy_chon": "Bao hiem vat chat tuy chon neu tra thang; thuong bat buoc neu vay ngan hang",
+            "phi_dich_vu_lam_ho_so": "Phi dich vu ho tro ho so neu khach su dung dich vu tron goi"
+          },
+          "loi_thoai_nhan_vien_chot_gia": "Em se gui bang chi tiet theo dung tinh dang ky, phien ban, mau xe va hinh thuc thanh toan de minh de theo doi."
+        },
+        {
+          "buoc": 5,
+          "ten_buoc": "Chuyen giai doan - Ho tro chot sale",
+          "loi_thoai_khach_hang": "Neu tra gop thi sao em?",
+          "loi_thoai_nhan_vien": "Da, neu tra gop, minh se can xac dinh so tien tra truoc, thoi gian vay va ngan hang phu hop. Em co the gui bang so sanh tra gop va tra thang kem uu dai hien co de minh can nhac a."
+        }
+      ],
+      "cau_hoi_pho_bien": [
+        "Lan banh la gi? Sao gia cao hon niem yet?",
+        "Lan banh co bao gom thue khong?",
+        "Bao hiem vat chat co bat buoc khong?",
+        "Dang ky xe co can di cong chung gi khong?",
+        "Tra gop thi lan banh tinh sao? Tra truoc bao nhieu?",
+        "Phi dang ky xe ai lo? Co dich vu lam tron goi khong?",
+        "Co phat sinh chi phi gi them sau khi ky khong?",
+        "Co the giu xe bang cach coc bao nhieu?",
+        "Minh co duoc chon bien so khong?",
+        "Bao lau thi co xe neu ky hop dong hom nay?"
+      ]
+    },
+    {
+      "ma_tinh_huong": "TINH_HUONG_2",
+      "ten_tinh_huong": "Khach da hieu quy trinh lan banh - Yeu cau bao gia nhanh",
+      "cac_buoc_trien_khai": [
+        {
+          "buoc": 1,
+          "ten_buoc": "Mo dau - Khach chu dong va da hieu khai niem lan banh",
+          "loi_thoai_khach_hang": "Em oi, anh/chi dang quan tam Veloz Cross ban Top. Bao giup gia lan banh tron goi va uu dai tra gop voi nhe.",
+          "loi_thoai_nhan_vien": "Da, em se gui bang bao gia chi tiet theo dung nhu cau. Cho em xac nhan nhanh:",
+          "cau_hoi_khai_thac": [
+            "Minh o tinh nao de em ap dung dung muc thue truoc ba a?",
+            "Minh chon tra gop hay tra thang a?"
+          ]
+        },
+        {
+          "buoc": 2,
+          "ten_buoc": "Cung cap bao gia truc tiep theo yeu cau",
+          "loi_thoai_nhan_vien_dan_nhap": "Voi mau xe minh quan tam, em se tinh theo tinh dang ky va phuong an thanh toan.",
+          "uoc_tinh_chi_phi": {
+            "gia_xe_niem_yet": "Gia xe niem yet theo phien ban",
+            "tra_truoc": "Neu tra gop, so tien tra truoc thuong tuy ho so va ngan hang",
+            "chi_phi_kem_theo": [
+              "thue truoc ba",
+              "dang ky bien so",
+              "dang kiem",
+              "bao hiem",
+              "phi ngan hang neu vay"
+            ],
+            "tong_lan_banh": "Tong lan banh se duoc tinh theo dia phuong va chuong trinh uu dai hien hanh",
+            "gop_moi_thang": "Gop moi thang tuy so tien vay, thoi gian vay va goi ngan hang"
+          },
+          "loi_thoai_nhan_vien_tiep_tuc": "Em se gui bang chi tiet de minh so sanh tra thang va tra gop.",
+          "loi_thoai_khach_hang_hoi_them": "Co giam gia hoac uu dai gi them khong em?",
+          "loi_thoai_nhan_vien_phan_hoi": "Da em se kiem tra chuong trinh uu dai hien hanh, qua tang phu kien, ho tro bao duong hoac ho tro phi truoc ba neu dang co."
+        }
+      ],
+      "cau_hoi_pho_bien": [
+        "Lan banh la gi? Co bao gom tat ca chua?",
+        "Tai sao gia niem yet khac gia lan banh?",
+        "Co the khong mua bao hiem vat chat khong?",
+        "Le phi truoc ba tinh nhu the nao?",
+        "Co the tu di dang ky xe duoc khong?",
+        "Tra thang va tra gop lan banh khac nhau ra sao?",
+        "Co phi nao phat sinh them ngoai bao gia khong?",
+        "Minh duoc chon bien so khong?",
+        "Co uu dai gi neu thanh toan du?",
+        "Co the chia nho coc truoc khi ky khong?"
+      ]
+    }
+  ],
+  "ghi_chu_he_thong": "Format xu ly ca khach chua biet gi ve gia lan banh va khach da am hieu, can bao gia nhanh va chuyen sau."
+}
