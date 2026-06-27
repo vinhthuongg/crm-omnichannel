@@ -64,8 +64,7 @@ class MessageService
         });
 
         $this->broadcastNewMessage($message);
-        SendChatbotReplyJob::dispatch($message->id)
-            ->delay(now()->addSeconds((int) config('chatbot.reply_delay_seconds', 6)));
+        SendChatbotReplyJob::dispatch($message->id);
 
         return $message;
     }
