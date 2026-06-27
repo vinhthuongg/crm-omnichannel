@@ -12,11 +12,11 @@ use Modules\Message\Models\Message;
 
 class Conversation extends Model
 {
-    protected $fillable = ['customer_id', 'facebook_page_id', 'external_conversation_id', 'assigned_to', 'work_shift_id', 'claimed_at', 'status', 'last_message_at', 'unread_messages_count', 'last_read_at', 'closed_at'];
+    protected $fillable = ['customer_id', 'facebook_page_id', 'external_conversation_id', 'assigned_to', 'work_shift_id', 'claimed_at', 'status', 'last_message_at', 'unread_messages_count', 'automation_state', 'last_read_at', 'closed_at'];
 
     protected function casts(): array
     {
-        return ['last_message_at' => 'datetime', 'last_read_at' => 'datetime', 'claimed_at' => 'datetime', 'closed_at' => 'datetime'];
+        return ['last_message_at' => 'datetime', 'last_read_at' => 'datetime', 'claimed_at' => 'datetime', 'closed_at' => 'datetime', 'automation_state' => 'array'];
     }
 
     public function customer(): BelongsTo
