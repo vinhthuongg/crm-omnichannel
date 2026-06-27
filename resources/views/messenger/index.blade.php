@@ -96,7 +96,7 @@
                 @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
-                @php($threadTags = ($conversation->customer?->tags?->isNotEmpty() ? $conversation->customer->tags : $conversation->tags)->take(1)->values())
+                @php($threadTags = $conversation->tags->take(1)->values())
                 <a
                     class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}"
                     href="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
@@ -406,15 +406,11 @@
                 <textarea rows="3" placeholder="Nhap ghi chu va an enter" data-note-input></textarea>
             </section>
 
-            <section class="profile-section profile-customer-tags" data-customer-tags data-tags-url="{{ route('crm.conversations.customer-tags.store', $activeConversation) }}">
-                <h4>Tag khach hang (F2)</h4>
-                <div class="customer-tag-dropdown">
-                    <input type="search" placeholder="Tim kiem tag co san..." data-customer-tag-input>
-                    <div class="customer-tag-options" data-customer-tag-options></div>
-                </div>
-                <div class="customer-tag-list" data-customer-tag-list>
+            <section class="profile-section profile-customer-tags" data-profile-conversation-tags>
+                <h4>Trang thai hoi thoai</h4>
+                <div class="customer-tag-list" data-profile-conversation-tag-list>
                     @if(count($profilePanel['tags']) === 0)
-                        <p class="profile-empty">Khach hang chua co the nao</p>
+                        <p class="profile-empty">Chua co trang thai.</p>
                     @endif
                     @foreach($profilePanel['tags'] as $tag)
                         <span style="--tag-color: {{ $tag['color'] }}">{{ $tag['name'] }}</span>
@@ -766,20 +762,15 @@
             renderCustomerNotes(conversation.customer_notes);
         }
 
-        if (Array.isArray(conversation.customer_tags)) {
-            renderCustomerTags(conversation.customer_tags, conversation.all_customer_tags || customerTagOptions);
+        if (Array.isArray(conversation.tags)) {
+            renderProfileConversationTags(conversation.tags);
         }
 
         const notes = panel.querySelector('[data-customer-notes]');
-        const tags = panel.querySelector('[data-customer-tags]');
         const contact = panel.querySelector('[data-contact-section]');
 
         if (notes && conversation.customer_notes_url) {
             notes.dataset.notesUrl = conversation.customer_notes_url;
-        }
-
-        if (tags && conversation.customer_tags_url) {
-            tags.dataset.tagsUrl = conversation.customer_tags_url;
         }
 
         if (conversation.customer_update_url) {
@@ -1222,17 +1213,34 @@
 
     function updateConversationTags(tagsUrl, tags) {
         const tabs = document.querySelector('[data-conversation-tags]');
+        const normalizedTags = tags || [];
+
+        renderProfileConversationTags(normalizedTags);
 
         if (!tabs) {
             return;
         }
 
         tabs.dataset.tagsUrl = tagsUrl || '';
-        const activeName = String((tags || [])[0]?.name || '');
+        const activeName = String(normalizedTags[0]?.name || '');
 
         tabs.querySelectorAll('[data-tag-name]').forEach(function (button) {
             button.classList.toggle('is-active', activeName !== '' && activeName === (button.dataset.tagName || ''));
         });
+    }
+
+    function renderProfileConversationTags(tags) {
+        const list = document.querySelector('[data-profile-conversation-tag-list]');
+
+        if (!list) {
+            return;
+        }
+
+        const visibleTags = (tags || []).filter((tag) => tag?.name).slice(0, 1);
+
+        list.innerHTML = visibleTags.length
+            ? visibleTags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
+            : '<p class="profile-empty">Chua co trang thai.</p>';
     }
 
     function tagBadgesHtml(tags) {

@@ -244,7 +244,7 @@ class GetMessengerViewDataAction
                 ])
                 ->values()
                 ->all() ?? [],
-            'tags' => $customer->tags
+            'tags' => $conversation->tags
                 ?->take(1)
                 ->map(fn ($tag): array => [
                     'name' => $tag->name,
