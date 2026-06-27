@@ -3,13 +3,13 @@
 namespace Modules\Message\Services;
 
 use App\Models\User;
-use App\Support\InitialMessageTemplate;
 use Illuminate\Support\Facades\DB;
+use Modules\Chatbot\DTO\ChatbotReply;
+use Modules\Chatbot\Services\SalesChatbotService;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
-use Modules\Customer\Models\CustomerTag;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
@@ -23,6 +23,7 @@ class MessageService
         private readonly MessageRepository $repository,
         private readonly OutboundMessageService $outbound,
         private readonly WorkShiftService $shifts,
+        private readonly SalesChatbotService $chatbot,
     ) {
     }
 
@@ -40,7 +41,7 @@ class MessageService
             }
         }
 
-        [$message, $autoReply] = DB::transaction(function () use ($data): array {
+        [$message, $conversation, $customer] = DB::transaction(function () use ($data): array {
             $facebookPageId = (string) data_get($data->metadata, 'facebook_page_id', '');
             $channel = CustomerChannel::query()->where('channel', $data->channel)->where('external_id', $data->externalCustomerId)->first();
             $customer = $channel?->customer ?? Customer::query()->create(['name' => $data->customerName, 'avatar' => $data->customerAvatar]);
@@ -61,13 +62,17 @@ class MessageService
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
             $conversation->incrementUnreadMessages();
             $this->markConversationAsWaitingForConsulting($conversation);
-            $autoReply = $this->createAutomationReply($conversation, $customer, $data)
-                ?? $this->createInitialAutoReply($conversation, $data->channel);
 
-            return [$message, $autoReply];
+            return [$message, $conversation, $customer];
         });
 
         $this->broadcastNewMessage($message);
+
+        $autoReply = $this->createChatbotReply(
+            $conversation,
+            $data->channel,
+            $this->chatbot->replyFor($conversation, $customer, $data),
+        );
 
         if ($autoReply) {
             $this->broadcastNewMessage($autoReply);
@@ -151,15 +156,13 @@ class MessageService
         }
     }
 
-    private function createInitialAutoReply(Conversation $conversation, string $channel): ?Message
+    private function createChatbotReply(Conversation $conversation, string $channel, ?ChatbotReply $reply): ?Message
     {
-        $content = InitialMessageTemplate::serviceMenuFor($conversation);
-
-        if ($content === '') {
+        if (! $reply || $reply->content === '') {
             return null;
         }
 
-        $clientMessageId = 'auto-service-menu-'.$conversation->id;
+        $clientMessageId = $reply->clientMessageKey ?: 'auto-chatbot-'.$conversation->id.'-'.md5($reply->content);
         $existing = Message::query()
             ->where('channel', $channel)
             ->where('client_message_id', $clientMessageId)
@@ -174,13 +177,10 @@ class MessageService
             'sender_type' => 'user',
             'sender_id' => $conversation->assigned_to ?: User::role('Admin')->value('id') ?: User::query()->value('id'),
             'channel' => $channel,
-            'content' => $content,
+            'content' => $reply->content,
             'message_type' => 'text',
-            'attachments' => $channel === 'facebook'
-                ? [[
-                    'type' => 'quick_reply',
-                    'quick_replies' => InitialMessageTemplate::messengerQuickReplies(),
-                ]]
+            'attachments' => $channel === 'facebook' && $reply->quickReplies
+                ? [['type' => 'quick_reply', 'quick_replies' => $reply->quickReplies]]
                 : [],
             'client_message_id' => $clientMessageId,
             'outbound_status' => 'queued',
@@ -193,150 +193,6 @@ class MessageService
         return $message;
     }
 
-    private function createAutomationReply(Conversation $conversation, Customer $customer, InboundMessageData $data): ?Message
-    {
-        $payload = $this->quickReplyPayload($data);
-        $flow = $payload !== '' ? $this->serviceFlow($payload) : null;
-        $state = (array) ($conversation->automation_state ?? []);
-        $content = trim((string) $data->content);
-
-        if ($flow) {
-            $conversation->forceFill([
-                'automation_state' => [
-                    'topic' => $payload,
-                    'label' => $flow['label'],
-                    'step' => 'awaiting_detail',
-                    'started_at' => now()->toISOString(),
-                ],
-            ])->save();
-
-            $this->tagCustomer($customer, $flow['label'], '#2563eb');
-
-            return $this->createQueuedAutoReply(
-                $conversation,
-                $data->channel,
-                $flow['question'],
-                'auto-flow-'.$conversation->id.'-'.$payload.'-question',
-            );
-        }
-
-        if (($state['step'] ?? '') === 'awaiting_detail' && $content !== '') {
-            $conversation->forceFill([
-                'automation_state' => [
-                    ...$state,
-                    'detail' => $content,
-                    'step' => 'awaiting_phone',
-                    'detail_received_at' => now()->toISOString(),
-                ],
-            ])->save();
-
-            return $this->createQueuedAutoReply(
-                $conversation,
-                $data->channel,
-                'Dạ em đã ghi nhận nhu cầu của Anh/Chị. Anh/Chị cho em xin số điện thoại, bên em sẽ gọi ngay để tư vấn và gửi thông tin chính xác ạ.',
-                'auto-flow-'.$conversation->id.'-ask-phone',
-            );
-        }
-
-        if (filled($customer->phone)) {
-            $this->tagCustomer($customer, 'Da co so dien thoai', '#16a34a');
-
-            if (filled($state['label'] ?? null)) {
-                $this->tagCustomer($customer, (string) $state['label'], '#2563eb');
-            }
-
-            if (($state['step'] ?? '') === 'awaiting_phone') {
-                $conversation->forceFill([
-                    'automation_state' => [
-                        ...$state,
-                        'step' => 'completed',
-                        'phone' => $customer->phone,
-                        'completed_at' => now()->toISOString(),
-                    ],
-                ])->save();
-
-                return $this->createQueuedAutoReply(
-                    $conversation,
-                    $data->channel,
-                    'Toyota Kiên Giang đã nhận số điện thoại của Anh/Chị. Bên em sẽ gọi lại ngay để hỗ trợ ạ.',
-                    'auto-flow-'.$conversation->id.'-completed',
-                );
-            }
-        }
-
-        return null;
-    }
-
-    private function quickReplyPayload(InboundMessageData $data): string
-    {
-        return (string) data_get($data->metadata, 'raw.message.quick_reply.payload', '');
-    }
-
-    private function serviceFlow(string $payload): ?array
-    {
-        return [
-            'PRICE_BY_AREA' => [
-                'label' => 'Bao gia lan banh',
-                'question' => 'Anh/Chị cần em báo giá lăn bánh mẫu xe gì ạ?',
-            ],
-            'PROMOTIONS' => [
-                'label' => 'Uu dai hien hanh',
-                'question' => 'Anh/Chị quan tâm mẫu xe nào để em kiểm tra chương trình ưu đãi hiện hành ạ?',
-            ],
-            'INSTALLMENT_LOAN' => [
-                'label' => 'Vay tra gop',
-                'question' => 'Anh/Chị muốn tư vấn trả góp mẫu xe nào và dự kiến trả trước khoảng bao nhiêu ạ?',
-            ],
-            'VEHICLE_AVAILABILITY' => [
-                'label' => 'Tinh trang xe',
-                'question' => 'Anh/Chị muốn kiểm tra tình trạng xe, màu xe và thời gian giao xe của mẫu nào ạ?',
-            ],
-            'VERSION_CONSULTING' => [
-                'label' => 'Tu van phien ban',
-                'question' => 'Anh/Chị đang quan tâm mẫu xe nào và nhu cầu sử dụng chính là gì ạ?',
-            ],
-        ][$payload] ?? null;
-    }
-
-    private function tagCustomer(Customer $customer, string $name, string $color): void
-    {
-        $tag = CustomerTag::query()->firstOrCreate(
-            ['name' => $name],
-            ['color' => $color],
-        );
-
-        $customer->tags()->syncWithoutDetaching([$tag->id]);
-    }
-
-    private function createQueuedAutoReply(Conversation $conversation, string $channel, string $content, string $clientMessageId, array $attachments = []): ?Message
-    {
-        $existing = Message::query()
-            ->where('channel', $channel)
-            ->where('client_message_id', $clientMessageId)
-            ->first();
-
-        if ($existing) {
-            return null;
-        }
-
-        $message = $this->repository->create([
-            'conversation_id' => $conversation->id,
-            'sender_type' => 'user',
-            'sender_id' => $conversation->assigned_to ?: User::role('Admin')->value('id') ?: User::query()->value('id'),
-            'channel' => $channel,
-            'content' => $content,
-            'message_type' => 'text',
-            'attachments' => $attachments,
-            'client_message_id' => $clientMessageId,
-            'outbound_status' => 'queued',
-        ]);
-
-        $conversation->forceFill([
-            'last_message_at' => $message->created_at,
-        ])->save();
-
-        return $message;
-    }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
     {

@@ -1,0 +1,280 @@
+{
+  "ten_chuong_trinh": "Chương trình khuyến mãi Tháng 07/2025",
+  "dia_diem": "Kiên Giang",
+  "ngay_cap_nhat": "2025-07-05",
+  "danh_sach_khuyen_mai": [
+    {
+      "stt": 1,
+      "dong_xe": "VIOS",
+      "ma_ban": "VG",
+      "giam_gia_tien_mat": 30000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Tặng gói Bảo dưỡng",
+        "Film cách nhiệt",
+        "Trải simili sàn",
+        "Cam HT",
+        "Sơn gầm"
+      ]
+    },
+    {
+      "stt": 2,
+      "dong_xe": "VIOS",
+      "ma_ban": "VK",
+      "giam_gia_tien_mat": 35000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Film cách nhiệt",
+        "Trải simili sàn",
+        "Cam HT",
+        "Sơn gầm"
+      ]
+    },
+    {
+      "stt": 3,
+      "dong_xe": "VIOS",
+      "ma_ban": "VE",
+      "giam_gia_tien_mat": 30000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Film cách nhiệt",
+        "Trải simili sàn",
+        "Cam HT",
+        "Sơn gầm"
+      ]
+    },
+    {
+      "stt": 4,
+      "dong_xe": "ALTIS",
+      "ma_ban": "CH",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Gói BD 20.000km"
+      ]
+    },
+    {
+      "stt": 5,
+      "dong_xe": "ALTIS",
+      "ma_ban": "CQ",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Gói BD 20.000km"
+      ]
+    },
+    {
+      "stt": 7,
+      "dong_xe": "CAMRY",
+      "ma_ban": "KH",
+      "giam_gia_tien_mat": 10000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 8,
+      "dong_xe": "CAMRY",
+      "ma_ban": "KHM",
+      "giam_gia_tien_mat": 40000000,
+      "bao_hiem": null,
+      "ghi_chu": "Bản KV giảm 30.000.000đ",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 9,
+      "dong_xe": "WIGO",
+      "ma_ban": "WG",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 10,
+      "dong_xe": "RAIZE",
+      "ma_ban": "RZ",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 11,
+      "dong_xe": "COROLLA CROSS",
+      "ma_ban": "CXH",
+      "giam_gia_tien_mat": 46000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 12,
+      "dong_xe": "COROLLA CROSS",
+      "ma_ban": "CXV",
+      "giam_gia_tien_mat": 41000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 13,
+      "dong_xe": "VELOZ CKD",
+      "ma_ban": "VLG0",
+      "giam_gia_tien_mat": 55000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Film cách nhiệt",
+        "Trải simili sàn",
+        "Cam HT",
+        "Sơn gầm"
+      ]
+    },
+    {
+      "stt": 14,
+      "dong_xe": "VELOZ CKD",
+      "ma_ban": "VLE0",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 15,
+      "dong_xe": "AVANZA",
+      "ma_ban": "AG",
+      "giam_gia_tien_mat": 50000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Film cách nhiệt",
+        "Trải simili sàn",
+        "Cam HT",
+        "Sơn gầm"
+      ]
+    },
+    {
+      "stt": 16,
+      "dong_xe": "AVANZA",
+      "ma_ban": "AE",
+      "giam_gia_tien_mat": 45000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Film cách nhiệt",
+        "Trải simili sàn",
+        "Cam HT",
+        "Sơn gầm"
+      ]
+    },
+    {
+      "stt": 17,
+      "dong_xe": "FORTUNER (MÁY DẦU)",
+      "ma_ban": "FVD",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 18,
+      "dong_xe": "FORTUNER (MÁY DẦU)",
+      "ma_ban": "FK",
+      "giam_gia_tien_mat": 35000000,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": [
+        "Gói BD 20.000km"
+      ]
+    },
+    {
+      "stt": 19,
+      "dong_xe": "FORTUNER (MÁY DẦU)",
+      "ma_ban": "FKS",
+      "giam_gia_tien_mat": 35000000,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": [
+        "Gói BD 20.000km"
+      ]
+    },
+    {
+      "stt": 20,
+      "dong_xe": "FORTUNER (MÁY DẦU)",
+      "ma_ban": "FVS",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 21,
+      "dong_xe": "FORTUNER (MÁY XĂNG)",
+      "ma_ban": "FX",
+      "giam_gia_tien_mat": 25000000,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 22,
+      "dong_xe": "YARIS CROSS",
+      "ma_ban": "YXH",
+      "giam_gia_tien_mat": 38000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 23,
+      "dong_xe": "YARIS CROSS",
+      "ma_ban": "YXV",
+      "giam_gia_tien_mat": 33000000,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 24,
+      "dong_xe": "INNOVA CROSS",
+      "ma_ban": "IXH",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Gói BD 20.000km"
+      ]
+    },
+    {
+      "stt": 25,
+      "dong_xe": "INNOVA CROSS",
+      "ma_ban": "IXV",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": "01 năm VCX",
+      "qua_tang_phu_kien": [
+        "Gói BD 20.000km"
+      ]
+    },
+    {
+      "stt": 26,
+      "dong_xe": "INNOVA CROSS",
+      "ma_ban": "FV",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 27,
+      "dong_xe": "LAND",
+      "ma_ban": "LC",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 28,
+      "dong_xe": "LAND",
+      "ma_ban": "LP",
+      "giam_gia_tien_mat": 0,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    },
+    {
+      "stt": 29,
+      "dong_xe": "HILUX",
+      "ma_ban": null,
+      "giam_gia_tien_mat": 20000000,
+      "bao_hiem": null,
+      "qua_tang_phu_kien": []
+    }
+  ],
+  "chu_thich": {
+    "VCX": "Bảo hiểm vật chất xe chính hãng",
+    "Cam_HT": "Camera hành trình",
+    "Goi_BD": "Gói bảo dưỡng định kỳ"
+  }
+}
