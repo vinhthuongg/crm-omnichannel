@@ -365,6 +365,12 @@ class MessageService
 
     private function shouldSkipChatbotReply(Conversation $conversation, Message $inbound): bool
     {
+        if (! $conversation->last_read_at || ! $inbound->created_at) {
+            return false;
+        }
+
+        return $conversation->last_read_at->greaterThanOrEqualTo($inbound->created_at);
+
         $state = (array) ($conversation->automation_state ?? []);
         $pausedByMessageId = (int) ($state['paused_by_user_message_id'] ?? 0);
 
