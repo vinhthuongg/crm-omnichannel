@@ -8,6 +8,7 @@ use Modules\Conversation\Models\Conversation;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerTag;
 use Modules\Message\DTO\InboundMessageData;
+use Modules\Message\Models\Message;
 
 class SalesChatbotService
 {
@@ -25,16 +26,45 @@ class SalesChatbotService
         }
 
         $payload = $this->quickReplyPayload($data);
-        $flow = $payload !== '' ? $this->knowledgeBase->flow($payload) : null;
+        $flow = $payload !== ''
+            ? $this->knowledgeBase->flow($payload)
+            : $this->knowledgeBase->flowFromText((string) $data->content);
+
+        return $this->reply(
+            $conversation,
+            $customer,
+            trim((string) $data->content),
+            $flow,
+            $data->externalMessageId ?: md5((string) $data->content),
+        );
+    }
+
+    public function replyForMessage(Conversation $conversation, Customer $customer, Message $message): ?ChatbotReply
+    {
+        if (! config('chatbot.enabled', true)) {
+            return null;
+        }
+
+        return $this->reply(
+            $conversation,
+            $customer,
+            trim((string) $message->content),
+            $this->knowledgeBase->flowFromText((string) $message->content),
+            $message->external_message_id ?: (string) $message->id,
+        );
+    }
+
+    private function reply(Conversation $conversation, Customer $customer, string $content, ?array $flow, string $source): ?ChatbotReply
+    {
         $state = (array) ($conversation->automation_state ?? []);
-        $content = trim((string) $data->content);
 
         if ($flow) {
+            $payload = (string) ($flow['topic'] ?? 'GENERAL');
             $this->startFlow($conversation, $customer, $payload, $flow);
 
             return new ChatbotReply(
                 content: $flow['question'],
-                clientMessageKey: 'auto-flow-'.$conversation->id.'-'.$payload.'-question',
+                clientMessageKey: $this->replyKey($conversation, $source, $payload.'-question'),
             );
         }
 
@@ -50,7 +80,7 @@ class SalesChatbotService
 
             return new ChatbotReply(
                 content: $this->detailAnswer($state, $content),
-                clientMessageKey: 'auto-flow-'.$conversation->id.'-ask-phone',
+                clientMessageKey: $this->replyKey($conversation, $source, 'ask-phone'),
             );
         }
 
@@ -73,9 +103,16 @@ class SalesChatbotService
 
                 return new ChatbotReply(
                     content: 'Toyota Kiên Giang đã nhận số điện thoại của Anh/Chị. Bên em sẽ gọi lại ngay để hỗ trợ ạ.',
-                    clientMessageKey: 'auto-flow-'.$conversation->id.'-completed',
+                    clientMessageKey: $this->replyKey($conversation, $source, 'completed'),
                 );
             }
+        }
+
+        if ($content !== '') {
+            return new ChatbotReply(
+                content: $this->detailAnswer($state ?: ['label' => 'Tu van', 'search_prefix' => 'Toyota giá xe khuyến mãi tư vấn'], $content),
+                clientMessageKey: $this->replyKey($conversation, $source, 'continuous'),
+            );
         }
 
         $menu = InitialMessageTemplate::serviceMenuFor($conversation);
@@ -87,7 +124,7 @@ class SalesChatbotService
         return new ChatbotReply(
             content: $menu,
             quickReplies: $this->knowledgeBase->quickReplies(),
-            clientMessageKey: 'auto-service-menu-'.$conversation->id,
+            clientMessageKey: $this->replyKey($conversation, $source, 'menu'),
         );
     }
 
@@ -177,6 +214,11 @@ PROMPT;
     private function quickReplyPayload(InboundMessageData $data): string
     {
         return (string) data_get($data->metadata, 'raw.message.quick_reply.payload', '');
+    }
+
+    private function replyKey(Conversation $conversation, string $source, string $suffix): string
+    {
+        return 'auto-chatbot-'.$conversation->id.'-'.$source.'-'.$suffix;
     }
 
     private function tagCustomer(Customer $customer, string $name, string $color): void

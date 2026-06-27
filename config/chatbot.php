@@ -2,6 +2,7 @@
 
 return [
     'enabled' => env('CHATBOT_ENABLED', true),
+    'reply_delay_seconds' => env('CHATBOT_REPLY_DELAY_SECONDS', 6),
     'nim' => [
         'base_url' => env('NVIDIA_NIM_BASE_URL', 'https://integrate.api.nvidia.com/v1'),
         'api_key' => env('NVIDIA_NIM_API_KEY'),

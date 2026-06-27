@@ -69,31 +69,57 @@ class VehicleKnowledgeBase
     {
         return [
             'PRICE_BY_AREA' => [
+                'topic' => 'PRICE_BY_AREA',
                 'label' => 'Bao gia lan banh',
                 'question' => 'Anh/Chị cần em báo giá lăn bánh mẫu xe gì ạ?',
                 'search_prefix' => 'giá xe báo giá lăn bánh',
             ],
             'PROMOTIONS' => [
+                'topic' => 'PROMOTIONS',
                 'label' => 'Uu dai hien hanh',
                 'question' => 'Anh/Chị quan tâm mẫu xe nào để em kiểm tra chương trình ưu đãi hiện hành ạ?',
                 'search_prefix' => 'khuyến mãi ưu đãi chương trình',
             ],
             'INSTALLMENT_LOAN' => [
+                'topic' => 'INSTALLMENT_LOAN',
                 'label' => 'Vay tra gop',
                 'question' => 'Anh/Chị muốn tư vấn trả góp mẫu xe nào và dự kiến trả trước khoảng bao nhiêu ạ?',
                 'search_prefix' => 'vay trả góp giá xe',
             ],
             'VEHICLE_AVAILABILITY' => [
+                'topic' => 'VEHICLE_AVAILABILITY',
                 'label' => 'Tinh trang xe',
                 'question' => 'Anh/Chị muốn kiểm tra tình trạng xe, màu xe và thời gian giao xe của mẫu nào ạ?',
                 'search_prefix' => 'màu xe tình trạng xe giao xe',
             ],
             'VERSION_CONSULTING' => [
+                'topic' => 'VERSION_CONSULTING',
                 'label' => 'Tu van phien ban',
                 'question' => 'Anh/Chị đang quan tâm mẫu xe nào và nhu cầu sử dụng chính là gì ạ?',
                 'search_prefix' => 'tư vấn phiên bản mẫu xe grade',
             ],
         ][$payload] ?? null;
+    }
+
+    public function flowFromText(string $text): ?array
+    {
+        $normalized = $this->normalize($text);
+
+        $map = [
+            'bao gia lan banh' => 'PRICE_BY_AREA',
+            'uu dai hien hanh' => 'PROMOTIONS',
+            'vay tra gop' => 'INSTALLMENT_LOAN',
+            'tinh trang xe' => 'VEHICLE_AVAILABILITY',
+            'chon phien ban' => 'VERSION_CONSULTING',
+        ];
+
+        foreach ($map as $needle => $payload) {
+            if (str_contains($normalized, $needle)) {
+                return $this->flow($payload);
+            }
+        }
+
+        return null;
     }
 
     private function priceDocuments(): array

@@ -44,6 +44,8 @@ class MessengerController extends Controller
             'tag' => $request->string('tag')->toString(),
             'channel' => $request->string('channel')->toString(),
         ]);
+        $this->markConversationRead($data['activeConversation'] ?? null);
+        $this->syncReadStateInViewData($data);
 
         if ($request->expectsJson()) {
             $messages = $conversation->messages()

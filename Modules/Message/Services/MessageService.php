@@ -4,15 +4,13 @@ namespace Modules\Message\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Modules\Chatbot\DTO\ChatbotReply;
-use Modules\Chatbot\Services\SalesChatbotService;
+use Modules\Chatbot\Jobs\SendChatbotReplyJob;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
-use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -23,7 +21,6 @@ class MessageService
         private readonly MessageRepository $repository,
         private readonly OutboundMessageService $outbound,
         private readonly WorkShiftService $shifts,
-        private readonly SalesChatbotService $chatbot,
     ) {
     }
 
@@ -67,17 +64,8 @@ class MessageService
         });
 
         $this->broadcastNewMessage($message);
-
-        $autoReply = $this->createChatbotReply(
-            $conversation,
-            $data->channel,
-            $this->chatbot->replyFor($conversation, $customer, $data),
-        );
-
-        if ($autoReply) {
-            $this->broadcastNewMessage($autoReply);
-            SendOutboundMessageJob::dispatch($autoReply->id);
-        }
+        SendChatbotReplyJob::dispatch($message->id)
+            ->delay(now()->addSeconds((int) config('chatbot.reply_delay_seconds', 6)));
 
         return $message;
     }
@@ -155,44 +143,6 @@ class MessageService
         } catch (\Throwable) {
         }
     }
-
-    private function createChatbotReply(Conversation $conversation, string $channel, ?ChatbotReply $reply): ?Message
-    {
-        if (! $reply || $reply->content === '') {
-            return null;
-        }
-
-        $clientMessageId = $reply->clientMessageKey ?: 'auto-chatbot-'.$conversation->id.'-'.md5($reply->content);
-        $existing = Message::query()
-            ->where('channel', $channel)
-            ->where('client_message_id', $clientMessageId)
-            ->first();
-
-        if ($existing) {
-            return null;
-        }
-
-        $message = $this->repository->create([
-            'conversation_id' => $conversation->id,
-            'sender_type' => 'user',
-            'sender_id' => $conversation->assigned_to ?: User::role('Admin')->value('id') ?: User::query()->value('id'),
-            'channel' => $channel,
-            'content' => $reply->content,
-            'message_type' => 'text',
-            'attachments' => $channel === 'facebook' && $reply->quickReplies
-                ? [['type' => 'quick_reply', 'quick_replies' => $reply->quickReplies]]
-                : [],
-            'client_message_id' => $clientMessageId,
-            'outbound_status' => 'queued',
-        ]);
-
-        $conversation->forceFill([
-            'last_message_at' => $message->created_at,
-        ])->save();
-
-        return $message;
-    }
-
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
     {

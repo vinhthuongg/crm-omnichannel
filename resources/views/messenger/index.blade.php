@@ -1659,6 +1659,7 @@
                     ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
                 },
             });
+            markThreadRead(timeline.dataset.conversationId);
         } catch (error) {
             console.warn('CRM messenger mark read failed:', error);
         }
@@ -1918,6 +1919,10 @@
 
             updateProfilePanel(message);
             appendMessage(message);
+
+            if (message.sender_type === 'customer') {
+                markActiveConversationRead();
+            }
         }
     }
 
