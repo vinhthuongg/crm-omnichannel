@@ -41,7 +41,7 @@ class GetMessengerViewDataAction
             ->latest('last_message_at');
 
         $conversations = $conversationQuery->limit(30)->get();
-        $activeConversation = $this->resolveActiveConversation($user, $selectedConversation, $conversations);
+        $activeConversation = $this->resolveActiveConversation($user, $selectedConversation);
         $messages = $activeConversation
             ? $this->messageTimeline($activeConversation, $user)
             : collect();
@@ -162,7 +162,7 @@ class GetMessengerViewDataAction
         })->all();
     }
 
-    private function resolveActiveConversation(User $user, ?Conversation $selectedConversation, Collection $conversations): ?Conversation
+    private function resolveActiveConversation(User $user, ?Conversation $selectedConversation): ?Conversation
     {
         if ($selectedConversation) {
             abort_unless($this->canViewConversation($user, $selectedConversation), 403);
@@ -170,7 +170,7 @@ class GetMessengerViewDataAction
             return $selectedConversation->load(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
         }
 
-        return $conversations->first()?->load(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
+        return null;
     }
 
     private function tagPresets(): Collection

@@ -8,6 +8,7 @@ use Modules\Facebook\Models\FacebookPage;
 use Modules\Facebook\Repositories\FacebookPageRepository;
 use Modules\Facebook\Services\FacebookMessengerService;
 use Modules\Facebook\Services\FacebookTokenValidationService;
+use Modules\Customer\Models\CustomerChannel;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\MessageService;
 
@@ -52,14 +53,21 @@ class HandleFacebookWebhookAction
                 ? FacebookPage::query()->where('page_id', $pageId)->first()
                 : null;
             $pageToken = $page?->page_access_token;
-            $profile = [];
+            $profile = $this->cachedCustomerProfile($senderId);
 
-            if ($page && $pageToken) {
+            if ($this->shouldFetchProfile($profile) && $page && $pageToken) {
                 try {
                     $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
-                    $debugToken = $this->tokens->validatePageToken($pageToken);
-                    $this->pages->markValid($page, $debugToken);
-                    $profile = $this->facebook->profile($senderId, $pageToken);
+
+                    if ($page->token_status !== 'valid') {
+                        $debugToken = $this->tokens->validatePageToken($pageToken);
+                        $this->pages->markValid($page, $debugToken);
+                    }
+
+                    $profile = array_filter([
+                        ...$profile,
+                        ...$this->facebook->profile($senderId, $pageToken),
+                    ]);
                 } catch (\Throwable $exception) {
                     $this->pages->markInvalid($page, $exception->getMessage());
                     Log::warning('Facebook webhook profile lookup skipped because page token is invalid', [
@@ -96,6 +104,34 @@ class HandleFacebookWebhookAction
         ]);
 
         return $lastMessage;
+    }
+
+    private function cachedCustomerProfile(string $senderId): array
+    {
+        $channel = CustomerChannel::query()
+            ->with('customer')
+            ->where('channel', 'facebook')
+            ->where('external_id', $senderId)
+            ->first();
+
+        if (! $channel?->customer) {
+            return [];
+        }
+
+        $profile = (array) data_get($channel->metadata, 'profile', []);
+        $customer = $channel->customer;
+
+        return array_filter([
+            ...$profile,
+            'id' => $senderId,
+            'name' => $customer->name && $customer->name !== $senderId ? $customer->name : data_get($profile, 'name'),
+            'profile_pic' => $customer->avatar ?: data_get($profile, 'profile_pic'),
+        ]);
+    }
+
+    private function shouldFetchProfile(array $profile): bool
+    {
+        return blank(data_get($profile, 'name')) || blank(data_get($profile, 'profile_pic'));
     }
 
     private function messagingEvents(array $payload): array
