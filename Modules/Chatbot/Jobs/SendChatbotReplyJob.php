@@ -116,6 +116,23 @@ class SendChatbotReplyJob implements ShouldQueue
     private function humanIsHandlingConversation($conversation, Message $inbound): bool
     {
         return $conversation->messages()
+            ->where('sender_type', 'user')
+            ->where('id', '<>', $inbound->id)
+            ->where(function ($query): void {
+                $query->whereNull('client_message_id')
+                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
+            })
+            ->where(function ($query): void {
+                $query->whereNull('content')
+                    ->orWhere(function ($content): void {
+                        $content->where('content', 'not like', '%Toyota Ki%')
+                            ->where('content', 'not like', '%Kinh chao%')
+                            ->where('content', 'not like', '%KÃ%');
+                    });
+            })
+            ->exists();
+
+        return $conversation->messages()
             ->where('id', '>', $inbound->id)
             ->where('sender_type', 'user')
             ->where(function ($query): void {
