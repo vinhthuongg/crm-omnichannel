@@ -157,7 +157,9 @@ class GetMessengerViewDataAction
             return [
                 ...$item,
                 'active' => $activeChannel === $item['key'],
-                'unread' => (int) $this->applyChannelFilter($query, $item['key'])->sum('unread_messages_count'),
+                'unread' => (int) $this->applyChannelFilter($query, $item['key'])
+                    ->where('unread_messages_count', '>', 0)
+                    ->count(),
             ];
         })->all();
     }

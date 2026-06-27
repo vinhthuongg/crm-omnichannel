@@ -332,20 +332,29 @@ class GetDashboardViewDataAction
             ->get()
             ->keyBy('channel');
 
-        $unreadMessages = $this->visibleMessages($user)
-            ->where('sender_type', 'customer')
-            ->whereHas('conversation', fn (Builder $query): Builder => $query->whereIn('status', ['open', 'pending']))
-            ->selectRaw('channel, count(*) as unread_messages_count')
-            ->groupBy('channel')
-            ->get()
-            ->keyBy('channel');
+        $unreadConversations = collect(['facebook', 'zalo'])
+            ->mapWithKeys(function (string $channel) use ($user): array {
+                $query = $this->visibleConversations($user)
+                    ->where('unread_messages_count', '>', 0)
+                    ->whereIn('status', ['open', 'pending']);
+
+                return [$channel => $this->applyConversationChannelFilter($query, $channel)->count()];
+            });
 
         return collect(['facebook', 'zalo'])->map(fn (string $channel): array => [
             'name' => ucfirst($channel),
             'customers' => (int) ($channels[$channel]->customers_count ?? 0),
             'messages' => (int) ($messages[$channel]->messages_count ?? 0),
-            'unread_messages' => (int) ($unreadMessages[$channel]->unread_messages_count ?? 0),
+            'unread_messages' => (int) ($unreadConversations[$channel] ?? 0),
         ]);
+    }
+
+    private function applyConversationChannelFilter(Builder $query, string $channel): Builder
+    {
+        return $query->where(function (Builder $query) use ($channel): void {
+            $query->whereHas('customer.channels', fn (Builder $channelQuery) => $channelQuery->where('channel', $channel))
+                ->orWhereHas('messages', fn (Builder $messageQuery) => $messageQuery->where('channel', $channel));
+        });
     }
 
     private function topCustomers(User $user): Collection
