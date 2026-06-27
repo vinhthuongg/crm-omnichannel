@@ -173,12 +173,13 @@ class FacebookConversationImportService
                 ['metadata' => ['facebook_page_id' => $page->page_id]],
             );
 
+            $currentShift = $this->shifts->currentShift();
             $conversation = Conversation::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'status' => 'open', 'facebook_page_id' => $page->page_id],
                 [
                     'external_conversation_id' => $remoteConversationId,
                     'last_message_at' => $this->createdAt($remoteMessage),
-                    'work_shift_id' => $this->shifts->currentShift()?->id,
+                    'work_shift_id' => $currentShift?->id,
                 ],
             );
 
@@ -188,8 +189,8 @@ class FacebookConversationImportService
                 ])->save();
             }
 
-            if (! $conversation->assigned_to && ! $conversation->work_shift_id) {
-                $conversation->forceFill(['work_shift_id' => $this->shifts->currentShift()?->id])->save();
+            if (! $conversation->assigned_to && $currentShift && (int) $conversation->work_shift_id !== (int) $currentShift->id) {
+                $conversation->forceFill(['work_shift_id' => $currentShift->id])->save();
             }
 
             $senderType = $fromId === $page->page_id ? 'user' : 'customer';

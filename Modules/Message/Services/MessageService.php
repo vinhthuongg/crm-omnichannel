@@ -49,16 +49,17 @@ class MessageService
             $customer = $channel?->customer ?? Customer::query()->create(['name' => $data->customerName, 'avatar' => $data->customerAvatar]);
             $this->refreshCustomerProfile($customer, $data);
             $customer->channels()->updateOrCreate(['channel' => $data->channel, 'external_id' => $data->externalCustomerId], ['metadata' => $data->metadata]);
+            $currentShift = $this->shifts->currentShift();
             $conversation = Conversation::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'status' => 'open', 'facebook_page_id' => $facebookPageId !== '' ? $facebookPageId : null],
                 [
                     'last_message_at' => now(),
-                    'work_shift_id' => $this->shifts->currentShift()?->id,
+                    'work_shift_id' => $currentShift?->id,
                 ],
             );
 
-            if (! $conversation->assigned_to && ! $conversation->work_shift_id) {
-                $conversation->forceFill(['work_shift_id' => $this->shifts->currentShift()?->id])->save();
+            if (! $conversation->assigned_to && $currentShift && (int) $conversation->work_shift_id !== (int) $currentShift->id) {
+                $conversation->forceFill(['work_shift_id' => $currentShift->id])->save();
             }
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id, 'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType, 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
