@@ -95,6 +95,16 @@ class SalesChatbotService
             );
         }
 
+        if ($this->isGreeting($content)) {
+            $menu = InitialMessageTemplate::serviceMenuFor($conversation);
+
+            return new ChatbotReply(
+                content: $menu !== '' ? $menu : $this->greetingMessage(),
+                quickReplies: $menu !== '' ? $this->knowledgeBase->quickReplies() : [],
+                clientMessageKey: $this->replyKey($conversation, $source, 'greeting'),
+            );
+        }
+
         if (filled($customer->phone)) {
             $this->tagCustomer($customer, 'Da co so dien thoai', '#16a34a');
 
@@ -207,6 +217,18 @@ class SalesChatbotService
             || str_contains($normalized, 'tra gop')
             || str_contains($normalized, 'mau xe')
             || str_contains($normalized, 'phien ban');
+    }
+
+    private function isGreeting(string $content): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        return in_array($normalized, ['hi', 'hello', 'helo', 'alo', 'chao', 'xin chao', 'em oi', 'shop oi', 'tu van'], true);
+    }
+
+    private function greetingMessage(): string
+    {
+        return "Kính chào Anh/Chị,\n\nToyota Kiên Giang rất vui được hỗ trợ Anh/Chị. Anh/Chị đang quan tâm mẫu xe hoặc nhu cầu tư vấn nào ạ?\n\nAnh/Chị có thể nhắn tên xe như Vios, Veloz Cross, Yaris Cross, Corolla Cross, Camry, Fortuner, Innova Cross, Raize hoặc Hilux để em kiểm tra giá và ưu đãi phù hợp ạ.";
     }
 
     private function askForVehicleModel(array $state): string
