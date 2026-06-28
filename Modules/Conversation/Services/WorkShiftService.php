@@ -70,6 +70,19 @@ class WorkShiftService
         return $shift->agents->contains('id', $user->id);
     }
 
+    public function userBelongsToShift(User $user, ?int $shiftId): bool
+    {
+        if (! $shiftId) {
+            return false;
+        }
+
+        return WorkShift::query()
+            ->whereKey($shiftId)
+            ->where('is_active', true)
+            ->whereHas('agents', fn ($query) => $query->whereKey($user->id))
+            ->exists();
+    }
+
     private function activeShiftByDailyTime($now, ?User $user = null): ?WorkShift
     {
         return WorkShift::query()

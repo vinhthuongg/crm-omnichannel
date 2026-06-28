@@ -52,8 +52,8 @@ class ConversationService
     {
         $this->assignableUsers->findAssignable((int) $actor->id);
 
-        if (! $this->shifts->userIsInCurrentShift($actor, $conversation->queue_shift_id)) {
-            throw new \RuntimeException('Ban khong nam trong ca truc dang chiu trach nhiem hoi thoai nay.');
+        if (! $this->shifts->userBelongsToShift($actor, $conversation->queue_shift_id)) {
+            throw new \RuntimeException('Ban khong thuoc ca truc dang chiu trach nhiem hoi thoai nay.');
         }
 
         $this->states->assertCanTransition($conversation->status, ConversationStatus::IN_PROGRESS);

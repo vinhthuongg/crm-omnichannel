@@ -100,10 +100,27 @@ class ConversationShiftVisibilityTest extends TestCase
         $this->assertConversationHiddenFrom($beforeConversation, $afterAgent);
 
         Carbon::setTestNow(Carbon::parse('2026-06-28 10:00:01'));
+        $this->assertConversationVisibleTo($beforeConversation, $beforeAgent);
+        $this->assertConversationHiddenFrom($beforeConversation, $afterAgent);
+
         $afterConversation = $this->waitingConversation($afterShift, 'Tin luc 10:00:01');
 
         $this->assertConversationHiddenFrom($afterConversation, $beforeAgent);
         $this->assertConversationVisibleTo($afterConversation, $afterAgent);
+    }
+
+    public function test_previous_shift_agent_can_claim_old_waiting_conversation_after_shift_ends(): void
+    {
+        $agent = $this->user('Old Shift Agent', 'old-shift@shift.test');
+        $shift = $this->shift('Ca 09:00-10:00', '09:00', '10:00', [$agent]);
+        $conversation = $this->waitingConversation($shift, 'Tin cu cua ca truoc');
+
+        Carbon::setTestNow(Carbon::parse('2026-06-28 10:30:00'));
+        $claimed = app(ConversationService::class)->claim($conversation, $agent);
+
+        $this->assertSame($agent->id, (int) $claimed->assigned_to);
+        $this->assertSame(ConversationStatus::IN_PROGRESS, $claimed->status);
+        $this->assertConversationVisibleTo($claimed, $agent);
     }
 
     private function user(string $name, string $email, string $role = 'CSKH'): User

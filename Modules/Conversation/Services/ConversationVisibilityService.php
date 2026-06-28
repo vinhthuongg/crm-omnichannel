@@ -20,17 +20,12 @@ class ConversationVisibilityService
             return $query;
         }
 
-        $currentShift = $this->shifts->currentShiftFor($user);
-
-        return $query->where(function (Builder $query) use ($user, $currentShift): void {
+        return $query->where(function (Builder $query) use ($user): void {
             $query->where('assigned_to', $user->id);
-
-            if ($currentShift) {
-                $query->orWhere(function (Builder $query) use ($currentShift): void {
-                    $query->whereNull('assigned_to')
-                        ->where('queue_shift_id', $currentShift->id);
-                });
-            }
+            $query->orWhere(function (Builder $query) use ($user): void {
+                $query->whereNull('assigned_to')
+                    ->whereHas('queueShift.agents', fn (Builder $agents) => $agents->whereKey($user->id));
+            });
         });
     }
 
@@ -41,6 +36,6 @@ class ConversationVisibilityService
         }
 
         return ! $conversation->assigned_to
-            && $this->shifts->userIsInCurrentShift($user, $conversation->queue_shift_id);
+            && $this->shifts->userBelongsToShift($user, $conversation->queue_shift_id);
     }
 }

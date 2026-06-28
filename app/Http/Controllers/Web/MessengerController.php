@@ -140,7 +140,7 @@ class MessengerController extends Controller
         $conversation->loadMissing(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
         $canReply = $user->can('conversation.view_all') || (int) $conversation->assigned_to === (int) $user->id;
         $canClaim = ! $conversation->assigned_to && ! $user->can('conversation.view_all')
-            && app(WorkShiftService::class)->userIsInCurrentShift($user, $conversation->queue_shift_id);
+            && app(WorkShiftService::class)->userBelongsToShift($user, $conversation->queue_shift_id);
 
         return [
             'data' => [
