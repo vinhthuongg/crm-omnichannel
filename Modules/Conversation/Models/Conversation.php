@@ -12,11 +12,38 @@ use Modules\Message\Models\Message;
 
 class Conversation extends Model
 {
-    protected $fillable = ['customer_id', 'facebook_page_id', 'external_conversation_id', 'assigned_to', 'work_shift_id', 'claimed_at', 'status', 'last_message_at', 'unread_messages_count', 'automation_state', 'last_read_at', 'closed_at'];
+    protected $fillable = [
+        'customer_id',
+        'facebook_page_id',
+        'external_conversation_id',
+        'assigned_to',
+        'assigned_by',
+        'assigned_type',
+        'work_shift_id',
+        'owner_shift_id',
+        'queue_shift_id',
+        'claimed_at',
+        'status',
+        'last_message_at',
+        'unread_messages_count',
+        'automation_state',
+        'last_read_at',
+        'resolved_at',
+        'first_response_at',
+        'closed_at',
+    ];
 
     protected function casts(): array
     {
-        return ['last_message_at' => 'datetime', 'last_read_at' => 'datetime', 'claimed_at' => 'datetime', 'closed_at' => 'datetime', 'automation_state' => 'array'];
+        return [
+            'last_message_at' => 'datetime',
+            'last_read_at' => 'datetime',
+            'claimed_at' => 'datetime',
+            'resolved_at' => 'datetime',
+            'first_response_at' => 'datetime',
+            'closed_at' => 'datetime',
+            'automation_state' => 'array',
+        ];
     }
 
     public function customer(): BelongsTo
@@ -29,9 +56,24 @@ class Conversation extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
     public function workShift(): BelongsTo
     {
         return $this->belongsTo(WorkShift::class);
+    }
+
+    public function ownerShift(): BelongsTo
+    {
+        return $this->belongsTo(WorkShift::class, 'owner_shift_id');
+    }
+
+    public function queueShift(): BelongsTo
+    {
+        return $this->belongsTo(WorkShift::class, 'queue_shift_id');
     }
 
     public function messages(): HasMany
@@ -42,6 +84,11 @@ class Conversation extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class);
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ConversationActivity::class);
     }
 
     public function markAsRead(): void

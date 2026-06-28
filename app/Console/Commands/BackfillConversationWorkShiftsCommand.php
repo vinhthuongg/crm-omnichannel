@@ -5,12 +5,13 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\WorkShiftService;
+use Modules\Conversation\Support\ConversationStatus;
 
 class BackfillConversationWorkShiftsCommand extends Command
 {
     protected $signature = 'work-shifts:backfill-conversations {--current : Use current active shift for unassigned conversations}';
 
-    protected $description = 'Attach missing work shifts to unassigned open conversations.';
+    protected $description = 'Attach missing owner and queue shifts to unassigned waiting conversations.';
 
     public function handle(WorkShiftService $shifts): int
     {
@@ -23,11 +24,16 @@ class BackfillConversationWorkShiftsCommand extends Command
         }
 
         $count = Conversation::query()
-            ->where('status', 'open')
+            ->where('status', ConversationStatus::WAITING)
             ->whereNull('assigned_to')
-            ->whereNull('work_shift_id')
+            ->where(function ($query): void {
+                $query->whereNull('owner_shift_id')
+                    ->orWhereNull('queue_shift_id');
+            })
             ->update([
                 'work_shift_id' => $shift->id,
+                'owner_shift_id' => $shift->id,
+                'queue_shift_id' => $shift->id,
                 'updated_at' => now(),
             ]);
 

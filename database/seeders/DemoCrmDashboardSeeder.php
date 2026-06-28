@@ -8,6 +8,8 @@ use Illuminate\Support\Carbon;
 use Modules\ActivityLog\Models\ActivityLog;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Support\AssignmentType;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Message\Models\Message;
@@ -98,15 +100,27 @@ class DemoCrmDashboardSeeder extends Seeder
             $customer = $customers[$dayOffset % $customers->count()];
             $agent = $agents[$dayOffset % $agents->count()];
             $channel = $dayOffset % 2 === 0 ? 'facebook' : 'zalo';
-            $status = ['open', 'pending', 'closed', 'closed', 'open', 'pending'][$dayOffset % 6];
+            $status = [
+                ConversationStatus::IN_PROGRESS,
+                ConversationStatus::WAITING,
+                ConversationStatus::CLOSED,
+                ConversationStatus::CLOSED,
+                ConversationStatus::IN_PROGRESS,
+                ConversationStatus::WAITING,
+            ][$dayOffset % 6];
             $lastMessageAt = $createdAt->copy()->addMinutes(24 + ($dayOffset * 3) % 85);
 
             $conversation = Conversation::query()->create([
                 'customer_id' => $customer->id,
                 'assigned_to' => $agent->id,
+                'assigned_by' => $admin->id,
+                'assigned_type' => AssignmentType::MANUAL,
+                'claimed_at' => $createdAt,
                 'status' => $status,
                 'last_message_at' => $lastMessageAt,
-                'closed_at' => $status === 'closed' ? $lastMessageAt->copy()->addMinutes(18) : null,
+                'resolved_at' => $status === ConversationStatus::CLOSED ? $lastMessageAt->copy()->addMinutes(12) : null,
+                'first_response_at' => $lastMessageAt,
+                'closed_at' => $status === ConversationStatus::CLOSED ? $lastMessageAt->copy()->addMinutes(18) : null,
                 'created_at' => $createdAt,
                 'updated_at' => $lastMessageAt,
             ]);
@@ -159,7 +173,7 @@ class DemoCrmDashboardSeeder extends Seeder
 
             ActivityLog::query()->create([
                 'user_id' => $agent->id,
-                'action' => $status === 'closed' ? 'demo.conversation.closed' : 'demo.message.sent',
+                'action' => $status === ConversationStatus::CLOSED ? 'demo.conversation.closed' : 'demo.message.sent',
                 'subject_type' => Conversation::class,
                 'subject_id' => $conversation->id,
                 'metadata' => ['channel' => $channel, 'status' => $status],
@@ -177,8 +191,13 @@ class DemoCrmDashboardSeeder extends Seeder
             $conversation = Conversation::query()->create([
                 'customer_id' => $customer->id,
                 'assigned_to' => $agent->id,
-                'status' => 'closed',
+                'assigned_by' => $admin->id,
+                'assigned_type' => AssignmentType::MANUAL,
+                'claimed_at' => $createdAt,
+                'status' => ConversationStatus::CLOSED,
                 'last_message_at' => $createdAt->copy()->addMinutes(45),
+                'resolved_at' => $createdAt->copy()->addMinutes(90),
+                'first_response_at' => $createdAt->copy()->addMinutes(45),
                 'closed_at' => $createdAt->copy()->addHours(2),
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt->copy()->addHours(2),

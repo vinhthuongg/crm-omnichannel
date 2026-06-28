@@ -7,14 +7,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Services\WorkShiftService;
 
 class GetMessengerViewDataAction
 {
     private const INITIAL_MESSAGE_LIMIT = 10;
 
-    public function __construct(private readonly WorkShiftService $shifts)
-    {
+    public function __construct(
+        private readonly WorkShiftService $shifts,
+        private readonly ConversationVisibilityService $visibility,
+    ) {
     }
 
     public function execute(User $user, ?Conversation $selectedConversation = null, array $filters = []): array
@@ -103,24 +106,7 @@ class GetMessengerViewDataAction
 
     private function visibleConversations(User $user): Builder
     {
-        $query = Conversation::query();
-
-        if (! $user->can('conversation.view_all')) {
-            $currentShift = $this->shifts->currentShiftFor($user);
-
-            $query->where(function (Builder $query) use ($user, $currentShift): void {
-                $query->where('assigned_to', $user->id);
-
-                if ($currentShift) {
-                    $query->orWhere(function (Builder $query) use ($currentShift): void {
-                        $query->whereNull('assigned_to')
-                            ->where('work_shift_id', $currentShift->id);
-                    });
-                }
-            });
-        }
-
-        return $query;
+        return $this->visibility->visibleFor($user);
     }
 
     private function applyChannelFilter(Builder $query, string $channel): Builder
@@ -281,8 +267,7 @@ class GetMessengerViewDataAction
             return true;
         }
 
-        return ! $conversation->assigned_to
-            && $this->shifts->userIsInCurrentShift($user, $conversation->work_shift_id);
+        return $this->visibility->canView($user, $conversation);
     }
 
     private function messageTimeline(Conversation $conversation, User $currentUser): Collection

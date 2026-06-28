@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Services\WorkShiftService;
 use Modules\Customer\Models\CustomerTag;
@@ -139,7 +140,7 @@ class MessengerController extends Controller
         $conversation->loadMissing(['customer.channels', 'customer.notes.user', 'customer.tags', 'assignee', 'tags']);
         $canReply = $user->can('conversation.view_all') || (int) $conversation->assigned_to === (int) $user->id;
         $canClaim = ! $conversation->assigned_to && ! $user->can('conversation.view_all')
-            && app(WorkShiftService::class)->userIsInCurrentShift($user, $conversation->work_shift_id);
+            && app(WorkShiftService::class)->userIsInCurrentShift($user, $conversation->queue_shift_id);
 
         return [
             'data' => [
@@ -420,14 +421,9 @@ class MessengerController extends Controller
     {
         $this->authorizeConversationAccess($request, $conversation);
 
-        if (! $request->user()->can('conversation.view_all')) {
-            abort_unless(blank($conversation->assigned_to) || (int) $conversation->assigned_to === (int) $request->user()->id, 403);
-            abort_unless($conversation->assigned_to || $shifts->userIsInCurrentShift($request->user(), $conversation->work_shift_id), 403);
-        }
-
         try {
             $claimed = $service->claim($conversation, $request->user());
-        } catch (\Throwable $exception) {
+        } catch (\RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 409);
         }
 
@@ -584,11 +580,7 @@ class MessengerController extends Controller
     {
         $user = $request->user();
 
-        if ($user->can('conversation.view_all') || $conversation->assigned_to === $user->id) {
-            return;
-        }
-
-        if (! $conversation->assigned_to && app(WorkShiftService::class)->userIsInCurrentShift($user, $conversation->work_shift_id)) {
+        if (app(ConversationVisibilityService::class)->canView($user, $conversation)) {
             return;
         }
 

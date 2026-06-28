@@ -8,11 +8,17 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Services\ConversationVisibilityService;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
 use Modules\Message\Models\Message;
 
 class GetDashboardChartDataAction
 {
+    public function __construct(private readonly ConversationVisibilityService $visibility)
+    {
+    }
+
     public function execute(User $user, array $filters = []): array
     {
         $period = in_array(($filters['period'] ?? 'week'), ['week', 'month', 'year'], true)
@@ -32,30 +38,26 @@ class GetDashboardChartDataAction
 
     private function visibleConversations(User $user): Builder
     {
-        $query = Conversation::query();
-
-        if (! $user->can('conversation.view_all')) {
-            $query->where('assigned_to', $user->id);
-        }
-
-        return $query;
+        return $this->visibility->visibleFor($user);
     }
 
     private function visibleMessages(User $user): Builder
     {
         return Message::query()->whereHas('conversation', function (Builder $query) use ($user): void {
-            if (! $user->can('conversation.view_all')) {
-                $query->where('assigned_to', $user->id);
-            }
+            $query->whereIn('id', $this->visibleConversations($user)->select('id'));
         });
     }
 
     private function closureData(User $user): array
     {
-        return collect(['open', 'pending', 'closed'])->map(fn (string $status): array => [
-            'label' => ucfirst($status),
+        return collect([
+            'open' => ConversationStatus::IN_PROGRESS,
+            'pending' => ConversationStatus::WAITING,
+            'closed' => ConversationStatus::CLOSED,
+        ])->map(fn (string $status, string $label): array => [
+            'label' => ucfirst($label),
             'value' => (clone $this->visibleConversations($user))->where('status', $status)->count(),
-        ])->all();
+        ])->values()->all();
     }
 
     private function dailyMessages(User $user, int $days): array
@@ -93,9 +95,9 @@ class GetDashboardChartDataAction
         return $buckets->map(function (array $bucket) use ($user): array {
             return [
                 'period' => $bucket['label'],
-                'open' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', 'open')->count(),
-                'pending' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', 'pending')->count(),
-                'closed' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', 'closed')->count(),
+                'open' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', ConversationStatus::IN_PROGRESS)->count(),
+                'pending' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', ConversationStatus::WAITING)->count(),
+                'closed' => (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', ConversationStatus::CLOSED)->count(),
             ];
         })->all();
     }
@@ -114,9 +116,7 @@ class GetDashboardChartDataAction
     {
         return Tag::query()
             ->withCount(['conversations' => function (Builder $query) use ($user): void {
-                if (! $user->can('conversation.view_all')) {
-                    $query->where('assigned_to', $user->id);
-                }
+                $query->whereIn('conversations.id', $this->visibleConversations($user)->select('id'));
             }])
             ->orderByDesc('conversations_count')
             ->limit(5)
@@ -146,9 +146,7 @@ class GetDashboardChartDataAction
     {
         $customer = Customer::query()
             ->withCount(['conversations' => function (Builder $query) use ($user): void {
-                if (! $user->can('conversation.view_all')) {
-                    $query->where('assigned_to', $user->id);
-                }
+                $query->whereIn('conversations.id', $this->visibleConversations($user)->select('id'));
             }])
             ->orderByDesc('conversations_count')
             ->first();

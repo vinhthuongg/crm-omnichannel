@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Services\ConversationService;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
@@ -16,8 +17,10 @@ use Modules\Message\Services\OutboundMessageService;
 
 class SendMessengerMessageAction
 {
-    public function __construct(private readonly MessengerAttachmentStorage $attachmentStorage)
-    {
+    public function __construct(
+        private readonly MessengerAttachmentStorage $attachmentStorage,
+        private readonly ConversationService $conversations,
+    ) {
     }
 
     public function execute(Conversation $conversation, User $user, array $data): Message
@@ -55,19 +58,7 @@ class SendMessengerMessageAction
                 'outbound_status' => $isWhisper ? null : 'queued',
             ]);
 
-            $conversation->forceFill([
-                'last_message_at' => $message->created_at,
-                'last_read_at' => now(),
-                'status' => 'open',
-                'unread_messages_count' => 0,
-                'automation_state' => $isWhisper
-                    ? $conversation->automation_state
-                    : [
-                        ...(array) ($conversation->automation_state ?? []),
-                        'paused_by_user_at' => $message->created_at?->toISOString() ?? now()->toISOString(),
-                        'paused_by_user_message_id' => $message->id,
-                    ],
-            ])->save();
+            $this->conversations->recordOutboundMessage($conversation, $message, $isWhisper);
 
             if (! $isWhisper) {
                 $this->markConversationAsConsulting($conversation);

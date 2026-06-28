@@ -10,8 +10,10 @@ use Modules\Chatbot\Jobs\SendChatbotReplyJob;
 use Modules\Chatbot\Services\SalesChatbotService;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Services\ConversationService;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Events\MessageUpdatedEvent;
@@ -26,6 +28,7 @@ class MessageService
         private readonly OutboundMessageService $outbound,
         private readonly WorkShiftService $shifts,
         private readonly SalesChatbotService $chatbot,
+        private readonly ConversationService $conversations,
     ) {
     }
 
@@ -50,16 +53,23 @@ class MessageService
             $this->refreshCustomerProfile($customer, $data);
             $customer->channels()->updateOrCreate(['channel' => $data->channel, 'external_id' => $data->externalCustomerId], ['metadata' => $data->metadata]);
             $currentShift = $this->shifts->currentShift();
-            $conversation = Conversation::query()->firstOrCreate(
-                ['customer_id' => $customer->id, 'status' => 'open', 'facebook_page_id' => $facebookPageId !== '' ? $facebookPageId : null],
-                [
+            $conversation = Conversation::query()
+                ->where('customer_id', $customer->id)
+                ->where('facebook_page_id', $facebookPageId !== '' ? $facebookPageId : null)
+                ->whereIn('status', ConversationStatus::ACTIVE)
+                ->latest('last_message_at')
+                ->first();
+
+            if (! $conversation) {
+                $conversation = Conversation::query()->create([
+                    'customer_id' => $customer->id,
+                    'facebook_page_id' => $facebookPageId !== '' ? $facebookPageId : null,
+                    'status' => ConversationStatus::WAITING,
                     'last_message_at' => now(),
                     'work_shift_id' => $currentShift?->id,
-                ],
-            );
-
-            if (! $conversation->assigned_to && $currentShift && (int) $conversation->work_shift_id !== (int) $currentShift->id) {
-                $conversation->forceFill(['work_shift_id' => $currentShift->id])->save();
+                    'owner_shift_id' => $currentShift?->id,
+                    'queue_shift_id' => $currentShift?->id,
+                ]);
             }
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id, 'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType, 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
             $conversation->forceFill(['last_message_at' => $message->created_at])->save();
@@ -204,17 +214,7 @@ class MessageService
 
         $message = DB::transaction(function () use ($conversation, $user, $data, $externalMessageId): Message {
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'user', 'sender_id' => $user->id, 'channel' => $data['channel'], 'content' => $data['content'] ?? null, 'message_type' => $data['message_type'] ?? 'text', 'attachments' => $data['attachments'] ?? null, 'external_message_id' => $externalMessageId]);
-            $conversation->forceFill([
-                'last_message_at' => $message->created_at,
-                'last_read_at' => now(),
-                'status' => 'open',
-                'unread_messages_count' => 0,
-                'automation_state' => [
-                    ...(array) ($conversation->automation_state ?? []),
-                    'paused_by_user_at' => $message->created_at?->toISOString() ?? now()->toISOString(),
-                    'paused_by_user_message_id' => $message->id,
-                ],
-            ])->save();
+            $this->conversations->recordOutboundMessage($conversation, $message);
             $this->markConversationAsConsulting($conversation);
 
             return $message;

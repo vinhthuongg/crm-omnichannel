@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Support\ConversationStatus;
 
 class SendUnansweredConversationReminderJob implements ShouldQueue
 {
@@ -14,7 +15,7 @@ class SendUnansweredConversationReminderJob implements ShouldQueue
     public function handle(): void
     {
         Conversation::query()
-            ->whereIn('status', ['open', 'pending'])
+            ->whereIn('status', ConversationStatus::ACTIVE)
             ->whereNotNull('assigned_to')
             ->where('last_message_at', '<=', now()->subMinutes(15))
             ->with('assignee')

@@ -8,6 +8,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Facebook\Models\FacebookPage;
@@ -174,23 +175,30 @@ class FacebookConversationImportService
             );
 
             $currentShift = $this->shifts->currentShift();
-            $conversation = Conversation::query()->firstOrCreate(
-                ['customer_id' => $customer->id, 'status' => 'open', 'facebook_page_id' => $page->page_id],
-                [
+            $conversation = Conversation::query()
+                ->where('customer_id', $customer->id)
+                ->where('facebook_page_id', $page->page_id)
+                ->whereIn('status', ConversationStatus::ACTIVE)
+                ->latest('last_message_at')
+                ->first();
+
+            if (! $conversation) {
+                $conversation = Conversation::query()->create([
+                    'customer_id' => $customer->id,
+                    'status' => ConversationStatus::WAITING,
+                    'facebook_page_id' => $page->page_id,
                     'external_conversation_id' => $remoteConversationId,
                     'last_message_at' => $this->createdAt($remoteMessage),
                     'work_shift_id' => $currentShift?->id,
-                ],
-            );
+                    'owner_shift_id' => $currentShift?->id,
+                    'queue_shift_id' => $currentShift?->id,
+                ]);
+            }
 
             if ($remoteConversationId && ! $conversation->external_conversation_id) {
                 $conversation->forceFill([
                     'external_conversation_id' => $remoteConversationId,
                 ])->save();
-            }
-
-            if (! $conversation->assigned_to && $currentShift && (int) $conversation->work_shift_id !== (int) $currentShift->id) {
-                $conversation->forceFill(['work_shift_id' => $currentShift->id])->save();
             }
 
             $senderType = $fromId === $page->page_id ? 'user' : 'customer';

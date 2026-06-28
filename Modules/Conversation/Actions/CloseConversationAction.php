@@ -16,4 +16,14 @@ class CloseConversationAction
     {
         return $this->service->close($conversation, $actor);
     }
+
+    public function resolve(Conversation $conversation, User $actor): Conversation
+    {
+        return $this->service->resolve($conversation, $actor);
+    }
+
+    public function reopen(Conversation $conversation, User $actor): Conversation
+    {
+        return $this->service->reopen($conversation, $actor);
+    }
 }

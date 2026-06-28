@@ -16,4 +16,14 @@ class AssignConversationAction
     {
         return $this->service->assign($conversation, $userId, $actor);
     }
+
+    public function transfer(Conversation $conversation, int $userId, User $actor): Conversation
+    {
+        return $this->service->transfer($conversation, $userId, $actor);
+    }
+
+    public function release(Conversation $conversation, User $actor): Conversation
+    {
+        return $this->service->release($conversation, $actor);
+    }
 }

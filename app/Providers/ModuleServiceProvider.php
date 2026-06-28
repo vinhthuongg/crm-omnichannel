@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Modules\ActivityLog\Models\ActivityLog;
 use Modules\ActivityLog\Services\ActivityLogService;
-use Modules\Conversation\Events\ConversationAssignedEvent;
+use Modules\Conversation\Events\ConversationAssigned;
+use Modules\Conversation\Events\ConversationClaimed;
+use Modules\Conversation\Events\ConversationTransferred;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Observers\ConversationObserver;
 use Modules\Customer\Models\Customer;
@@ -40,6 +42,8 @@ class ModuleServiceProvider extends ServiceProvider
 
         Event::listen(NewMessageEvent::class, LogNewMessageActivity::class);
         Event::listen(NewMessageEvent::class, QueueNewMessageNotification::class);
-        Event::listen(ConversationAssignedEvent::class, \Modules\Notification\Listeners\QueueConversationAssignedNotification::class);
+        Event::listen(ConversationAssigned::class, \Modules\Notification\Listeners\QueueConversationAssignedNotification::class);
+        Event::listen(ConversationClaimed::class, \Modules\Notification\Listeners\QueueConversationAssignedNotification::class);
+        Event::listen(ConversationTransferred::class, \Modules\Notification\Listeners\QueueConversationAssignedNotification::class);
     }
 }

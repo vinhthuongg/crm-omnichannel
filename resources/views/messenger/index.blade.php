@@ -136,7 +136,7 @@
     <section class="messenger-chat">
         @if($activeConversation)
             @php($canReply = $currentUser->can('conversation.view_all') || (int) $activeConversation->assigned_to === (int) $currentUser->id)
-            @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userIsInCurrentShift($currentUser, $activeConversation->work_shift_id))
+            @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userIsInCurrentShift($currentUser, $activeConversation->queue_shift_id))
             <header class="messenger-chat-head">
                 <div class="chat-contact">
                     <span class="thread-avatar large" data-chat-avatar>
@@ -1994,6 +1994,20 @@
         });
     }
 
+    function handleRealtimeConversation(payload) {
+        const conversation = payload.conversation || payload;
+
+        if (!conversation?.id) {
+            return;
+        }
+
+        refreshThreadList();
+
+        if (String(conversation.id) === String(timeline?.dataset.conversationId)) {
+            loadConversation(window.location.href);
+        }
+    }
+
     function removeConversationThread(conversationId) {
         const thread = document.querySelector(`[data-thread-conversation-id="${conversationId}"]`);
         const wasActive = String(conversationId) === String(timeline?.dataset.conversationId);
@@ -2119,6 +2133,10 @@
 
                 if (payload.event === 'message.deleted') {
                     handleDeletedMessages(parsePusherData(payload.data));
+                }
+
+                if (String(payload.event || '').startsWith('conversation.')) {
+                    handleRealtimeConversation(parsePusherData(payload.data));
                 }
             } catch (error) {
                 console.warn('CRM messenger websocket message failed:', error);
