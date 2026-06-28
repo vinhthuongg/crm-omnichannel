@@ -22,6 +22,7 @@ class ConversationVisibilityService
 
         return $query->where(function (Builder $query) use ($user): void {
             $query->where('assigned_to', $user->id);
+            $query->orWhereHas('handledUsers', fn (Builder $handlers) => $handlers->whereKey($user->id));
             $query->orWhere(function (Builder $query) use ($user): void {
                 $query->whereNull('assigned_to')
                     ->whereHas('queueShift.agents', fn (Builder $agents) => $agents->whereKey($user->id));
@@ -32,6 +33,10 @@ class ConversationVisibilityService
     public function canView(User $user, Conversation $conversation): bool
     {
         if ($user->can('conversation.view_all') || (int) $conversation->assigned_to === (int) $user->id) {
+            return true;
+        }
+
+        if ($conversation->handledUsers()->whereKey($user->id)->exists()) {
             return true;
         }
 

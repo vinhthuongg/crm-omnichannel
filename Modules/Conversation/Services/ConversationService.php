@@ -75,6 +75,7 @@ class ConversationService
         }
 
         $conversation = $conversation->refresh()->load(['customer.channels', 'assignee', 'tags']);
+        $this->rememberHandledUser($conversation, $actor);
         $this->recordActivity($conversation, ConversationAction::CLAIM, ['assigned_to' => null], $this->assignmentSnapshot($conversation), $actor);
         $this->activityLog->record($actor, 'conversation.claimed', $conversation, ['assigned_to' => $actor->id]);
         event(new ConversationClaimed($conversation, $actor));
@@ -189,6 +190,7 @@ class ConversationService
             ])->save();
 
             $conversation = $conversation->refresh()->load(['customer.channels', 'assignee', 'tags']);
+            $this->rememberHandledUser($conversation, $assignee);
             $action = $type === AssignmentType::TRANSFER ? ConversationAction::TRANSFER : ConversationAction::ASSIGN;
             $this->recordActivity($conversation, $action, $old, $this->assignmentSnapshot($conversation), $actor);
             $this->activityLog->record($actor, 'conversation.'.$action, $conversation, ['assigned_to' => $assignee->id]);
@@ -230,6 +232,16 @@ class ConversationService
             'claimed_at' => $conversation->claimed_at?->toISOString(),
             'status' => $conversation->status,
         ];
+    }
+
+    private function rememberHandledUser(Conversation $conversation, User $user): void
+    {
+        $conversation->handledUsers()->syncWithoutDetaching([
+            $user->id => [
+                'first_handled_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
     }
 
     private function recordActivity(Conversation $conversation, string $action, array $old, array $new, ?User $actor): void

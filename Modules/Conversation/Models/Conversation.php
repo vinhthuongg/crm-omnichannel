@@ -91,6 +91,13 @@ class Conversation extends Model
         return $this->hasMany(ConversationActivity::class);
     }
 
+    public function handledUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'conversation_user_access')
+            ->withPivot('first_handled_at')
+            ->withTimestamps();
+    }
+
     public function markAsRead(): void
     {
         $this->messages()

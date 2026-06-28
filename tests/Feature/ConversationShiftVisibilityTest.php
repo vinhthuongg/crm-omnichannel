@@ -123,6 +123,28 @@ class ConversationShiftVisibilityTest extends TestCase
         $this->assertConversationVisibleTo($claimed, $agent);
     }
 
+    public function test_agents_who_ever_handled_conversation_keep_visibility_after_transfer_and_release(): void
+    {
+        [$agentA, $agentB] = [
+            $this->user('Handled Agent A', 'handled-a@shift.test'),
+            $this->user('Handled Agent B', 'handled-b@shift.test'),
+        ];
+        $shift = $this->shift('Ca 09:00-10:00', '09:00', '10:00', [$agentA, $agentB]);
+        $conversation = $this->waitingConversation($shift, 'Tin da tung xu ly');
+
+        $service = app(ConversationService::class);
+        $service->assign($conversation, $agentA->id, $this->admin);
+        $conversation = $service->transfer($conversation->refresh(), $agentB->id, $this->admin);
+
+        $this->assertConversationVisibleTo($conversation, $agentA);
+        $this->assertConversationVisibleTo($conversation, $agentB);
+
+        $released = $service->release($conversation->refresh(), $this->admin);
+
+        $this->assertConversationVisibleTo($released, $agentA);
+        $this->assertConversationVisibleTo($released, $agentB);
+    }
+
     private function user(string $name, string $email, string $role = 'CSKH'): User
     {
         $user = User::query()->create([
