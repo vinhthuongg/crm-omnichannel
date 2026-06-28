@@ -62,6 +62,7 @@ class GetMessengerViewDataAction
             'tagPresets' => $this->tagPresets(),
             'allTags' => Tag::query()->orderBy('name')->get(),
             'allCustomerTags' => Tag::query()->orderBy('name')->get(),
+            'assignableAgents' => $this->assignableAgents($user),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
             'profilePanel' => $this->profilePanel($activeConversation),
@@ -102,6 +103,19 @@ class GetMessengerViewDataAction
         }
 
         return $items;
+    }
+
+    private function assignableAgents(User $user): Collection
+    {
+        if (! $user->can('conversation.assign') && ! $user->can('conversation.transfer')) {
+            return collect();
+        }
+
+        return User::query()
+            ->permission('conversation.reply')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
     }
 
     private function visibleConversations(User $user): Builder

@@ -137,6 +137,7 @@
         @if($activeConversation)
             @php($canReply = $currentUser->can('conversation.view_all') || (int) $activeConversation->assigned_to === (int) $currentUser->id)
             @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userIsInCurrentShift($currentUser, $activeConversation->queue_shift_id))
+            @php($canAssign = ($currentUser->can('conversation.assign') || $currentUser->can('conversation.transfer')) && $assignableAgents->isNotEmpty())
             <header class="messenger-chat-head">
                 <div class="chat-contact">
                     <span class="thread-avatar large" data-chat-avatar>
@@ -152,6 +153,19 @@
                         <p data-chat-assignee>{{ $activeConversation->assignee?->name ? 'Phu trach: '.$activeConversation->assignee->name : 'Chua gan nhan vien' }}</p>
                     </div>
                 </div>
+                @if($canAssign)
+                    <form class="conversation-assign-form" data-assign-form data-assign-url="{{ route('crm.conversations.assign', $activeConversation) }}">
+                        <label for="conversation-assignee">Phan cong</label>
+                        <select id="conversation-assignee" name="assigned_to" data-assign-select>
+                            <option value="">Chon nhan vien</option>
+                            @foreach($assignableAgents as $agent)
+                                <option value="{{ $agent->id }}" @selected((int) $activeConversation->assigned_to === (int) $agent->id)>{{ $agent->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit">Luu</button>
+                        <small data-assign-status></small>
+                    </form>
+                @endif
                 <nav class="chat-actions" aria-label="Conversation actions">
                     <a href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}">Info</a>
                     <a href="{{ route('crm.channels', ['channel' => $activeChannel]) }}" data-chat-channel>{{ ucfirst($activeChannel) }}</a>
@@ -458,6 +472,11 @@
 
         event.preventDefault();
         deleteConversation(deleteButton);
+    });
+
+    document.querySelector('[data-assign-form]')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        assignConversation(event.target);
     });
 
     document.querySelector('[data-profile-panel]')?.addEventListener('keydown', function (event) {
@@ -1157,6 +1176,8 @@
         const chatPhone = document.querySelector('[data-chat-customer-phone]');
         const chatAssignee = document.querySelector('[data-chat-assignee]');
         const chatChannel = document.querySelector('[data-chat-channel]');
+        const assignForm = document.querySelector('[data-assign-form]');
+        const assignSelect = document.querySelector('[data-assign-select]');
         const deleteButton = document.querySelector('[data-delete-conversation-button]');
 
         if (chatAvatar) {
@@ -1175,6 +1196,14 @@
 
         if (chatAssignee) {
             chatAssignee.textContent = conversation.assignee_name ? `Phu trach: ${conversation.assignee_name}` : 'Chua gan nhan vien';
+        }
+
+        if (assignForm && conversation.assign_url) {
+            assignForm.dataset.assignUrl = conversation.assign_url;
+        }
+
+        if (assignSelect) {
+            assignSelect.value = conversation.assigned_to ? String(conversation.assigned_to) : '';
         }
 
         if (chatChannel) {
@@ -1378,6 +1407,73 @@
             button.disabled = false;
         }
     });
+
+    async function assignConversation(form) {
+        const select = form.querySelector('[data-assign-select]');
+        const button = form.querySelector('button[type="submit"]');
+        const status = form.querySelector('[data-assign-status]');
+        const assignedTo = select?.value || '';
+        const url = form.dataset.assignUrl;
+
+        if (!assignedTo || !url) {
+            if (status) {
+                status.textContent = 'Chon nhan vien';
+            }
+            return;
+        }
+
+        if (button) {
+            button.disabled = true;
+        }
+
+        if (status) {
+            status.textContent = 'Dang luu...';
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+                body: JSON.stringify({assigned_to: assignedTo}),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.message || 'Khong phan cong duoc hoi thoai.');
+            }
+
+            const data = payload.data || {};
+            const assignee = document.querySelector('[data-chat-assignee]');
+
+            if (assignee) {
+                assignee.textContent = data.assignee_name ? `Phu trach: ${data.assignee_name}` : 'Chua gan nhan vien';
+            }
+
+            updateClaimState({
+                can_claim: false,
+                can_reply: Boolean(data.can_reply),
+                claim_url: data.claim_url || document.querySelector('[data-claim-button]')?.dataset.claimUrl || '',
+            });
+            await refreshThreadList();
+
+            if (status) {
+                status.textContent = 'Da luu';
+            }
+        } catch (error) {
+            if (status) {
+                status.textContent = error.message || 'Luu that bai';
+            }
+        } finally {
+            if (button) {
+                button.disabled = false;
+            }
+        }
+    }
 
     function hasRenderableMessage(message) {
         const content = String(message?.content || '').trim();

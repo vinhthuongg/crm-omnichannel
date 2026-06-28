@@ -63,12 +63,12 @@ class GetDashboardViewDataAction
         return [
             'currentUser' => $user,
             'activeSection' => $section,
-            'sectionTitle' => $this->sectionTitle($section),
+            'sectionTitle' => $this->sectionTitle($section, $user),
             'filters' => [
                 'search' => $search,
                 'period' => $period,
             ],
-            'navItems' => $this->navItems(),
+            'navItems' => $this->navItems($user),
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
@@ -118,9 +118,9 @@ class GetDashboardViewDataAction
         ];
     }
 
-    private function navItems(): array
+    private function navItems(User $user): array
     {
-        return [
+        $items = [
             ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'D'],
             ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'C'],
             ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'K'],
@@ -131,11 +131,22 @@ class GetDashboardViewDataAction
             ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'N'],
             ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'S'],
         ];
+
+        if ($user->can('user.manage')) {
+            array_splice($items, 4, 0, [[
+                'section' => 'work_shifts',
+                'label' => 'Shifts',
+                'route' => 'work-shifts.index',
+                'icon' => 'T',
+            ]]);
+        }
+
+        return $items;
     }
 
-    private function sectionTitle(string $section): string
+    private function sectionTitle(string $section, User $user): string
     {
-        return collect($this->navItems())->firstWhere('section', $section)['label'] ?? 'Dashboard';
+        return collect($this->navItems($user))->firstWhere('section', $section)['label'] ?? 'Dashboard';
     }
 
     private function visibleConversations(User $user): Builder

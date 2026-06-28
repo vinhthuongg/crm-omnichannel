@@ -171,6 +171,7 @@ class MessengerController extends Controller
                 'is_unread' => (int) $conversation->unread_messages_count > 0,
                 'can_claim' => $canClaim,
                 'can_reply' => $canReply,
+                'can_assign' => $user->can('conversation.assign') || $user->can('conversation.transfer'),
                 'active_channel' => $activeChannel,
                 'created_at' => $conversation->created_at?->toISOString(),
                 'messages_url' => route('crm.conversations.messages.index', $conversation),
@@ -181,6 +182,7 @@ class MessengerController extends Controller
                 'clear_messages_url' => route('crm.conversations.messages.clear', $conversation),
                 'attachments_url' => route('crm.conversations.attachments.store', $conversation),
                 'claim_url' => route('crm.conversations.claim', $conversation),
+                'assign_url' => route('crm.conversations.assign', $conversation),
                 'tags_url' => route('crm.conversations.tags.store', $conversation),
                 'broadcast_channel' => 'private-crm.conversation.'.$conversation->id,
                 'tags' => $conversation->tags
@@ -433,6 +435,37 @@ class MessengerController extends Controller
                 'assigned_to' => (int) $claimed->assigned_to,
                 'assignee_name' => $claimed->assignee?->name,
                 'claimed_at' => $claimed->claimed_at?->toISOString(),
+            ],
+        ]);
+    }
+
+    public function assign(Request $request, Conversation $conversation, ConversationService $service): JsonResponse
+    {
+        abort_unless($request->user()->can('conversation.assign') || $request->user()->can('conversation.transfer'), 403);
+
+        $validated = $request->validate([
+            'assigned_to' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        try {
+            $assigned = $service->assign($conversation, (int) $validated['assigned_to'], $request->user());
+        } catch (\RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 409);
+        }
+
+        return response()->json([
+            'data' => [
+                'id' => (int) $assigned->id,
+                'assigned_to' => $assigned->assigned_to ? (int) $assigned->assigned_to : null,
+                'assigned_by' => $assigned->assigned_by ? (int) $assigned->assigned_by : null,
+                'assigned_type' => $assigned->assigned_type,
+                'assignee_name' => $assigned->assignee?->name,
+                'claimed_at' => $assigned->claimed_at?->toISOString(),
+                'can_claim' => false,
+                'can_reply' => $request->user()->can('conversation.view_all') || (int) $assigned->assigned_to === (int) $request->user()->id,
+                'can_assign' => true,
+                'assign_url' => route('crm.conversations.assign', $assigned),
+                'claim_url' => route('crm.conversations.claim', $assigned),
             ],
         ]);
     }

@@ -1356,6 +1356,58 @@ kbd {
     font-weight: 800;
 }
 
+.conversation-assign-form {
+    min-width: 260px;
+    display: grid;
+    grid-template-columns: auto minmax(130px, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.conversation-assign-form label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.conversation-assign-form select {
+    min-width: 0;
+    min-height: 34px;
+    border: 1px solid #dbe2ea;
+    border-radius: 999px;
+    background: #fff;
+    color: #111827;
+    padding: 0 28px 0 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.conversation-assign-form button {
+    min-height: 34px;
+    border: 1px solid #111827;
+    border-radius: 999px;
+    background: #111827;
+    color: #fff;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.conversation-assign-form button:disabled {
+    cursor: wait;
+    opacity: .55;
+}
+
+.conversation-assign-form small {
+    grid-column: 2 / 4;
+    min-height: 14px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1;
+}
+
 .chat-actions {
     display: flex;
     align-items: center;
