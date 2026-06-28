@@ -1,0 +1,337 @@
+* {
+    box-sizing: border-box;
+}
+
+body.work-shifts-page {
+    min-height: 100vh;
+    margin: 0;
+    background: #f3f5f8;
+    color: #182230;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.work-shifts-shell {
+    width: min(1180px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: 24px 0 40px;
+}
+
+.work-shifts-topbar {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border: 1px solid #dde4ee;
+    border-radius: 8px;
+    background: #fff;
+    padding: 16px 18px;
+}
+
+.work-shifts-topbar p,
+.work-shifts-section-head p,
+.work-shifts-card header p,
+.work-shifts-row-head p {
+    margin: 0 0 4px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.work-shifts-topbar h1,
+.work-shifts-section-head h2,
+.work-shifts-card h2,
+.work-shifts-row-head h3 {
+    margin: 0;
+    color: #101828;
+    line-height: 1.2;
+}
+
+.work-shifts-topbar h1 {
+    font-size: 24px;
+}
+
+.work-shifts-topbar nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.work-shifts-topbar a {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #cfd8e3;
+    border-radius: 6px;
+    background: #fff;
+    color: #182230;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.work-shifts-topbar a:hover {
+    border-color: #344054;
+}
+
+.work-shifts-alert {
+    margin: 14px 0 0;
+    border-radius: 6px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.work-shifts-alert.is-success {
+    border: 1px solid #86efac;
+    background: #ecfdf3;
+    color: #027a48;
+}
+
+.work-shifts-alert.is-error {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b42318;
+}
+
+.work-shifts-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.work-shifts-card,
+.work-shifts-empty {
+    border: 1px solid #dde4ee;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.work-shifts-create {
+    align-self: start;
+    position: sticky;
+    top: 16px;
+    padding: 18px;
+}
+
+.work-shifts-card h2 {
+    font-size: 19px;
+}
+
+.work-shifts-section-head {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.work-shifts-section-head h2 {
+    font-size: 19px;
+}
+
+.work-shifts-list {
+    min-width: 0;
+}
+
+.work-shifts-row {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+}
+
+.work-shifts-row + .work-shifts-row,
+.work-shifts-empty {
+    margin-top: 12px;
+}
+
+.work-shifts-row-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.work-shifts-row-head h3 {
+    font-size: 18px;
+}
+
+.work-shifts-row-head span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #344054;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.work-shift-form {
+    display: grid;
+    gap: 12px;
+}
+
+.work-shift-form label {
+    display: grid;
+    gap: 6px;
+    color: #475467;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.work-shift-form label b {
+    color: #175cd3;
+    font-weight: 900;
+}
+
+.work-shift-form input[type="text"],
+.work-shift-form input[type="datetime-local"],
+.work-shift-form input:not([type]),
+.work-shift-form select {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid #cfd8e3;
+    border-radius: 6px;
+    background: #fff;
+    color: #101828;
+    padding: 0 10px;
+    font: inherit;
+}
+
+.work-shift-form select {
+    min-height: 132px;
+    padding: 8px;
+}
+
+.work-shift-form select option {
+    padding: 7px 8px;
+    border-radius: 4px;
+}
+
+.work-shifts-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.work-shifts-toggle {
+    width: fit-content;
+    grid-template-columns: auto auto;
+    align-items: center;
+}
+
+.work-shifts-toggle input {
+    width: 17px;
+    height: 17px;
+}
+
+.work-shift-form footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.work-shift-form footer small {
+    min-width: 0;
+    color: #667085;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.work-shift-form button,
+.work-shifts-delete button {
+    min-height: 38px;
+    border: 0;
+    border-radius: 6px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.work-shift-form button {
+    background: #111827;
+    color: #fff;
+}
+
+.work-shift-form button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.work-shifts-delete {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.work-shifts-delete button {
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #b42318;
+}
+
+.work-shifts-delete button:hover {
+    background: #fef2f2;
+}
+
+.work-shifts-empty {
+    padding: 26px;
+    text-align: center;
+}
+
+.work-shifts-empty h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.work-shifts-empty p {
+    margin: 0;
+    color: #667085;
+    font-size: 14px;
+}
+
+.work-shift-form.is-invalid select,
+.work-shift-form.is-invalid input[name="ends_at"] {
+    border-color: #f04438;
+}
+
+.work-shift-form.is-invalid [data-form-message] {
+    color: #b42318;
+}
+
+@media (max-width: 900px) {
+    .work-shifts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .work-shifts-create {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .work-shifts-shell {
+        width: min(100vw - 20px, 1180px);
+        padding-top: 10px;
+    }
+
+    .work-shifts-topbar,
+    .work-shifts-row-head,
+    .work-shift-form footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .work-shifts-topbar nav,
+    .work-shifts-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .work-shifts-topbar nav {
+        display: grid;
+    }
+}
