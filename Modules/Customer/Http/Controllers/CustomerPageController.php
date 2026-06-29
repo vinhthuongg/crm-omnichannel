@@ -1,0 +1,122 @@
+<?php
+
+namespace Modules\Customer\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Services\ConversationVisibilityService;
+use Modules\Customer\Models\Customer;
+use Modules\Message\Models\Message;
+
+class CustomerPageController extends Controller
+{
+    public function __construct(private readonly ConversationVisibilityService $visibility)
+    {
+    }
+
+    public function __invoke(Request $request): View
+    {
+        $user = $request->user();
+        $search = trim((string) $request->query('q', ''));
+        $channel = strtolower(trim((string) $request->query('channel', '')));
+        $visibleConversationIds = $this->visibility->visibleFor($user)->select('id');
+
+        $customers = Customer::query()
+            ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('channels', fn (Builder $channels) => $channels->where('external_id', 'like', "%{$search}%"));
+                });
+            })
+            ->when(in_array($channel, ['facebook', 'zalo'], true), fn (Builder $query) => $query->whereHas('channels', fn (Builder $channels) => $channels->where('channel', $channel)))
+            ->with(['channels', 'tags'])
+            ->withCount([
+                'conversations' => fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds),
+                'notes',
+            ])
+            ->withMax([
+                'conversations as last_message_at' => fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds),
+            ], 'last_message_at')
+            ->select('customers.*')
+            ->selectSub(
+                Message::query()
+                    ->selectRaw('count(*)')
+                    ->join('conversations', 'conversations.id', '=', 'messages.conversation_id')
+                    ->whereColumn('conversations.customer_id', 'customers.id')
+                    ->whereIn('conversations.id', clone $visibleConversationIds),
+                'messages_count'
+            )
+            ->orderByDesc('last_message_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        $latestConversations = Conversation::query()
+            ->whereIn('id', clone $visibleConversationIds)
+            ->whereIn('customer_id', $customers->getCollection()->pluck('id'))
+            ->with(['assignee', 'tags'])
+            ->latest('last_message_at')
+            ->get()
+            ->unique('customer_id')
+            ->keyBy('customer_id');
+
+        return view('customers.index', [
+            'currentUser' => $user,
+            'customers' => $customers,
+            'latestConversations' => $latestConversations,
+            'filters' => [
+                'q' => $search,
+                'channel' => $channel,
+            ],
+            'navItems' => $this->navItems($user),
+            'sidebar' => [
+                'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
+            ],
+            'summary' => [
+                'total' => Customer::query()
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+                    ->count(),
+                'facebook' => Customer::query()
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+                    ->whereHas('channels', fn (Builder $query) => $query->where('channel', 'facebook'))
+                    ->count(),
+                'zalo' => Customer::query()
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+                    ->whereHas('channels', fn (Builder $query) => $query->where('channel', 'zalo'))
+                    ->count(),
+            ],
+        ]);
+    }
+
+    private function navItems(User $user): array
+    {
+        $items = [
+            ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'D'],
+            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'C'],
+            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'K'],
+            ['section' => 'agents', 'label' => 'Agents', 'route' => 'crm.agents', 'icon' => 'A'],
+            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'O'],
+            ['section' => 'reports', 'label' => 'Reports', 'route' => 'crm.reports', 'icon' => 'R'],
+            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'L'],
+            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'N'],
+            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'S'],
+        ];
+
+        if ($user->can('user.manage')) {
+            array_splice($items, 4, 0, [[
+                'section' => 'work_shifts',
+                'label' => 'Shifts',
+                'route' => 'work-shifts.index',
+                'icon' => 'T',
+            ]]);
+        }
+
+        return $items;
+    }
+}

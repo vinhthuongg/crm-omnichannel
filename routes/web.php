@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MessengerController;
 use App\Http\Controllers\Web\WorkShiftController;
+use Modules\Customer\Http\Controllers\CustomerPageController;
 
 foreach (glob(base_path('Modules/*/Routes/web.php')) as $routeFile) {
     require $routeFile;
@@ -42,7 +43,7 @@ Route::middleware('auth')->group(function (): void {
         Route::patch('conversations/{conversation}/messages/{message}/recall', [MessengerController::class, 'recallMessage'])->name('crm.conversations.messages.recall');
         Route::delete('conversations/{conversation}/messages/{message}', [MessengerController::class, 'deleteMessage'])->name('crm.conversations.messages.delete');
     });
-    Route::get('customers', DashboardController::class)->defaults('section', 'customers')->name('crm.customers');
+    Route::get('customers', CustomerPageController::class)->name('crm.customers');
     Route::get('agents', DashboardController::class)->defaults('section', 'agents')->name('crm.agents');
     Route::get('channels', DashboardController::class)->defaults('section', 'channels')->name('crm.channels');
     Route::get('reports', DashboardController::class)->defaults('section', 'reports')->name('crm.reports');
