@@ -58,7 +58,7 @@ body.work-shifts-page {
     text-align: center;
     text-decoration: none;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1.15;
 }
 
@@ -87,7 +87,7 @@ body.work-shifts-page {
     color: #6f4d4d;
     text-decoration: none;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .work-shifts-tabs a.active {
@@ -109,7 +109,7 @@ body.work-shifts-page {
     border-radius: 8px;
     padding: 11px 14px;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .work-shifts-alert.is-success {
@@ -188,7 +188,7 @@ body.work-shifts-page {
     background: #e6eefc;
     color: #344054;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     white-space: nowrap;
 }
 
@@ -287,7 +287,7 @@ body.work-shifts-page {
     background: #e7eefb;
     color: #0f62fe;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .shift-agent-avatar i {
@@ -356,7 +356,7 @@ body.work-shifts-page {
     background: #f8fbff;
     color: #344054;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .work-shifts-management {
@@ -378,7 +378,7 @@ body.work-shifts-page {
     margin: 0 0 6px;
     color: #d70616;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .work-shifts-section-head {
@@ -418,7 +418,7 @@ body.work-shifts-page {
     color: #344054;
     padding: 6px 10px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .work-shift-form {
@@ -431,7 +431,7 @@ body.work-shifts-page {
     gap: 6px;
     color: #475467;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .work-shift-form label b {
@@ -510,7 +510,7 @@ body.work-shifts-page {
     border-radius: 8px;
     padding: 0 14px;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -615,4 +615,8 @@ body.work-shifts-page {
     .shift-staff-row button {
         grid-column: 1 / -1;
     }
+}
+
+:where(.work-shifts-page) :is(h1, h2, h3, h4, h5, h6, strong, b, th, button, a, label) {
+    font-weight: 500 !important;
 }

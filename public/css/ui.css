@@ -89,7 +89,7 @@ a {
     margin: 0;
     color: var(--muted);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .customer-summary-card strong {
@@ -114,7 +114,7 @@ a {
     gap: 7px;
     color: var(--muted);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .customers-toolbar input,
@@ -147,7 +147,7 @@ a {
     background: var(--black);
     color: #fff;
     text-decoration: none;
-    font-weight: 800;
+    font-weight: 500;
     cursor: pointer;
     gap: 7px;
 }
@@ -200,7 +200,7 @@ a {
 .customer-contact-lines span,
 .customers-table td > strong {
     display: block;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .customer-cell small,
@@ -221,7 +221,7 @@ a {
     border-radius: 50%;
     background: #e8edf3;
     overflow: hidden;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 .customer-avatar img {
@@ -250,7 +250,7 @@ a {
     border-radius: 999px;
     padding: 0 9px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .channel-pill-facebook {
@@ -315,7 +315,7 @@ a {
     border-radius: 8px;
     background: #111827;
     color: #fff;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .login-heading p,
@@ -372,7 +372,7 @@ a {
     border: 0;
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .login-form button {
@@ -390,7 +390,7 @@ a {
     margin: 18px 0;
     color: #8a8f98;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .facebook-login-button {
@@ -405,7 +405,7 @@ a {
     color: #fff;
     text-align: center;
     text-decoration: none;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .facebook-pages-shell {
@@ -497,7 +497,7 @@ a {
     background: #111;
     color: #fff;
     text-decoration: none;
-    font-weight: 800;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -548,7 +548,7 @@ a {
 }
 
 .insight-grid dt {
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .insight-grid dd {
@@ -658,7 +658,7 @@ a {
     place-items: center;
     border-radius: 4px;
     background: #eeeeee;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .team-switcher strong {
@@ -1005,7 +1005,7 @@ kbd {
 .page-title h1 {
     margin: 0;
     font-size: 25px;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0;
 }
 
@@ -1115,7 +1115,7 @@ kbd {
     color: #000;
     font-size: 27px;
     line-height: 1.05;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0;
 }
 
@@ -1359,7 +1359,7 @@ kbd {
     color: #172033;
     font-size: 30px;
     line-height: 1.15;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .today-dashboard-header p {
@@ -1394,7 +1394,7 @@ kbd {
     border-color: #d70616;
     background: #d70616;
     color: #fff;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .today-dashboard-actions .material-symbols-outlined {
@@ -1434,7 +1434,7 @@ kbd {
     margin: 0;
     color: #795f5f;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .today-kpi-card h2 {
@@ -1442,7 +1442,7 @@ kbd {
     color: #172033;
     font-size: 44px;
     line-height: .9;
-    font-weight: 900;
+    font-weight: 500;
     letter-spacing: 0;
 }
 
@@ -1459,7 +1459,7 @@ kbd {
     border-radius: 0;
     background: transparent;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .today-kpi-card span.good {
@@ -1522,14 +1522,14 @@ kbd {
     margin: 0 0 6px;
     color: #795f5f;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .today-intent-card strong {
     color: #172033;
     font-size: 24px;
     line-height: 1;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 .today-chart-grid {
@@ -1560,7 +1560,7 @@ kbd {
     margin: 0;
     color: #172033;
     font-size: 24px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .today-panel header button {
@@ -1637,7 +1637,7 @@ kbd {
     color: #172033;
     font-size: 30px;
     line-height: 1.15;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .connection-header p {
@@ -1675,7 +1675,7 @@ kbd {
     margin: 0;
     color: #111827;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .connection-card > header p {
@@ -1721,7 +1721,7 @@ kbd {
     background: #e7f0ff;
     color: #0f62fe;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .connection-card-tiktok .connection-icon {
@@ -1770,7 +1770,7 @@ kbd {
     border-radius: 999px;
     padding: 0 8px;
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 500;
     font-style: normal;
 }
 
@@ -1805,7 +1805,7 @@ kbd {
     border-radius: 5px;
     padding: 0 12px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -1911,7 +1911,7 @@ kbd {
     color: #0f172a;
     font-size: 34px;
     line-height: 1;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .agent-kpi-card h2 small {
@@ -1975,7 +1975,7 @@ kbd {
     margin: 0;
     color: #111827;
     font-size: 17px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .agent-panel button {
@@ -2080,7 +2080,7 @@ kbd {
     align-items: center;
     gap: 12px;
     color: #111827;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .agent-performance-table a {
@@ -2244,7 +2244,7 @@ kbd {
     place-items: center;
     border-radius: 50%;
     background: #ececec;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .status {
@@ -2253,7 +2253,7 @@ kbd {
     padding: 6px 10px;
     text-align: center;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .status-open {
@@ -2394,7 +2394,7 @@ kbd {
     color: #111827;
     padding: 0 12px;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
 }
@@ -2437,7 +2437,7 @@ kbd {
 .messenger-list-head a {
     color: #6b7280;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -2485,7 +2485,7 @@ kbd {
     outline: none;
     background: #fff;
     color: #4b5563;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .messenger-search button,
@@ -2495,7 +2495,7 @@ kbd {
     background: #111;
     color: #fff;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .messenger-thread-list {
@@ -2523,7 +2523,7 @@ kbd {
 
 .messenger-thread.is-unread .thread-body strong,
 .messenger-thread.is-unread .thread-body small {
-    font-weight: 800;
+    font-weight: 500;
     color: #0f172a;
 }
 
@@ -2535,7 +2535,7 @@ kbd {
     border-radius: 50%;
     background: #e1e5eb;
     color: #111;
-    font-weight: 800;
+    font-weight: 500;
     overflow: hidden;
 }
 
@@ -2613,7 +2613,7 @@ kbd {
     background: #dc2626;
     color: #fff;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1;
 }
 
@@ -2669,7 +2669,7 @@ kbd {
 
 .chat-contact .chat-customer-phone {
     color: #111827;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .conversation-assign-form {
@@ -2683,7 +2683,7 @@ kbd {
 .conversation-assign-form label {
     color: #64748b;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .conversation-assign-form select {
@@ -2696,7 +2696,7 @@ kbd {
     padding: 0 28px 0 12px;
     font: inherit;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .conversation-assign-form button {
@@ -2707,7 +2707,7 @@ kbd {
     color: #fff;
     padding: 0 12px;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -2742,7 +2742,7 @@ kbd {
     padding: 0 12px;
     color: #111;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -2811,7 +2811,7 @@ kbd {
     border: 0;
     background: transparent;
     padding: 0;
-    font-weight: 700;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -2829,7 +2829,7 @@ kbd {
     background: transparent;
     color: #1f2937;
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -2891,7 +2891,7 @@ kbd {
     color: #1f2937;
     padding: 0 12px;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -2936,7 +2936,7 @@ kbd {
     border-radius: 50%;
     background: #111c31;
     color: #e5e7eb;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .profile-notes-full > header h4,
@@ -2983,7 +2983,7 @@ kbd {
     min-width: 0;
     overflow-wrap: anywhere;
     color: #111827;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .profile-contact-form {
@@ -2996,7 +2996,7 @@ kbd {
     gap: 5px;
     color: #64748b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .profile-contact-form input {
@@ -3158,7 +3158,7 @@ kbd {
     color: #dbeafe;
     padding: 3px 9px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .messenger-timeline {
@@ -3176,7 +3176,7 @@ kbd {
     background: #f3f4f6;
     color: #6b7280;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .message-row {
@@ -3235,7 +3235,7 @@ kbd {
     margin-bottom: 4px;
     color: inherit;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
     opacity: .78;
 }
 
@@ -3280,7 +3280,7 @@ kbd {
     color: #111;
     text-decoration: none;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .message-row.mine .message-file-link {
@@ -3381,7 +3381,7 @@ kbd {
     padding: 0 14px;
     background: #111;
     color: #fff;
-    font-weight: 800;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -3425,7 +3425,7 @@ kbd {
     padding: 0 12px;
     color: #7f8aa3;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     background: transparent;
 }
 
@@ -3483,7 +3483,7 @@ kbd {
     color: #111;
     cursor: pointer;
     font-size: 24px;
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1;
 }
 
@@ -3619,7 +3619,7 @@ kbd {
     margin: 0 0 8px;
     color: #d70616;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .activity-page-header h1,
@@ -3650,7 +3650,7 @@ kbd {
     color: #111827;
     text-decoration: none;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .activity-summary-grid {
@@ -3827,7 +3827,7 @@ kbd {
     color: #111827;
     text-decoration: none;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .activity-empty {
@@ -3885,7 +3885,7 @@ kbd {
     background: #eaf2ff;
     color: #0f62fe;
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .settings-card h2 {
@@ -3916,7 +3916,7 @@ kbd {
     margin: 0;
     color: #111827;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     text-align: right;
 }
 
@@ -3931,7 +3931,7 @@ kbd {
     gap: 7px;
     color: #4b5563;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .password-settings-card input {
@@ -3961,7 +3961,7 @@ kbd {
     background: #d70616;
     color: #fff;
     cursor: pointer;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .settings-note-card {
@@ -4216,14 +4216,14 @@ kbd {
     color: #0f62fe;
     text-decoration: none;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
 }
 
 .activity-filter-panel {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 16px;
     min-height: 88px;
     margin-bottom: 28px;
@@ -4232,6 +4232,29 @@ kbd {
     padding: 18px 20px;
     background: #fff;
     box-shadow: 0 8px 22px rgba(15, 23, 42, .04);
+}
+
+.activity-filter-panel article {
+    min-width: 150px;
+    display: grid;
+    gap: 6px;
+    border-right: 1px solid #f0cfd3;
+    padding-right: 18px;
+}
+
+.activity-filter-panel article:last-child {
+    border-right: 0;
+}
+
+.activity-filter-panel article span {
+    color: #7a4e4e;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.activity-filter-panel article strong {
+    color: #0f172a;
+    font-size: 24px;
 }
 
 .activity-filter-row {
@@ -4249,7 +4272,7 @@ kbd {
     padding-right: 16px;
     color: #7a4e4e;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
     text-transform: uppercase;
 }
 
@@ -4262,7 +4285,7 @@ kbd {
     background: #fff;
     color: #475569;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     outline: none;
 }
 
@@ -4281,7 +4304,7 @@ kbd {
     color: #64748b;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .activity-group-tabs button.active {
@@ -4375,7 +4398,7 @@ kbd {
     background: #e6eefc;
     color: #0f62fe;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 500;
     box-shadow: 0 4px 10px rgba(15, 23, 42, .08);
 }
 
@@ -4409,13 +4432,13 @@ kbd {
 
 .activity-card-main strong {
     color: #0f172a;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 .activity-card-main a {
     color: #0f62fe;
     text-decoration: none;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .activity-meta-line {
@@ -4444,7 +4467,7 @@ kbd {
     background: #ee0d20;
     color: #fff;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 .activity-badge.facebook,
@@ -4463,7 +4486,7 @@ kbd {
 
 .activity-card time strong {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .activity-card time span {
@@ -4508,7 +4531,7 @@ kbd {
     background: #fff;
     color: #0f172a;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .activity-pagination b {
@@ -4542,4 +4565,8 @@ kbd {
         justify-items: start;
         text-align: left;
     }
+}
+
+:where(.crm-shell, .messenger-shell, .customers-page) :is(h1, h2, h3, h4, h5, h6, strong, b, th, button, a, label, .side-nav a, .today-kpi-card h2, .agent-kpi-card h2, .activity-card-main strong, .activity-pagination b) {
+    font-weight: 500 !important;
 }

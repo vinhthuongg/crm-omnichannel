@@ -87,36 +87,12 @@
             </section>
         @elseif(($activeSection ?? 'dashboard') === 'agents')
             <section class="agent-report-page">
-                <form class="agent-filter-bar" method="GET" action="{{ route('crm.agents') }}">
-                    <label>
-                        <span>Thoi gian</span>
-                        <select name="period">
-                            @foreach($agentDashboard['filters']['periods'] as $periodOption)
-                                <option value="{{ $periodOption['value'] }}">{{ $periodOption['label'] }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <label>
-                        <span>Chi nhanh</span>
-                        <select name="branch">
-                            @foreach($agentDashboard['filters']['branches'] as $branchOption)
-                                <option>{{ $branchOption }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <label>
-                        <span>Nhom nhan vien</span>
-                        <select name="group">
-                            @foreach($agentDashboard['filters']['groups'] as $groupOption)
-                                <option>{{ $groupOption }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <button type="submit">
-                        <span class="material-symbols-outlined" aria-hidden="true">filter_alt</span>
-                        Loc them
-                    </button>
-                </form>
+                <header class="agent-page-header">
+                    <div>
+                        <h1>Hieu suat nhan vien</h1>
+                        <p>Du lieu tong hop tu hoi thoai that dang co trong he thong.</p>
+                    </div>
+                </header>
 
                 <section class="agent-kpi-grid">
                     @foreach($agentDashboard['cards'] as $card)
@@ -199,16 +175,15 @@
                         </table>
                     </div>
                     <footer>
-                        <span>Hien thi 1-{{ min(4, count($agentDashboard['rows'])) }} tren tong {{ count($agentDashboard['rows']) }}</span>
-                        <nav aria-label="Pagination">
-                            <b>1</b><a href="#">2</a><a href="#">3</a><span>...</span><a href="#">›</a>
-                        </nav>
+                        <span>Hien thi {{ count($agentDashboard['rows']) }} nhan vien</span>
                     </footer>
                 </section>
             </section>
         @elseif(($activeSection ?? 'dashboard') === 'activity')
             @php
                 $activityTotal = $activityLogs->count();
+                $activityToday = $activityLogs->filter(fn ($log) => $log->created_at?->isToday())->count();
+                $activityUsers = $activityLogs->pluck('user_id')->filter()->unique()->count();
             @endphp
 
             <section class="activity-log-page">
@@ -217,42 +192,21 @@
                         <h1>Activity Log</h1>
                         <span>Track all system actions, assignments, and customer interactions.</span>
                     </div>
-                    <a class="activity-export-button" href="{{ route('crm.activity') }}">
-                        <span class="material-symbols-outlined" aria-hidden="true">download</span>
-                        Export CSV
-                    </a>
                 </header>
 
                 <section class="activity-filter-panel" aria-label="Activity filters">
-                    <div class="activity-filter-row">
-                        <label>
-                            <span>Timeframe:</span>
-                            <select>
-                                <option>Today</option>
-                                <option>This week</option>
-                                <option>This month</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>Agent:</span>
-                            <select>
-                                <option>All Agents</option>
-                                @foreach($activityLogs->pluck('user.name')->filter()->unique()->take(6) as $agentName)
-                                    <option>{{ $agentName }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                        <div class="activity-group-tabs" aria-label="Action group">
-                            <button class="active" type="button">All</button>
-                            <button type="button">Conversations</button>
-                            <button type="button">Customers</button>
-                            <button type="button">System</button>
-                        </div>
-                    </div>
-                    <label class="activity-keyword-filter">
-                        <span class="material-symbols-outlined" aria-hidden="true">search</span>
-                        <input type="search" placeholder="Filter by keyword...">
-                    </label>
+                    <article>
+                        <span>Total</span>
+                        <strong>{{ number_format($activityTotal) }}</strong>
+                    </article>
+                    <article>
+                        <span>Today</span>
+                        <strong>{{ number_format($activityToday) }}</strong>
+                    </article>
+                    <article>
+                        <span>Agents</span>
+                        <strong>{{ number_format($activityUsers) }}</strong>
+                    </article>
                 </section>
 
                 <section class="activity-feed-panel">
@@ -266,7 +220,7 @@
                                 $metadata = collect($log->metadata ?? []);
                                 $action = (string) $log->action;
                                 $actionLabel = \Illuminate\Support\Str::headline(str_replace(['.', '_', '-'], ' ', $action));
-                                $actor = $log->user?->name ?: (str_contains($action, 'auto') ? 'System Auto-Reply' : 'System Admin');
+                                $actor = $log->user?->name ?: 'System';
                                 $subjectLabel = $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : 'CRM';
                                 $isSystem = ! $log->user_id || str_contains($action, 'system') || str_contains($action, 'auto');
                                 $channel = strtolower((string) ($metadata->get('channel') ?: $metadata->get('source') ?: 'System'));
@@ -310,16 +264,7 @@
                     </div>
 
                     <footer class="activity-pagination">
-                        <span>Showing 1-{{ $activityTotal }} of {{ $activityTotal }} activities</span>
-                        <nav aria-label="Activity pagination">
-                            <button type="button" disabled>&lsaquo;</button>
-                            <b>1</b>
-                            <button type="button">2</button>
-                            <button type="button">3</button>
-                            <span>...</span>
-                            <button type="button">12</button>
-                            <button type="button">&rsaquo;</button>
-                        </nav>
+                        <span>Showing {{ $activityTotal }} recent activities</span>
                     </footer>
                 </section>
             </section>
@@ -415,16 +360,6 @@
                     <div>
                         <h1>{{ $dashboardOverview['header']['title'] }}</h1>
                         <p>{{ $dashboardOverview['header']['subtitle'] }}</p>
-                    </div>
-                    <div class="today-dashboard-actions">
-                        <button type="button">
-                            Hôm nay
-                            <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
-                        </button>
-                        <a href="{{ route('crm.reports') }}">
-                            <span class="material-symbols-outlined" aria-hidden="true">download</span>
-                            Xuất BC
-                        </a>
                     </div>
                 </header>
 
@@ -553,10 +488,6 @@
             todayLineData = [{hour: '08:00', value: 0}];
         }
 
-        if (!todaySourceData.length) {
-            todaySourceData = [{label: 'Chua co du lieu', value: 1}];
-        }
-
         Morris.Area({
             element: 'today-conversation-line',
             data: todayLineData,
@@ -575,15 +506,19 @@
             hideHover: 'auto'
         });
 
-        Morris.Donut({
-            element: 'today-source-donut',
-            data: todaySourceData,
-            colors: ['#2581ee', '#0f62fe', '#000000', '#ee0d20'],
-            resize: true,
-            formatter: function (value) {
-                return value;
-            }
-        });
+        if (todaySourceData.length) {
+            Morris.Donut({
+                element: 'today-source-donut',
+                data: todaySourceData,
+                colors: ['#2581ee', '#0f62fe'],
+                resize: true,
+                formatter: function (value) {
+                    return value;
+                }
+            });
+        } else {
+            document.getElementById('today-source-donut').textContent = 'No conversation source data';
+        }
     });
 </script>
 @endsection

@@ -10,7 +10,6 @@ use Illuminate\View\View;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Customer\Models\Customer;
-use Modules\Message\Models\Message;
 use Modules\Search\Services\VectorSearchService;
 
 class CustomerPageController extends Controller
@@ -59,14 +58,6 @@ class CustomerPageController extends Controller
                     ->whereColumn('customer_id', 'customers.id')
                     ->whereIn('id', $visibleConversationIds),
                 'last_message_at'
-            )
-            ->selectSub(
-                Message::query()
-                    ->selectRaw('count(*)')
-                    ->join('conversations', 'conversations.id', '=', 'messages.conversation_id')
-                    ->whereColumn('conversations.customer_id', 'customers.id')
-                    ->whereIn('conversations.id', $visibleConversationIds),
-                'messages_count'
             )
             ->when(
                 $search !== '' && $vectorCustomerIds->isNotEmpty(),

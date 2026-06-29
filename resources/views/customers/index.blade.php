@@ -113,7 +113,6 @@
                                 </td>
                                 <td>
                                     <strong>{{ number_format($customer->conversations_count) }}</strong>
-                                    <small>{{ number_format((int) $customer->messages_count) }} tin nhan</small>
                                 </td>
                                 <td>
                                     {{ $conversation?->assignee?->name ?: 'Chua gan nhan vien' }}

@@ -46,7 +46,7 @@ body.messenger-page .crm-logo {
     padding: 0 12px;
     color: var(--chat-red);
     font-size: 21px;
-    font-weight: 900;
+    font-weight: 500;
     letter-spacing: 0;
     background: #fff;
     text-decoration: none;
@@ -81,7 +81,7 @@ body.messenger-page .sidebar-user-avatar {
     background: #dfe8f8;
     color: #2f5c9d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .sidebar-user-avatar img {
@@ -108,7 +108,7 @@ body.messenger-page .sidebar-user-card small {
     margin-top: 2px;
     color: #64748b;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 body.messenger-page .side-nav {
@@ -127,7 +127,7 @@ body.messenger-page .side-nav a {
     padding: 0 10px 0 8px;
     color: #374151;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -187,7 +187,7 @@ body.messenger-page .topbar-brand strong {
 body.messenger-page .topbar-brand span {
     color: #7b7280;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 body.messenger-page .topbar-global-search {
@@ -242,7 +242,7 @@ body.messenger-page .profile-link {
 body.messenger-page .profile-link::first-letter {
     color: #111827;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .account-menu button {
@@ -251,7 +251,7 @@ body.messenger-page .account-menu button {
     background: transparent;
     color: #374151;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -293,7 +293,7 @@ body.messenger-page .messenger-channel-tabs a {
     padding: 0 10px;
     color: #667085;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -385,7 +385,7 @@ body.messenger-page .messenger-tag-menu a {
     color: #475467;
     padding: 0 10px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
     text-decoration: none;
 }
 
@@ -463,7 +463,7 @@ body.messenger-page .messenger-search select {
     background-repeat: no-repeat;
     padding-right: 24px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 body.messenger-page .messenger-status-tabs {
@@ -491,7 +491,7 @@ body.messenger-page .messenger-status-tabs a {
     color: #667085;
     padding: 0 10px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1;
     text-decoration: none;
 }
@@ -506,7 +506,7 @@ body.messenger-page .messenger-status-tabs a span {
     background: #fff;
     color: #d70616;
     font-size: 10px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .messenger-status-tabs a.active {
@@ -563,7 +563,7 @@ body.messenger-page .thread-avatar {
     border-radius: 50%;
     background: #dfe8f8;
     color: #2f5c9d;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .thread-avatar.large {
@@ -607,7 +607,7 @@ body.messenger-page .thread-body {
 body.messenger-page .thread-body strong {
     color: #111827;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .thread-body small,
@@ -618,7 +618,7 @@ body.messenger-page .thread-meta {
 
 body.messenger-page .thread-body small {
     color: #111827;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 body.messenger-page .thread-tags b,
@@ -646,7 +646,7 @@ body.messenger-page .thread-side {
 
 body.messenger-page .thread-side .thread-meta {
     color: var(--chat-blue);
-    font-weight: 800;
+    font-weight: 500;
 }
 
 body.messenger-page .thread-unread-badge {
@@ -696,7 +696,7 @@ body.messenger-page .chat-contact p {
     margin: 2px 0 0;
     color: var(--chat-green);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 body.messenger-page .chat-customer-phone {
@@ -734,7 +734,7 @@ body.messenger-page .conversation-assign-form button {
     color: #111827;
     padding: 0 12px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .conversation-claim-bar {
@@ -761,7 +761,7 @@ body.messenger-page .conversation-date {
     padding: 5px 12px;
     color: #667085;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 body.messenger-page .message-row {
@@ -805,7 +805,7 @@ body.messenger-page .message-sender {
     margin-bottom: 4px;
     color: inherit;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 500;
     opacity: .78;
 }
 
@@ -867,7 +867,7 @@ body.messenger-page .message-file-link {
     border: 1px solid var(--chat-line);
     padding: 8px 10px;
     color: #111827;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 body.messenger-page .messenger-composer {
@@ -916,7 +916,7 @@ body.messenger-page .composer-tag-add {
     padding: 0 9px;
     color: #344054;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .composer-mode {
@@ -994,7 +994,7 @@ body.messenger-page .tag-manager-dialog h3 {
     margin: 0;
     color: var(--chat-ink);
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 body.messenger-page .tag-manager-dialog p {
@@ -1165,7 +1165,7 @@ body.messenger-page .composer-actions label {
     background: #fff;
     color: #475467;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
     padding: 0 12px;
     cursor: pointer;
 }
@@ -1218,7 +1218,7 @@ body.messenger-page .profile-panel-title h3 {
     margin: 0;
     color: #111827;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .profile-panel-title button {
@@ -1226,7 +1226,7 @@ body.messenger-page .profile-panel-title button {
     background: transparent;
     color: var(--chat-blue);
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -1259,7 +1259,7 @@ body.messenger-page .profile-card-head h3 {
     margin: 0;
     color: #1f2937;
     font-size: 16px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .channel-lead-badge {
@@ -1271,7 +1271,7 @@ body.messenger-page .channel-lead-badge {
     color: var(--chat-blue);
     padding: 3px 7px;
     font-size: 10px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .profile-contact-toggle {
@@ -1283,7 +1283,7 @@ body.messenger-page .profile-contact-toggle {
     color: var(--chat-blue);
     padding: 0;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -1309,14 +1309,14 @@ body.messenger-page .profile-contact-summary article {
 body.messenger-page .profile-contact-summary span {
     color: #667085;
     font-size: 10px;
-    font-weight: 900;
+    font-weight: 500;
     text-transform: uppercase;
 }
 
 body.messenger-page .profile-contact-summary strong {
     color: #111827;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .profile-section {
@@ -1331,7 +1331,7 @@ body.messenger-page .profile-section h4 {
     margin: 0;
     color: #344054;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 500;
     text-transform: uppercase;
 }
 
@@ -1340,7 +1340,7 @@ body.messenger-page .profile-detail-list span,
 body.messenger-page .profile-contact-form label {
     color: #667085;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 body.messenger-page .profile-contact-form {
@@ -1377,7 +1377,7 @@ body.messenger-page .profile-section button {
     color: #fff;
     padding: 0 12px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -1412,7 +1412,7 @@ body.messenger-page .customer-tag-list span {
     color: var(--tag-color, var(--chat-blue));
     padding: 4px 9px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body.messenger-page .profile-notes-full,
@@ -1573,4 +1573,8 @@ body.messenger-page :where(
     body.messenger-page .messenger-list {
         padding-top: 0;
     }
+}
+
+:where(.messenger-shell) :is(h1, h2, h3, h4, h5, h6, strong, b, th, button, a, label, .message-sender, .thread-name) {
+    font-weight: 500 !important;
 }

@@ -14,7 +14,6 @@ use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Customer\Models\Customer;
 use Modules\Facebook\Models\FacebookPage;
-use Modules\Message\Models\Message;
 
 class GetDashboardViewDataAction
 {
@@ -35,10 +34,10 @@ class GetDashboardViewDataAction
         $closedConversations = (clone $conversationQuery)->where('status', ConversationStatus::CLOSED)->count();
         $progress = $totalConversations > 0 ? (int) round(($closedConversations / $totalConversations) * 100) : 0;
 
-        $monthMessages = $this->visibleMessages($user)
+        $monthConversations = (clone $this->visibleConversations($user))
             ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->count();
-        $previousMonthMessages = $this->visibleMessages($user)
+        $previousMonthConversations = (clone $this->visibleConversations($user))
             ->whereBetween('created_at', [
                 now()->subMonthNoOverflow()->startOfMonth(),
                 now()->subMonthNoOverflow()->endOfMonth(),
@@ -80,9 +79,9 @@ class GetDashboardViewDataAction
             ],
             'dashboardOverview' => $this->dashboardOverview($user),
             'messageMetric' => [
-                'value' => $monthMessages,
-                'change' => $this->percentageChange($monthMessages, $previousMonthMessages),
-                'sparkline' => $this->sparkline($this->dailyMessageCounts($user, 7), 160, 72),
+                'value' => $monthConversations,
+                'change' => $this->percentageChange($monthConversations, $previousMonthConversations),
+                'sparkline' => $this->sparkline($this->dailyConversationCounts($user, 7), 160, 72),
             ],
             'finishedTask' => [
                 'value' => $closedConversations,
@@ -232,7 +231,7 @@ class GetDashboardViewDataAction
             ['label' => 'Quan tâm Trả góp', 'icon' => 'account_balance', 'keywords' => ['tra gop', 'trả góp', 'vay', 'ngan hang', 'ngân hàng']],
             ['label' => 'Đặt lịch Bảo dưỡng', 'icon' => 'build', 'keywords' => ['bao duong', 'bảo dưỡng', 'bao tri', 'bảo trì', 'lich hen', 'lịch hẹn']],
         ])->map(function (array $item) use ($user): array {
-            $count = $this->keywordMessageCount($user, $item['keywords']);
+            $count = $this->keywordConversationCount($user, $item['keywords']);
 
             return [
                 'label' => $item['label'],
@@ -242,14 +241,16 @@ class GetDashboardViewDataAction
         })->all();
     }
 
-    private function keywordMessageCount(User $user, array $keywords): int
+    private function keywordConversationCount(User $user, array $keywords): int
     {
-        return (clone $this->visibleMessages($user))
-            ->where('sender_type', 'customer')
-            ->where(function (Builder $query) use ($keywords): void {
-                foreach ($keywords as $keyword) {
-                    $query->orWhere('content', 'like', '%'.$keyword.'%');
-                }
+        return (clone $this->visibleConversations($user))
+            ->whereHas('messages', function (Builder $query) use ($keywords): void {
+                $query->where('sender_type', 'customer')
+                    ->where(function (Builder $query) use ($keywords): void {
+                        foreach ($keywords as $keyword) {
+                            $query->orWhere('content', 'like', '%'.$keyword.'%');
+                        }
+                    });
             })
             ->count();
     }
@@ -262,7 +263,7 @@ class GetDashboardViewDataAction
 
             return [
                 'hour' => sprintf('%02d:00', $hour),
-                'value' => (clone $this->visibleMessages($user))
+                'value' => (clone $this->visibleConversations($user))
                     ->whereBetween('created_at', [$start, $end])
                     ->count(),
             ];
@@ -271,23 +272,12 @@ class GetDashboardViewDataAction
 
     private function dashboardSources(User $user): array
     {
-        $messages = $this->visibleMessages($user)
-            ->selectRaw('channel, count(*) as value')
-            ->whereIn('channel', ['facebook', 'zalo'])
-            ->groupBy('channel')
-            ->get()
-            ->keyBy('channel');
-
-        $facebook = (int) ($messages['facebook']->value ?? 0);
-        $zalo = (int) ($messages['zalo']->value ?? 0);
-        $total = $facebook + $zalo;
-        $other = max(0, (clone $this->visibleMessages($user))->count() - $total);
+        $facebook = $this->applyConversationChannelFilter(clone $this->visibleConversations($user), 'facebook')->count();
+        $zalo = $this->applyConversationChannelFilter(clone $this->visibleConversations($user), 'zalo')->count();
 
         return collect([
             ['label' => 'Facebook', 'value' => $facebook],
             ['label' => 'Zalo', 'value' => $zalo],
-            ['label' => 'Từ khóa', 'value' => $other],
-            ['label' => 'Web/Khác', 'value' => max(0, (int) round($total * 0.12))],
         ])->filter(fn (array $source): bool => $source['value'] > 0)
             ->values()
             ->all();
@@ -308,14 +298,6 @@ class GetDashboardViewDataAction
         return $this->visibility->visibleFor($user);
     }
 
-    private function visibleMessages(User $user): Builder
-    {
-        return Message::query()->whereHas('conversation', function (Builder $query) use ($user): void {
-            $visibleIds = $this->visibleConversations($user)->select('id');
-            $query->whereIn('id', $visibleIds);
-        });
-    }
-
     private function percentageChange(int $current, ?int $previous): int
     {
         if (! $previous) {
@@ -325,12 +307,12 @@ class GetDashboardViewDataAction
         return (int) round((($current - $previous) / $previous) * 100);
     }
 
-    private function dailyMessageCounts(User $user, int $days): Collection
+    private function dailyConversationCounts(User $user, int $days): Collection
     {
         return collect(range($days - 1, 0))->map(function (int $offset) use ($user): int {
             $day = today()->subDays($offset);
 
-            return $this->visibleMessages($user)->whereDate('created_at', $day)->count();
+            return (clone $this->visibleConversations($user))->whereDate('created_at', $day)->count();
         });
     }
 
@@ -434,7 +416,7 @@ class GetDashboardViewDataAction
         $weeks = collect(range(0, 3))->map(function (int $weekIndex) use ($start, $user): array {
             return collect(range(0, 6))->map(function (int $dayIndex) use ($start, $weekIndex, $user): array {
                 $day = $start->copy()->addDays(($weekIndex * 7) + $dayIndex);
-                $count = $this->visibleMessages($user)->whereDate('created_at', $day)->count();
+                $count = (clone $this->visibleConversations($user))->whereDate('created_at', $day)->count();
 
                 return [
                     'date' => $day->toDateString(),
@@ -488,12 +470,6 @@ class GetDashboardViewDataAction
             ->get()
             ->keyBy('channel');
 
-        $messages = $this->visibleMessages($user)
-            ->selectRaw('channel, count(*) as messages_count')
-            ->groupBy('channel')
-            ->get()
-            ->keyBy('channel');
-
         $unreadConversations = collect(['facebook', 'zalo'])
             ->mapWithKeys(function (string $channel) use ($user): array {
                 $query = $this->visibleConversations($user)
@@ -506,7 +482,7 @@ class GetDashboardViewDataAction
         return collect(['facebook', 'zalo'])->map(fn (string $channel): array => [
             'name' => ucfirst($channel),
             'customers' => (int) ($channels[$channel]->customers_count ?? 0),
-            'messages' => (int) ($messages[$channel]->messages_count ?? 0),
+            'conversations' => $this->applyConversationChannelFilter(clone $this->visibleConversations($user), $channel)->count(),
             'unread_messages' => (int) ($unreadConversations[$channel] ?? 0),
         ]);
     }
@@ -547,27 +523,11 @@ class GetDashboardViewDataAction
                     'connected' => $zaloConnected,
                     'status' => $zaloConnected ? 'Đang hoạt động' : 'Mất kết nối',
                     'status_tone' => $zaloConnected ? 'healthy' : 'failed',
-                    'account' => $zaloConnected ? 'Toyota Hưng Yên OA' : 'Chưa kết nối',
+                    'account' => $zaloConnected ? (string) config('services.zalo.oa_name', 'Zalo OA') : 'Chưa kết nối',
                     'last_sync' => $this->lastChannelSync('zalo') ?: 'Chưa có',
                     'webhook' => $zaloConnected ? 'HEALTHY' : 'FAILED',
                     'webhook_tone' => $zaloConnected ? 'healthy' : 'failed',
                     'connect_url' => route('crm.settings', ['panel' => 'zalo']),
-                    'sync_url' => null,
-                    'menu' => false,
-                ],
-                [
-                    'key' => 'tiktok',
-                    'title' => 'TikTok',
-                    'icon' => 'music_note',
-                    'icon_label' => null,
-                    'connected' => false,
-                    'status' => 'Mất kết nối',
-                    'status_tone' => 'failed',
-                    'account' => 'Chưa kết nối',
-                    'last_sync' => 'Chưa có',
-                    'webhook' => 'FAILED',
-                    'webhook_tone' => 'failed',
-                    'connect_url' => route('crm.settings', ['panel' => 'tiktok']),
                     'sync_url' => null,
                     'menu' => false,
                 ],
@@ -577,10 +537,9 @@ class GetDashboardViewDataAction
 
     private function lastChannelSync(string $channel): ?string
     {
-        $syncedAt = Message::query()
-            ->where('channel', $channel)
-            ->latest('created_at')
-            ->value('created_at');
+        $syncedAt = $this->applyConversationChannelFilter(Conversation::query(), $channel)
+            ->latest('last_message_at')
+            ->value('last_message_at');
 
         return $syncedAt ? Carbon::parse($syncedAt)->format('H:i d/m/Y') : null;
     }
@@ -639,21 +598,12 @@ class GetDashboardViewDataAction
         $phoneRate = $totalHandled > 0 ? (int) round(($phoneCollected / $totalHandled) * 100) : 0;
 
         return [
-            'filters' => [
-                'periods' => [
-                    ['value' => 'week', 'label' => '7 ngay qua'],
-                    ['value' => 'month', 'label' => '30 ngay qua'],
-                    ['value' => 'quarter', 'label' => 'Quy nay'],
-                ],
-                'branches' => ['Tat ca chi nhanh'],
-                'groups' => ['Tat ca nhom'],
-            ],
             'cards' => [
                 [
                     'label' => 'Tong hoi thoai xu ly',
                     'value' => number_format($totalHandled),
                     'suffix' => '',
-                    'change' => '+'.$this->percentageChange($totalHandled, max(1, $totalHandled - $processed)).'%',
+                    'change' => number_format($processed).' da xu ly',
                     'tone' => 'good',
                     'icon' => 'forum',
                 ],
@@ -661,7 +611,7 @@ class GetDashboardViewDataAction
                     'label' => 'TG phan hoi TB',
                     'value' => number_format($avgResponse, 1),
                     'suffix' => 'phut',
-                    'change' => '-0.8 phut so voi tuan truoc',
+                    'change' => 'Tinh tu hoi thoai co phan hoi',
                     'tone' => 'good',
                     'icon' => 'timer',
                 ],
@@ -669,7 +619,7 @@ class GetDashboardViewDataAction
                     'label' => 'Ty le thu thap SDT',
                     'value' => $phoneRate,
                     'suffix' => '%',
-                    'change' => '+3.2% so voi tuan truoc',
+                    'change' => number_format($phoneCollected).' so dien thoai',
                     'tone' => 'good',
                     'icon' => 'contact_phone',
                 ],
@@ -740,16 +690,18 @@ class GetDashboardViewDataAction
     private function agentResponseLine(User $user): array
     {
         return collect(range(8, 18, 2))->map(function (int $hour) use ($user): array {
-            $messages = $this->visibleMessages($user)
-                ->where('sender_type', 'user')
+            $conversations = (clone $this->visibleConversations($user))
+                ->whereNotNull('first_response_at')
                 ->whereDate('created_at', today())
                 ->whereTime('created_at', '>=', sprintf('%02d:00:00', $hour))
                 ->whereTime('created_at', '<', sprintf('%02d:00:00', min(23, $hour + 2)))
-                ->count();
+                ->get(['created_at', 'first_response_at']);
 
             return [
                 'hour' => sprintf('%02d:00', $hour),
-                'value' => max(1, min(9, $messages + (($hour % 4) + 1))),
+                'value' => round($conversations->map(
+                    fn (Conversation $conversation): int => max(1, $conversation->created_at->diffInMinutes($conversation->first_response_at))
+                )->avg() ?: 0, 1),
             ];
         })->all();
     }
@@ -807,12 +759,12 @@ class GetDashboardViewDataAction
             ];
         }
 
-        $messageQuery = $this->visibleMessages($user)->whereHas('conversation', fn (Builder $query): Builder => $query->where('customer_id', $customer->id));
-        $activities = (clone $messageQuery)->count();
-        $daily = collect(range(9, 0))->map(function (int $offset) use ($messageQuery): int {
+        $conversationQuery = (clone $this->visibleConversations($user))->where('customer_id', $customer->id);
+        $activities = (clone $conversationQuery)->count();
+        $daily = collect(range(9, 0))->map(function (int $offset) use ($conversationQuery): int {
             $day = today()->subDays($offset);
 
-            return (clone $messageQuery)->whereDate('created_at', $day)->count();
+            return (clone $conversationQuery)->whereDate('created_at', $day)->count();
         });
         $max = max(1, (int) $daily->max());
 

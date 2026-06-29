@@ -11,7 +11,6 @@ use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
-use Modules\Message\Models\Message;
 
 class GetDashboardChartDataAction
 {
@@ -27,11 +26,11 @@ class GetDashboardChartDataAction
 
         return [
             'closure' => $this->closureData($user),
-            'messages' => $this->dailyMessages($user, 14),
+            'messages' => $this->dailyConversations($user, 14),
             'conversation_status' => $this->conversationStatus($user, $period),
             'trend' => $this->yearTrend($user),
             'tags' => $this->tagAllocation($user),
-            'channels' => $this->channelMessages($user),
+            'channels' => $this->channelConversations($user),
             'customer_activity' => $this->topCustomerActivity($user),
         ];
     }
@@ -39,13 +38,6 @@ class GetDashboardChartDataAction
     private function visibleConversations(User $user): Builder
     {
         return $this->visibility->visibleFor($user);
-    }
-
-    private function visibleMessages(User $user): Builder
-    {
-        return Message::query()->whereHas('conversation', function (Builder $query) use ($user): void {
-            $query->whereIn('id', $this->visibleConversations($user)->select('id'));
-        });
     }
 
     private function closureData(User $user): array
@@ -60,14 +52,14 @@ class GetDashboardChartDataAction
         ])->values()->all();
     }
 
-    private function dailyMessages(User $user, int $days): array
+    private function dailyConversations(User $user, int $days): array
     {
         return collect(range($days - 1, 0))->map(function (int $offset) use ($user): array {
             $day = today()->subDays($offset);
 
             return [
                 'date' => $day->toDateString(),
-                'value' => $this->visibleMessages($user)->whereDate('created_at', $day)->count(),
+                'value' => (clone $this->visibleConversations($user))->whereDate('created_at', $day)->count(),
             ];
         })->all();
     }
@@ -128,17 +120,15 @@ class GetDashboardChartDataAction
             ->all();
     }
 
-    private function channelMessages(User $user): array
+    private function channelConversations(User $user): array
     {
-        return $this->visibleMessages($user)
-            ->selectRaw('channel, count(*) as value')
-            ->groupBy('channel')
-            ->orderBy('channel')
-            ->get()
-            ->map(fn (Message $message): array => [
-                'label' => ucfirst($message->channel),
-                'value' => (int) $message->value,
+        return collect(['facebook', 'zalo'])
+            ->map(fn (string $channel): array => [
+                'label' => ucfirst($channel),
+                'value' => $this->applyConversationChannelFilter(clone $this->visibleConversations($user), $channel)->count(),
             ])
+            ->filter(fn (array $item): bool => $item['value'] > 0)
+            ->values()
             ->all();
     }
 
@@ -160,11 +150,19 @@ class GetDashboardChartDataAction
 
             return [
                 'date' => $day->format('j M'),
-                'value' => $this->visibleMessages($user)
-                    ->whereHas('conversation', fn (Builder $query): Builder => $query->where('customer_id', $customer->id))
+                'value' => (clone $this->visibleConversations($user))
+                    ->where('customer_id', $customer->id)
                     ->whereDate('created_at', $day)
                     ->count(),
             ];
         })->all();
+    }
+
+    private function applyConversationChannelFilter(Builder $query, string $channel): Builder
+    {
+        return $query->where(function (Builder $query) use ($channel): void {
+            $query->whereHas('customer.channels', fn (Builder $channelQuery) => $channelQuery->where('channel', $channel))
+                ->orWhereHas('messages', fn (Builder $messageQuery) => $messageQuery->where('channel', $channel));
+        });
     }
 }
