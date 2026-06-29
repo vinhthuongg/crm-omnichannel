@@ -10,6 +10,7 @@ use Illuminate\View\View;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Customer\Models\Customer;
+use Modules\Customer\Models\CustomerTag;
 use Modules\Search\Services\VectorSearchService;
 
 class CustomerPageController extends Controller
@@ -26,13 +27,23 @@ class CustomerPageController extends Controller
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
         $channel = strtolower(trim((string) $request->query('channel', '')));
+        $status = strtolower(trim((string) $request->query('status', '')));
+        $agentId = (int) $request->query('agent_id', 0);
+        $tagId = (int) $request->query('tag_id', 0);
+        $date = trim((string) $request->query('date', ''));
         $visibleConversationIds = $this->visibility->visibleFor($user)->pluck('id');
         $vectorCustomerIds = $search !== ''
             ? collect($this->vectors->searchCustomers($search, (int) config('search.vector.top_k', 50)))
             : collect();
+        $conversationFilter = function (Builder $query) use ($visibleConversationIds, $status, $agentId, $date): void {
+            $query->whereIn('id', $visibleConversationIds)
+                ->when(in_array($status, ['open', 'pending', 'closed'], true), fn (Builder $query) => $query->where('status', $status))
+                ->when($agentId > 0, fn (Builder $query) => $query->where('assigned_to', $agentId))
+                ->when($date !== '', fn (Builder $query) => $query->whereDate('last_message_at', $date));
+        };
 
         $customers = Customer::query()
-            ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+            ->whereHas('conversations', $conversationFilter)
             ->when($search !== '', function (Builder $query) use ($search, $vectorCustomerIds): void {
                 $query->where(function (Builder $query) use ($search, $vectorCustomerIds): void {
                     $query->where('name', 'like', "%{$search}%")
@@ -46,9 +57,10 @@ class CustomerPageController extends Controller
                 });
             })
             ->when(in_array($channel, ['facebook', 'zalo'], true), fn (Builder $query) => $query->whereHas('channels', fn (Builder $channels) => $channels->where('channel', $channel)))
+            ->when($tagId > 0, fn (Builder $query) => $query->whereHas('tags', fn (Builder $tags) => $tags->where('customer_tags.id', $tagId)))
             ->with(['channels', 'tags'])
             ->withCount([
-                'conversations' => fn (Builder $query) => $query->whereIn('id', $visibleConversationIds),
+                'conversations' => $conversationFilter,
                 'notes',
             ])
             ->select('customers.*')
@@ -56,7 +68,7 @@ class CustomerPageController extends Controller
                 Conversation::query()
                     ->selectRaw('max(last_message_at)')
                     ->whereColumn('customer_id', 'customers.id')
-                    ->whereIn('id', $visibleConversationIds),
+                    ->tap($conversationFilter),
                 'last_message_at'
             )
             ->when(
@@ -64,11 +76,11 @@ class CustomerPageController extends Controller
                 fn (Builder $query) => $query->orderByRaw($this->vectorOrderSql($vectorCustomerIds->all()))
             )
             ->orderByDesc('last_message_at')
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         $latestConversations = Conversation::query()
-            ->whereIn('id', $visibleConversationIds)
+            ->tap($conversationFilter)
             ->whereIn('customer_id', $customers->getCollection()->pluck('id'))
             ->with(['assignee', 'tags'])
             ->latest('last_message_at')
@@ -83,7 +95,19 @@ class CustomerPageController extends Controller
             'filters' => [
                 'q' => $search,
                 'channel' => $channel,
+                'status' => $status,
+                'agent_id' => $agentId,
+                'tag_id' => $tagId,
+                'date' => $date,
             ],
+            'agents' => User::query()
+                ->whereHas('assignedConversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'customerTags' => CustomerTag::query()
+                ->whereHas('customers.conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                ->orderBy('name')
+                ->get(['id', 'name', 'color']),
             'navItems' => $this->navItems($user),
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
