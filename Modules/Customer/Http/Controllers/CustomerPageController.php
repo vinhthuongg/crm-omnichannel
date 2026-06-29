@@ -23,10 +23,10 @@ class CustomerPageController extends Controller
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
         $channel = strtolower(trim((string) $request->query('channel', '')));
-        $visibleConversationIds = $this->visibility->visibleFor($user)->select('id');
+        $visibleConversationIds = $this->visibility->visibleFor($user)->pluck('id');
 
         $customers = Customer::query()
-            ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+            ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $query) use ($search): void {
                     $query->where('name', 'like', "%{$search}%")
@@ -38,19 +38,23 @@ class CustomerPageController extends Controller
             ->when(in_array($channel, ['facebook', 'zalo'], true), fn (Builder $query) => $query->whereHas('channels', fn (Builder $channels) => $channels->where('channel', $channel)))
             ->with(['channels', 'tags'])
             ->withCount([
-                'conversations' => fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds),
+                'conversations' => fn (Builder $query) => $query->whereIn('id', $visibleConversationIds),
                 'notes',
             ])
-            ->withMax([
-                'conversations as last_message_at' => fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds),
-            ], 'last_message_at')
             ->select('customers.*')
+            ->selectSub(
+                Conversation::query()
+                    ->selectRaw('max(last_message_at)')
+                    ->whereColumn('customer_id', 'customers.id')
+                    ->whereIn('id', $visibleConversationIds),
+                'last_message_at'
+            )
             ->selectSub(
                 Message::query()
                     ->selectRaw('count(*)')
                     ->join('conversations', 'conversations.id', '=', 'messages.conversation_id')
                     ->whereColumn('conversations.customer_id', 'customers.id')
-                    ->whereIn('conversations.id', clone $visibleConversationIds),
+                    ->whereIn('conversations.id', $visibleConversationIds),
                 'messages_count'
             )
             ->orderByDesc('last_message_at')
@@ -58,7 +62,7 @@ class CustomerPageController extends Controller
             ->withQueryString();
 
         $latestConversations = Conversation::query()
-            ->whereIn('id', clone $visibleConversationIds)
+            ->whereIn('id', $visibleConversationIds)
             ->whereIn('customer_id', $customers->getCollection()->pluck('id'))
             ->with(['assignee', 'tags'])
             ->latest('last_message_at')
@@ -80,14 +84,14 @@ class CustomerPageController extends Controller
             ],
             'summary' => [
                 'total' => Customer::query()
-                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
                     ->count(),
                 'facebook' => Customer::query()
-                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
                     ->whereHas('channels', fn (Builder $query) => $query->where('channel', 'facebook'))
                     ->count(),
                 'zalo' => Customer::query()
-                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', clone $visibleConversationIds))
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
                     ->whereHas('channels', fn (Builder $query) => $query->where('channel', 'zalo'))
                     ->count(),
             ],
