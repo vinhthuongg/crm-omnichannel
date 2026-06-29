@@ -5,7 +5,6 @@
     'agents' => 'Nhân Viên',
     'work_shifts' => 'Ca Trực',
     'channels' => 'Kết Nối Mạng Xã Hội',
-    'reports' => 'Báo Cáo',
     'activity' => 'Hoạt Động',
     'activity_log' => 'Thông Báo',
     'notifications' => 'Thông Báo',

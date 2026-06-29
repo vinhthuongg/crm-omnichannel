@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('activity', DashboardController::class)->defaults('section', 'activity')->name('crm.activity');
     Route::get('notifications', DashboardController::class)->defaults('section', 'notifications')->name('crm.notifications');
     Route::get('settings', DashboardController::class)->defaults('section', 'settings')->name('crm.settings');
+    Route::patch('settings/password', [DashboardController::class, 'updatePassword'])->name('crm.settings.password.update');
     Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
     Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
     Route::put('work-shifts/{workShift}', [WorkShiftController::class, 'update'])->name('work-shifts.update');

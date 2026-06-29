@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Web;
 use App\Actions\Web\GetDashboardViewDataAction;
 use App\Actions\Web\GetDashboardChartDataAction;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -25,5 +28,19 @@ class DashboardController extends Controller
         return response()->json($action->execute($request->user(), [
             'period' => $request->string('period', 'week')->toString(),
         ]));
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $request->user()->forceFill([
+            'password' => Hash::make($validated['password']),
+        ])->save();
+
+        return back()->with('settings_status', 'Đã đổi mật khẩu thành công.');
     }
 }

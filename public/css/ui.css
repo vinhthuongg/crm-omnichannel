@@ -3598,6 +3598,392 @@ kbd {
     color: #111;
 }
 
+.activity-log-page,
+.settings-page {
+    min-height: calc(100vh - 54px);
+    padding: 24px;
+    background: #f7f8fc;
+}
+
+.activity-page-header,
+.settings-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.activity-page-header p,
+.settings-page-header p {
+    margin: 0 0 8px;
+    color: #d70616;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.activity-page-header h1,
+.settings-page-header h1 {
+    margin: 0;
+    color: #111827;
+    font-size: 32px;
+    line-height: 1.08;
+}
+
+.activity-page-header span,
+.settings-page-header span {
+    display: block;
+    margin-top: 8px;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+.activity-page-header a {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #f0b7bd;
+    border-radius: 8px;
+    padding: 0 16px;
+    background: #fff;
+    color: #111827;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.activity-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.activity-summary-grid article,
+.settings-card {
+    border: 1px solid #f0cfd3;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+
+.activity-summary-grid article {
+    min-height: 138px;
+    display: grid;
+    align-content: center;
+    gap: 10px;
+    padding: 18px;
+}
+
+.activity-summary-grid .material-symbols-outlined {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #eaf2ff;
+    color: #0f62fe;
+}
+
+.activity-summary-grid p,
+.settings-card p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.activity-summary-grid strong {
+    color: #111827;
+    font-size: 28px;
+    line-height: 1.1;
+}
+
+.activity-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 18px;
+}
+
+.activity-feed-panel,
+.activity-side-panel {
+    border: 1px solid #f0cfd3;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.activity-feed-panel > header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid #f2d6da;
+}
+
+.activity-feed-panel h2,
+.activity-side-panel h2,
+.settings-card h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 18px;
+    line-height: 1.2;
+}
+
+.activity-feed-panel header p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.activity-feed {
+    display: grid;
+    padding: 8px 20px 20px;
+}
+
+.activity-feed-item {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px 0;
+    border-bottom: 1px solid #f3e0e3;
+}
+
+.activity-feed-item:last-child {
+    border-bottom: 0;
+}
+
+.activity-feed-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #eef4ff;
+    color: #0f62fe;
+}
+
+.activity-feed-item header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.activity-feed-item h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 15px;
+}
+
+.activity-feed-item time {
+    color: #6b7280;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.activity-feed-item p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.activity-feed-item dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 0;
+}
+
+.activity-feed-item dl div {
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12px;
+}
+
+.activity-feed-item dt,
+.activity-feed-item dd {
+    display: inline;
+    margin: 0;
+}
+
+.activity-feed-item dt::after {
+    content: ": ";
+}
+
+.activity-side-panel {
+    align-self: start;
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+}
+
+.activity-side-panel a {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    border: 1px solid #f0cfd3;
+    border-radius: 8px;
+    padding: 0 12px;
+    color: #111827;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.activity-empty {
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    padding: 48px 12px;
+    color: #6b7280;
+}
+
+.settings-alert {
+    margin-bottom: 14px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+}
+
+.settings-alert.success {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.settings-alert.danger {
+    border: 1px solid #fecdd3;
+    background: #fff1f2;
+    color: #be123c;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(360px, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.settings-card {
+    padding: 20px;
+}
+
+.profile-settings-card header {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.settings-avatar {
+    width: 58px;
+    height: 58px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #eaf2ff;
+    color: #0f62fe;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.settings-card h2 {
+    margin-bottom: 6px;
+}
+
+.profile-settings-card dl {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+
+.profile-settings-card dl div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border-top: 1px solid #f3e0e3;
+    padding-top: 10px;
+}
+
+.profile-settings-card dt {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.profile-settings-card dd {
+    margin: 0;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.password-settings-card form {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.password-settings-card label {
+    display: grid;
+    gap: 7px;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.password-settings-card input {
+    min-height: 44px;
+    border: 1px solid #f0cfd3;
+    border-radius: 8px;
+    padding: 0 12px;
+    background: #fff;
+    color: #111827;
+    outline: none;
+}
+
+.password-settings-card input:focus {
+    border-color: #d70616;
+    box-shadow: 0 0 0 3px rgba(215, 6, 22, .08);
+}
+
+.password-settings-card small {
+    color: #be123c;
+    font-size: 12px;
+}
+
+.password-settings-card button {
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: #d70616;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.settings-note-card {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 14px;
+}
+
+.settings-note-card .material-symbols-outlined {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #eaf2ff;
+    color: #0f62fe;
+}
+
+.settings-note-card h2,
+.settings-note-card p {
+    grid-column: 2;
+}
+
 @media (max-width: 1180px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
@@ -3627,6 +4013,15 @@ kbd {
     .connection-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         max-width: none;
+    }
+
+    .activity-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .activity-layout,
+    .settings-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -3695,6 +4090,16 @@ kbd {
     .connection-grid {
         grid-template-columns: 1fr;
     }
+
+    .activity-log-page,
+    .settings-page {
+        padding: 16px;
+    }
+
+    .activity-page-header,
+    .settings-page-header {
+        flex-direction: column;
+    }
 }
 
 @media (max-width: 640px) {
@@ -3719,9 +4124,19 @@ kbd {
     }
 
     .today-kpi-grid,
-    .today-intent-grid {
+    .today-intent-grid,
+    .activity-summary-grid {
         grid-template-columns: 1fr;
         gap: 14px;
+    }
+
+    .settings-note-card {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-note-card h2,
+    .settings-note-card p {
+        grid-column: 1;
     }
 
     .today-kpi-card {

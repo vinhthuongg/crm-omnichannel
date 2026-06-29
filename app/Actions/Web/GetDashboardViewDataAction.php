@@ -130,7 +130,6 @@ class GetDashboardViewDataAction
             ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'contacts'],
             ['section' => 'agents', 'label' => 'Agents', 'route' => 'crm.agents', 'icon' => 'support_agent'],
             ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'hub'],
-            ['section' => 'reports', 'label' => 'Reports', 'route' => 'crm.reports', 'icon' => 'bar_chart'],
             ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'history'],
             ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'notifications'],
             ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'settings'],
@@ -785,7 +784,7 @@ class GetDashboardViewDataAction
             ->with('user')
             ->when(! $user->can('conversation.view_all'), fn (Builder $query) => $query->where('user_id', $user->id))
             ->latest()
-            ->limit(5)
+            ->limit(24)
             ->get();
     }
 
