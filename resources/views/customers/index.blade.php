@@ -89,7 +89,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($customers as $customer)
+                        @if($customers->isEmpty())
+                            <tr>
+                                <td colspan="7">
+                                    <div class="customers-empty">
+                                        <h2>Chua co khach hang phu hop</h2>
+                                        <p>Khach hang se xuat hien tai day sau khi nhan tin vao kenh dang ket noi.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @else
+                        @foreach($customers as $customer)
                             @php
                                 $conversation = $latestConversations->get($customer->id);
                                 $primaryChannel = $customer->channels->first();
@@ -168,16 +178,8 @@
                                     @endif
                                 </td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7">
-                                    <div class="customers-empty">
-                                        <h2>Chua co khach hang phu hop</h2>
-                                        <p>Khach hang se xuat hien tai day sau khi nhan tin vao kenh dang ket noi.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
+                        @endforeach
+                        @endif
                     </tbody>
                 </table>
             </div>
