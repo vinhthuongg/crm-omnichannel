@@ -306,18 +306,18 @@ body.messenger-page .messenger-list {
     grid-row: 2;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
     border-right: 1px solid var(--chat-line);
     background: #fff;
-    padding-top: 42px;
+    padding-top: 0;
 }
 
 body.messenger-page .messenger-list-head {
-    min-height: 38px;
+    min-height: 42px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
+    padding: 0 8px 0 8px;
 }
 
 body.messenger-page .messenger-list-head h1 {
@@ -327,11 +327,52 @@ body.messenger-page .messenger-list-head h1 {
     line-height: 1;
 }
 
+body.messenger-page .messenger-filter-button {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+}
+
+body.messenger-page .messenger-filter-button span,
+body.messenger-page .messenger-filter-button span::before,
+body.messenger-page .messenger-filter-button span::after {
+    display: block;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--chat-blue);
+}
+
+body.messenger-page .messenger-filter-button span {
+    width: 12px;
+}
+
+body.messenger-page .messenger-filter-button span::before,
+body.messenger-page .messenger-filter-button span::after {
+    content: "";
+    margin-top: 3px;
+}
+
+body.messenger-page .messenger-filter-button span::before {
+    width: 16px;
+    transform: translateY(-5px);
+}
+
+body.messenger-page .messenger-filter-button span::after {
+    width: 7px;
+    transform: translateY(-2px);
+}
+
 body.messenger-page .messenger-search {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 86px;
-    gap: 7px;
-    padding: 0 8px 9px 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 0 8px 8px 8px;
 }
 
 body.messenger-page .messenger-search-box {
@@ -393,6 +434,48 @@ body.messenger-page .messenger-search select {
     font-weight: 800;
 }
 
+body.messenger-page .messenger-status-tabs {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    overflow-x: auto;
+    padding: 0 8px 8px 8px;
+    scrollbar-width: none;
+}
+
+body.messenger-page .messenger-status-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+body.messenger-page .messenger-status-tabs a {
+    flex: 0 0 auto;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #e7d4d8;
+    border-radius: 999px;
+    background: #f7f9ff;
+    color: #667085;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    text-decoration: none;
+}
+
+body.messenger-page .messenger-status-tabs a.active {
+    border-color: #d6e6ff;
+    background: #e8f1ff;
+    color: var(--chat-blue);
+}
+
+body.messenger-page .messenger-status-tabs a:not(.active):nth-child(2) {
+    border-color: #ffd5de;
+    background: #fff0f3;
+    color: #d70616;
+}
+
 body.messenger-page .messenger-thread-list {
     min-height: 0;
     overflow-y: auto;
@@ -427,7 +510,7 @@ body.messenger-page .thread-avatar {
     height: 42px;
     display: grid;
     place-items: center;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 50%;
     background: #dfe8f8;
     color: #2f5c9d;
@@ -448,6 +531,7 @@ body.messenger-page .thread-avatar.mini {
 body.messenger-page .thread-avatar img {
     width: 100%;
     height: 100%;
+    border-radius: 50%;
     object-fit: cover;
 }
 
@@ -456,12 +540,13 @@ body.messenger-page .thread-platform-icon {
     position: absolute;
     right: -1px;
     bottom: -1px;
-    width: 14px !important;
-    height: 14px !important;
+    width: 13px !important;
+    height: 13px !important;
     border: 2px solid #fff;
     border-radius: 50%;
     background: #fff;
     object-fit: cover;
+    opacity: .9;
 }
 
 body.messenger-page .thread-body {
@@ -491,6 +576,14 @@ body.messenger-page .thread-tags b,
 body.messenger-page .customer-tag-list span,
 body.messenger-page .composer-tag {
     border-radius: 999px;
+}
+
+body.messenger-page .thread-tags b {
+    border: 0;
+    background: color-mix(in srgb, var(--tag-color, #f59e0b) 14%, #fff);
+    color: var(--tag-color, #f59e0b);
+    padding: 2px 7px;
+    font-size: 10px;
 }
 
 body.messenger-page .thread-side {

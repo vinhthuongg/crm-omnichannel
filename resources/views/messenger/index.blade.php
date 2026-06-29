@@ -91,28 +91,14 @@
             data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
             data-customer-tag-options="{{ e($customerTagOptionsJson) }}"
         >
-            <nav class="messenger-channel-tabs" aria-label="Inbox channels">
-                @foreach($inboxChannels as $inboxChannel)
-                    <a
-                        class="{{ $inboxChannel['active'] ? 'active' : '' }}"
-                        href="{{ route('crm.conversations', array_filter([
-                            'channel' => $inboxChannel['key'] === 'all' ? null : $inboxChannel['key'],
-                            'q' => $filters['search'] ?: null,
-                            'tag' => $filters['tag'] ?: null,
-                        ])) }}"
-                    >
-                        {{ $inboxChannel['label'] }}
-                        @if($inboxChannel['unread'] > 0)
-                            <span>{{ $inboxChannel['unread'] }}</span>
-                        @endif
-                    </a>
-                @endforeach
-            </nav>
-            <aside class="messenger-list">
+<aside class="messenger-list">
                 <div class="messenger-list-head">
                     <div>
                         <h1>Hoi thoai</h1>
                     </div>
+                    <button type="button" class="messenger-filter-button" aria-label="Bo loc hoi thoai">
+                        <span></span>
+                    </button>
                 </div>
 
         <form class="messenger-search" method="GET" action="{{ route('crm.conversations') }}">
@@ -123,14 +109,26 @@
                 <span aria-hidden="true"></span>
                 <input type="search" name="q" placeholder="Tim kiem..." value="{{ $filters['search'] }}" data-auto-search-input>
             </label>
-            <select name="tag" aria-label="Loc theo tag">
-                <option value="">Tat ca tag</option>
-                @foreach($allTags as $tag)
-                    <option value="{{ $tag->name }}" @selected(($filters['tag'] ?? '') === $tag->name)>{{ $tag->name }}</option>
-                @endforeach
-            </select>
-        </form>
-
+</form>
+        <nav class="messenger-status-tabs" aria-label="Trang thai hoi thoai">
+            <a
+                class="{{ blank($filters['tag'] ?? '') ? 'active' : '' }}"
+                href="{{ route('crm.conversations', array_filter([
+                    'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'],
+                    'q' => $filters['search'] ?: null,
+                ])) }}"
+            >Tat ca</a>
+            @foreach($allTags->take(8) as $tag)
+                <a
+                    class="{{ ($filters['tag'] ?? '') === $tag->name ? 'active' : '' }}"
+                    href="{{ route('crm.conversations', array_filter([
+                        'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'],
+                        'q' => $filters['search'] ?: null,
+                        'tag' => $tag->name,
+                    ])) }}"
+                >{{ $tag->name }}</a>
+            @endforeach
+        </nav>
         <div class="messenger-thread-list">
             @forelse($conversations as $conversation)
                 @php($lastMessage = $conversation->messages->first())
@@ -368,8 +366,8 @@
             @enderror
         @else
             <section class="messenger-no-chat">
-                <h2>Chon hoi thoai</h2>
-                <p>Chon hoi thoai ben trai de bat dau xu ly.</p>
+                <h2>Chọn Hội Thoại</h2>
+                <p>Chọn Hội Thoại Bên Trái Xử Lí</p>
             </section>
         @endif
     </section>
@@ -378,14 +376,14 @@
             <section class="profile-contact-full" data-contact-full hidden>
                 <header>
                     <button type="button" data-contact-back>&lt;</button>
-                    <h4>Chi tiet lien he</h4>
+                    <h4>Chi Tiết Liên Hệ</h4>
                 </header>
                 <div class="profile-contact-full-body">
                     <div class="profile-section profile-details">
-                        <h4>Thong tin cong khai</h4>
+                        <h4>Thông Tin Công Khai</h4>
                         <div class="profile-detail-list" data-public-detail-list>
                             @if(count($profilePanel['details']) === 0)
-                                <p class="profile-empty">Chua co thong tin cong khai.</p>
+                                <p class="profile-empty">Chưa Có Thông Tin Công Khai</p>
                             @endif
                             @foreach($profilePanel['details'] as $detail)
                                 <span>{{ $detail['label'] }}</span>
@@ -394,14 +392,14 @@
                         </div>
                     </div>
                     <section class="profile-section profile-details" data-contact-section data-contact-url="{{ route('crm.conversations.customer.update', $activeConversation) }}">
-                        <h4>Cap nhat lien he</h4>
+                        <h4>Cập Nhật Liên Hệ</h4>
                         <form class="profile-contact-form" data-contact-form>
                             <label>
-                                <span>Ten khach hang</span>
+                                <span>Tên Khách Hàng</span>
                                 <input type="text" name="name" value="{{ $profilePanel['contact']['name'] }}" autocomplete="name" required>
                             </label>
                             <label>
-                                <span>So dien thoai</span>
+                                <span>Số Điện Thoại</span>
                                 <input type="tel" name="phone" value="{{ $profilePanel['contact']['phone'] }}" autocomplete="tel">
                             </label>
                             <label>
@@ -409,7 +407,7 @@
                                 <input type="email" name="email" value="{{ $profilePanel['contact']['email'] }}" autocomplete="email">
                             </label>
                             <label>
-                                <span>Kenh lien he</span>
+                                <span>Kênh Liên Hệ</span>
                                 <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chua co kenh' }}" data-contact-channel disabled>
                             </label>
                             <div class="profile-contact-actions">
@@ -424,11 +422,11 @@
             <section class="profile-notes-full" data-notes-full hidden>
                 <header>
                     <button type="button" data-notes-back>&lt;</button>
-                    <h4>Tat ca ghi chu</h4>
+                    <h4>Tất Cả Ghi Chú</h4>
                 </header>
                 <div class="profile-note-list is-full" data-note-list-full>
                     @if(count($profilePanel['notes']) === 0)
-                        <p class="profile-empty">Chua co ghi chu nao.</p>
+                        <p class="profile-empty">Chưa Có Ghi Chú Nào</p>
                     @endif
                     @foreach($profilePanel['notes'] as $note)
                         <article data-note-item>
@@ -441,7 +439,7 @@
 
             <div class="profile-panel-main" data-profile-main>
             <header class="profile-panel-title">
-                <h3>Thong tin Khach hang</h3>
+                <h3>Thông Tin Khách Hàng</h3>
                 <button type="button" class="profile-contact-toggle" data-contact-toggle>Chinh sua</button>
             </header>
 
@@ -463,23 +461,23 @@
                     @if(filled($activeConversation->customer?->phone))
                         <a href="tel:{{ $activeConversation->customer->phone }}">Goi</a>
                     @else
-                        <span>Chua co SDT</span>
+                        <span>Chưa Có SĐT</span>
                     @endif
                     @if(filled($activeConversation->customer?->email))
                         <a href="mailto:{{ $activeConversation->customer->email }}">Email</a>
                     @else
-                        <span>Chua co email</span>
+                        <span>Chưa Có Email</span>
                     @endif
                 </div>
             </section>
 
             <section class="profile-contact-summary">
                 <article>
-                    <span>So dien thoai</span>
+                    <span>Số Điện Thoại</span>
                     <strong data-profile-phone>{{ $activeConversation->customer?->phone ?: 'Chua co' }}</strong>
                 </article>
                 <article>
-                    <span>Kenh lien he</span>
+                    <span>Kênh Liên Hệ</span>
                     <strong>{{ ucfirst($activeChannel) }}</strong>
                 </article>
             </section>
@@ -493,10 +491,10 @@
             </section>
 
             <section class="profile-section profile-customer-tags" data-profile-conversation-tags>
-                <h4>Trang thai hoi thoai</h4>
+                <h4>Trạng Thái Hội Thoại</h4>
                 <div class="customer-tag-list" data-profile-conversation-tag-list>
                     @if(count($profilePanel['tags']) === 0)
-                        <p class="profile-empty">Chua co trang thai.</p>
+                        <p class="profile-empty">Chưa Có Trạng Thái</p>
                     @endif
                     @foreach($profilePanel['tags'] as $tag)
                         <span style="--tag-color: {{ $tag['color'] }}">{{ $tag['name'] }}</span>
@@ -506,8 +504,8 @@
             </div>
         @else
             <section class="profile-section is-empty">
-                <h4>Thong tin khach hang</h4>
-                <p>Chon mot conversation de xem chi tiet.</p>
+                <h4>Thông Tin Khách Hàng</h4>
+                <p>Chọn Một Conversation Để Xem Chi Tiết.</p>
             </section>
         @endif
     </aside>
@@ -519,3 +517,4 @@
 <script src="{{ asset('js/messenger/chat.js') }}?v={{ filemtime(public_path('js/messenger/chat.js')) }}" defer></script>
 @endpush
 @endsection
+

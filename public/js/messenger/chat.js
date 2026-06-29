@@ -13,7 +13,7 @@
         loadConversation(thread.dataset.conversationUrl || thread.href);
     });
 
-    document.querySelector('.messenger-channel-tabs')?.addEventListener('click', function (event) {
+    document.querySelector('.messenger-status-tabs')?.addEventListener('click', function (event) {
         const link = event.target.closest('a');
 
         if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
@@ -219,8 +219,8 @@
             const html = await response.text();
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const freshList = doc.querySelector('.messenger-thread-list');
-            const freshTabs = doc.querySelector('.messenger-channel-tabs');
-            const currentTabs = document.querySelector('.messenger-channel-tabs');
+            const freshTabs = doc.querySelector('.messenger-status-tabs');
+            const currentTabs = document.querySelector('.messenger-status-tabs');
 
             if (freshList) {
                 list.innerHTML = freshList.innerHTML;
