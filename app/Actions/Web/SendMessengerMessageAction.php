@@ -14,6 +14,7 @@ use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\MessengerAttachmentStorage;
 use Modules\Message\Services\OutboundMessageService;
+use Modules\Search\Services\VectorSearchService;
 
 class SendMessengerMessageAction
 {
@@ -76,6 +77,8 @@ class SendMessengerMessageAction
             return $message;
         }
 
+        $this->queueCustomerVectorRefresh($message);
+
         if ($attachments) {
             SendOutboundMessageJob::dispatch($message->id);
             $this->kickLocalQueueWorker();
@@ -84,6 +87,29 @@ class SendMessengerMessageAction
         }
 
         return $message;
+    }
+
+    private function queueCustomerVectorRefresh(Message $message): void
+    {
+        if (! config('search.vector.enabled', true)) {
+            return;
+        }
+
+        app()->terminating(function () use ($message): void {
+            try {
+                $message = $message->fresh(['conversation.customer']);
+                $customer = $message?->conversation?->customer;
+
+                if ($customer) {
+                    app(VectorSearchService::class)->indexCustomer($customer);
+                }
+            } catch (\Throwable $exception) {
+                Log::warning('Customer vector index refresh failed', [
+                    'message_id' => $message->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
     }
 
     private function sendTextAfterResponse(Message $message): void

@@ -20,6 +20,7 @@ use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
+use Modules\Search\Services\VectorSearchService;
 
 class MessageService
 {
@@ -90,6 +91,8 @@ class MessageService
             'customer_has_phone' => filled($customer->phone),
             'unread_messages_count' => (int) $conversation->unread_messages_count,
         ]);
+
+        $this->queueCustomerVectorRefresh($customer);
 
         if ($this->shouldSkipChatbotReply($conversation, $message)) {
             Log::info('Chatbot auto reply skipped because human is handling conversation', [
@@ -221,6 +224,7 @@ class MessageService
         });
 
         $this->broadcastNewMessage($message);
+        $this->queueCustomerVectorRefresh($conversation->customer);
 
         return $message;
     }
@@ -231,6 +235,24 @@ class MessageService
             event(new NewMessageEvent($message));
         } catch (\Throwable) {
         }
+    }
+
+    private function queueCustomerVectorRefresh(?Customer $customer): void
+    {
+        if (! $customer || ! config('search.vector.enabled', true)) {
+            return;
+        }
+
+        app()->terminating(function () use ($customer): void {
+            try {
+                app(VectorSearchService::class)->indexCustomer($customer->fresh() ?: $customer);
+            } catch (\Throwable $exception) {
+                Log::warning('Customer vector index refresh failed', [
+                    'customer_id' => $customer->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
     }
 
     private function createChatbotReply(Conversation $conversation, string $channel, ?ChatbotReply $reply): ?Message

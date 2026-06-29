@@ -11,10 +11,14 @@ use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Customer\Models\Customer;
 use Modules\Message\Models\Message;
+use Modules\Search\Services\VectorSearchService;
 
 class CustomerPageController extends Controller
 {
-    public function __construct(private readonly ConversationVisibilityService $visibility)
+    public function __construct(
+        private readonly ConversationVisibilityService $visibility,
+        private readonly VectorSearchService $vectors,
+    )
     {
     }
 
@@ -24,15 +28,22 @@ class CustomerPageController extends Controller
         $search = trim((string) $request->query('q', ''));
         $channel = strtolower(trim((string) $request->query('channel', '')));
         $visibleConversationIds = $this->visibility->visibleFor($user)->pluck('id');
+        $vectorCustomerIds = $search !== ''
+            ? collect($this->vectors->searchCustomers($search, (int) config('search.vector.top_k', 50)))
+            : collect();
 
         $customers = Customer::query()
             ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
-            ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $query) use ($search): void {
+            ->when($search !== '', function (Builder $query) use ($search, $vectorCustomerIds): void {
+                $query->where(function (Builder $query) use ($search, $vectorCustomerIds): void {
                     $query->where('name', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhereHas('channels', fn (Builder $channels) => $channels->where('external_id', 'like', "%{$search}%"));
+
+                    if ($vectorCustomerIds->isNotEmpty()) {
+                        $query->orWhereIn('id', $vectorCustomerIds);
+                    }
                 });
             })
             ->when(in_array($channel, ['facebook', 'zalo'], true), fn (Builder $query) => $query->whereHas('channels', fn (Builder $channels) => $channels->where('channel', $channel)))
@@ -56,6 +67,10 @@ class CustomerPageController extends Controller
                     ->whereColumn('conversations.customer_id', 'customers.id')
                     ->whereIn('conversations.id', $visibleConversationIds),
                 'messages_count'
+            )
+            ->when(
+                $search !== '' && $vectorCustomerIds->isNotEmpty(),
+                fn (Builder $query) => $query->orderByRaw($this->vectorOrderSql($vectorCustomerIds->all()))
             )
             ->orderByDesc('last_message_at')
             ->paginate(20)
@@ -122,5 +137,18 @@ class CustomerPageController extends Controller
         }
 
         return $items;
+    }
+
+    private function vectorOrderSql(array $ids): string
+    {
+        $ids = collect($ids)
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->values()
+            ->implode(',');
+
+        return $ids === ''
+            ? 'customers.id asc'
+            : "case when field(customers.id, {$ids}) = 0 then 999999 else field(customers.id, {$ids}) end asc";
     }
 }
