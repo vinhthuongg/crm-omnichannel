@@ -79,6 +79,10 @@ class SalesChatbotService
             );
         }
 
+        if ($this->isGreeting($content)) {
+            return $this->greetingReply($conversation, $state, $source);
+        }
+
         if (($state['step'] ?? '') === 'awaiting_detail' && $content !== '') {
             $conversation->forceFill([
                 'automation_state' => [
@@ -126,21 +130,6 @@ class SalesChatbotService
             return new ChatbotReply(
                 content: $this->installmentAnswer($conversation, $state, $content),
                 clientMessageKey: $this->replyKey($conversation, $source, 'installment-down-payment'),
-            );
-        }
-
-        if ($this->isGreeting($content)) {
-            $menu = InitialMessageTemplate::serviceMenuFor($conversation);
-            $alreadyGreeted = $this->hasGreeted($conversation, $state);
-            $replyContent = $alreadyGreeted
-                ? $this->followUpGreetingMessage($state)
-                : ($menu !== '' ? $menu : $this->greetingMessage());
-            $this->markGreeted($conversation, $state);
-
-            return new ChatbotReply(
-                content: $replyContent,
-                quickReplies: ! $alreadyGreeted && $menu !== '' ? $this->knowledgeBase->quickReplies() : [],
-                clientMessageKey: $this->replyKey($conversation, $source, 'greeting'),
             );
         }
 
@@ -1062,7 +1051,38 @@ class SalesChatbotService
     {
         $normalized = str($content)->lower()->ascii()->squish()->toString();
 
-        return in_array($normalized, ['hi', 'hello', 'helo', 'alo', 'chao', 'xin chao', 'em oi', 'shop oi', 'tu van'], true);
+        return in_array($normalized, [
+            'hi',
+            'hi em',
+            'hello',
+            'hello em',
+            'helo',
+            'alo',
+            'alo em',
+            'chao',
+            'chao em',
+            'xin chao',
+            'xin chao em',
+            'em oi',
+            'shop oi',
+            'tu van',
+        ], true);
+    }
+
+    private function greetingReply(Conversation $conversation, array $state, string $source): ChatbotReply
+    {
+        $menu = InitialMessageTemplate::serviceMenuFor($conversation);
+        $alreadyGreeted = $this->hasGreeted($conversation, $state);
+        $replyContent = $alreadyGreeted
+            ? $this->followUpGreetingMessage($state)
+            : ($menu !== '' ? $menu : $this->greetingMessage());
+        $this->markGreeted($conversation, $state);
+
+        return new ChatbotReply(
+            content: $replyContent,
+            quickReplies: ! $alreadyGreeted && $menu !== '' ? $this->knowledgeBase->quickReplies() : [],
+            clientMessageKey: $this->replyKey($conversation, $source, 'greeting'),
+        );
     }
 
     private function greetingMessage(): string
