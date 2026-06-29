@@ -1261,6 +1261,27 @@ body.messenger-page .messenger-no-chat {
     text-align: center;
 }
 
+body.messenger-page :where(
+    h1,
+    h2,
+    h3,
+    h4,
+    strong,
+    b,
+    a,
+    button,
+    label,
+    input,
+    select,
+    textarea,
+    small,
+    span,
+    p,
+    time
+) {
+    font-weight: 400 !important;
+}
+
 @media (max-width: 1280px) {
     body.messenger-page .messenger-shell {
         grid-template-columns: 276px minmax(420px, 1fr) 292px;
