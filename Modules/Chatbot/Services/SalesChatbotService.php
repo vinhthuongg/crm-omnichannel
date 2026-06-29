@@ -253,7 +253,7 @@ class SalesChatbotService
 
         $matches = $directMatches;
         if ($matches !== []) {
-            return $this->structuredVehicleAnswer($conversation, $state, $detail, $matches);
+            return $this->naturalVehicleAnswer($conversation, $state, $detail, $matches);
         }
 
         $context = collect($matches)->pluck('text')->implode("\n");
@@ -525,6 +525,163 @@ class SalesChatbotService
             || str_contains($normalized, 'tra gop')
             || str_contains($normalized, 'mau xe')
             || str_contains($normalized, 'phien ban');
+    }
+
+    private function naturalVehicleAnswer(Conversation $conversation, array $state, string $detail, array $matches): string
+    {
+        $facts = $this->commercialFacts($matches);
+
+        if (trim($facts) === '') {
+            return $this->structuredVehicleAnswer($conversation, $state, $detail, $matches);
+        }
+
+        $fallback = $this->structuredVehicleAnswer($conversation, $state, $detail, $matches);
+
+        try {
+            $answer = $this->nim->chat(
+                $this->naturalDataAnswerPrompt(),
+                implode("\n\n", [
+                    'TIN_NHAN_MOI_NHAT_CUA_KHACH:',
+                    $detail,
+                    'LICH_SU_CHAT_GAN_DAY:',
+                    $this->recentChatTranscript($conversation),
+                    'SO_LIEU_DA_XAC_THUC_TU_DATABASE:',
+                    $facts,
+                    'NGU_CANH_HE_THONG:',
+                    json_encode($state, JSON_UNESCAPED_UNICODE),
+                ]),
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Chatbot natural data answer failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $fallback;
+        }
+
+        $answer = trim((string) $answer);
+
+        return $answer !== ''
+            ? $this->guardNaturalDataAnswer($answer, $facts, $fallback)
+            : $fallback;
+    }
+
+    private function commercialFacts(array $matches): string
+    {
+        $lines = [];
+
+        $prices = collect($matches)
+            ->where('source', 'giaxe_json')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.grade'),
+                data_get($document, 'metadata.color'),
+                data_get($document, 'metadata.price'),
+            ]))
+            ->take(10);
+
+        foreach ($prices as $document) {
+            $lines[] = '- Gia xe: '.trim(implode(' ', array_filter([
+                (string) data_get($document, 'metadata.model'),
+                (string) data_get($document, 'metadata.grade'),
+                (string) data_get($document, 'metadata.color'),
+            ]))).' = '.data_get($document, 'metadata.price').' dong';
+        }
+
+        $promotions = collect($matches)
+            ->where('source', 'ctkm_json')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.grade'),
+                data_get($document, 'metadata.discount'),
+            ]))
+            ->take(8);
+
+        foreach ($promotions as $document) {
+            $discount = (int) data_get($document, 'metadata.discount', 0);
+            $discountText = $discount > 0 ? number_format($discount, 0, ',', '.').' dong' : 'theo chuong trinh';
+            $lines[] = '- Uu dai: '.trim((string) data_get($document, 'metadata.model').' '.(string) data_get($document, 'metadata.grade')).' = '.$discountText;
+        }
+
+        $installments = collect($matches)
+            ->where('source', 'ctrinh_tragop')
+            ->unique(fn (array $document): string => implode('|', [
+                data_get($document, 'metadata.model'),
+                data_get($document, 'metadata.product'),
+                data_get($document, 'metadata.phase_one'),
+                data_get($document, 'metadata.phase_two'),
+            ]))
+            ->take(6);
+
+        foreach ($installments as $document) {
+            $parts = array_filter([
+                'mau '.(string) data_get($document, 'metadata.model'),
+                'san pham '.(string) data_get($document, 'metadata.product'),
+                'giai doan 1 '.(string) data_get($document, 'metadata.phase_one'),
+                'giai doan 2 '.(string) data_get($document, 'metadata.phase_two'),
+                'thoi gian '.(string) data_get($document, 'metadata.months').' thang',
+            ]);
+            $lines[] = '- Tra gop: '.implode(', ', $parts);
+        }
+
+        $processes = collect($matches)
+            ->where('source', 'quytrinh_vay_nganhang')
+            ->take(3);
+
+        foreach ($processes as $document) {
+            $title = (string) data_get($document, 'metadata.title', '');
+            $answer = (string) data_get($document, 'metadata.answer', '');
+            $lines[] = '- Quy trinh/tai chinh: '.trim($title.' '.$answer);
+        }
+
+        return implode("\n", array_values(array_filter($lines)));
+    }
+
+    private function recentChatTranscript(Conversation $conversation): string
+    {
+        return $conversation->messages()
+            ->latest('id')
+            ->limit(12)
+            ->get()
+            ->reverse()
+            ->map(function (Message $message): string {
+                $speaker = $message->sender_type === 'customer' ? 'Khach' : 'CRM';
+                $content = trim((string) $message->content);
+
+                if ($content === '' && $message->attachments) {
+                    $content = '[tep dinh kem]';
+                }
+
+                return $speaker.': '.$content;
+            })
+            ->implode("\n");
+    }
+
+    private function guardNaturalDataAnswer(string $answer, string $facts, string $fallback): string
+    {
+        $answerNumbers = $this->commercialNumbers($answer);
+        $factNumbers = $this->commercialNumbers($facts);
+
+        foreach ($answerNumbers as $number) {
+            if (! in_array($number, $factNumbers, true)) {
+                return $fallback;
+            }
+        }
+
+        return $answer;
+    }
+
+    private function commercialNumbers(string $text): array
+    {
+        preg_match_all('/\d+(?:[.,]\d+)*(?:\s*%)?/', $text, $matches);
+
+        return collect($matches[0] ?? [])
+            ->map(fn (string $value): string => preg_replace('/\s+/', '', $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function structuredVehicleAnswer(Conversation $conversation, array $state, string $detail, array $matches): string
@@ -1341,6 +1498,30 @@ Quy tắc:
 - commercial_data: khách hỏi giá, báo giá lăn bánh, khuyến mãi, ưu đãi, trả góp, lãi suất, còn xe, giao xe, màu xe, tồn kho. needs_data=true.
 - product_consulting: khách hỏi tư vấn chọn xe/tính năng/so sánh phiên bản, chưa cần số liệu giá/ưu đãi. needs_data=false.
 - Nếu khách nói mẫu xe nhưng không hỏi số liệu, không tự chuyển thành commercial_data.
+PROMPT;
+    }
+
+    private function naturalDataAnswerPrompt(): string
+    {
+        return <<<'PROMPT'
+Bạn là tư vấn viên Toyota Kiên Giang đang chat trực tiếp với khách.
+
+Bạn sẽ nhận:
+- TIN_NHAN_MOI_NHAT_CUA_KHACH
+- LICH_SU_CHAT_GAN_DAY
+- SO_LIEU_DA_XAC_THUC_TU_DATABASE
+
+Nhiệm vụ:
+- Dựa vào lịch sử chat để trả lời đúng mạch hội thoại, không lặp lại như máy.
+- Chỉ dùng số liệu trong SO_LIEU_DA_XAC_THUC_TU_DATABASE.
+- Không tự thêm giá, ưu đãi, lãi suất, số tiền, thời gian giao xe, tồn kho nếu không có trong facts.
+- Nếu khách chưa hỏi bảng giá đầy đủ, đừng đổ nguyên danh sách dài. Chọn thông tin liên quan nhất rồi hỏi tiếp tự nhiên.
+- Nếu khách hỏi lái thử, xe đời cũ, hỏi chuyện chung: ưu tiên trả lời đúng câu hỏi, không báo giá trừ khi khách hỏi giá.
+- Xưng "em", gọi khách là "anh/chị" hoặc "anh" nếu khách tự xưng anh.
+- Giọng tự nhiên, chuyên nghiệp, ngắn gọn, giống nhân viên thật.
+- Cuối câu nên mở hướng tiếp theo nhẹ nhàng, không ép.
+
+Trả về duy nhất nội dung tin nhắn gửi khách.
 PROMPT;
     }
 
