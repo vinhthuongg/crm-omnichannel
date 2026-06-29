@@ -20,11 +20,4 @@
     <a class="help-link" href="{{ route('crm.settings', ['panel' => 'help']) }}">
         Help Center
     </a>
-    <a class="profile-link" href="{{ route('crm.settings', ['panel' => 'profile']) }}">{{ $currentUser->name }}</a>
-    <form method="POST" action="{{ route('logout') }}" class="account-menu">
-        @csrf
-        <button type="submit">
-            Dang xuat
-        </button>
-    </form>
 </header>

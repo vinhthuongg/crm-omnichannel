@@ -27,7 +27,7 @@ body.messenger-page .messenger-crm-shell {
 }
 
 body.messenger-page .crm-sidebar {
-    padding-top: 86px;
+    padding-top: var(--topbar-height);
     border-right: 1px solid var(--chat-line);
     background: #fbfbff;
 }
@@ -1444,9 +1444,18 @@ body.messenger-page .profile-contact-full header button {
 
 body.messenger-page .messenger-empty,
 body.messenger-page .messenger-no-chat {
-    padding: 24px;
+    min-height: 100%;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: clamp(120px, 22vh, 220px) 24px 24px;
     color: #667085;
     text-align: center;
+}
+
+body.messenger-page .messenger-no-chat h2,
+body.messenger-page .messenger-no-chat p {
+    margin: 0;
 }
 
 body.messenger-page :where(
