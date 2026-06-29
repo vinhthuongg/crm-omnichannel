@@ -161,7 +161,7 @@
     let composer = document.querySelector('[data-messenger-composer]');
     const realtimeRoot = document.querySelector('[data-messenger-realtime]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    let customerTagOptions = readJsonDataset(realtimeRoot?.dataset.customerTagOptions, []);
+    let customerTagOptions = readJsonDataset(realtimeRoot?.dataset.customerTagOptionsJson, []);
     let attachmentUpload = {
         files: [],
         promise: Promise.resolve([]),
@@ -756,7 +756,7 @@
     function renderCustomerTagOptions(filter) {
         const options = document.querySelector('[data-customer-tag-options]');
 
-        if (!options) {
+        if (!options || options === realtimeRoot) {
             return;
         }
 

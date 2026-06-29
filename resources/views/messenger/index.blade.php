@@ -95,7 +95,7 @@
             data-reverb-host="{{ $reverbPublicHost ?: (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) ? request()->getHost() : $reverb['options']['host']) }}"
             data-reverb-port="{{ $reverbPublicHost ? $reverbPublicPort : (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) && request()->secure() ? '' : $reverb['options']['port']) }}"
             data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
-            data-customer-tag-options="{{ e($customerTagOptionsJson) }}"
+            data-customer-tag-options-json="{{ e($customerTagOptionsJson) }}"
         >
 <aside class="messenger-list">
                 <div class="messenger-list-head">
