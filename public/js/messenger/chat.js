@@ -2367,7 +2367,7 @@
         let moved = false;
 
         tabs.addEventListener('pointerdown', function (event) {
-            if (event.button !== 0) {
+            if (event.button !== 0 || event.target.closest('button, a, input, label, select, textarea')) {
                 return;
             }
 
@@ -2412,6 +2412,15 @@
                 }
             });
         });
+
+        tabs.addEventListener('wheel', function (event) {
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+                return;
+            }
+
+            event.preventDefault();
+            tabs.scrollLeft += event.deltaY;
+        }, {passive: false});
     });
 
     document.addEventListener('click', async function (event) {
