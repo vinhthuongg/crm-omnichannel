@@ -15,8 +15,14 @@
                 <p>Omnichannel CRM workspace for Facebook and Zalo conversations.</p>
             </div>
             <div class="page-actions">
-                <a href="{{ route('crm.conversations') }}">Open Inbox</a>
-                <a href="{{ route('crm.customers') }}">Customers</a>
+                <a href="{{ route('crm.conversations') }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+                    Open Inbox
+                </a>
+                <a href="{{ route('crm.customers') }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">contacts</span>
+                    Customers
+                </a>
             </div>
         </section>
 
@@ -52,7 +58,10 @@
                                 <p>Conversation Trend</p>
                                 <h2>{{ number_format($yearTrend['total']) }} <span class="{{ $yearTrend['change'] >= 0 ? 'good' : 'bad' }}">{{ $yearTrend['change'] >= 0 ? 'Up' : 'Down' }} {{ abs($yearTrend['change']) }}%</span></h2>
                             </div>
-                            <a class="panel-button" href="{{ route('crm.reports', ['period' => 'year']) }}">Year</a>
+                            <a class="panel-button" href="{{ route('crm.reports', ['period' => 'year']) }}">
+                                <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+                                Year
+                            </a>
                         </div>
                         <div id="conversation-trend-line" class="morris-card-chart" aria-label="Conversation trend chart"></div>
                     </article>
@@ -63,7 +72,10 @@
                                 <p>Platform Allocation</p>
                                 <h2>{{ number_format($channelMetrics->sum('messages')) }} Messages</h2>
                             </div>
-                            <a class="panel-button" href="{{ route('crm.channels') }}">Channels</a>
+                            <a class="panel-button" href="{{ route('crm.channels') }}">
+                                <span class="material-symbols-outlined" aria-hidden="true">hub</span>
+                                Channels
+                            </a>
                         </div>
                         <div id="platform-allocation-bar" class="morris-card-chart" aria-label="Platform allocation chart"></div>
                     </article>
@@ -75,11 +87,17 @@
                     <p>Inbox Status</p>
                     <div>
                         <h2>{{ number_format($statusCounts['open']) }} Open</h2>
-                        <a href="{{ route('crm.conversations', ['status' => 'open']) }}">View</a>
+                        <a href="{{ route('crm.conversations', ['status' => 'open']) }}">
+                            <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                            View
+                        </a>
                     </div>
                     <div>
                         <h2>{{ number_format($notificationCount) }} Needs Reply</h2>
-                        <a href="{{ route('crm.notifications') }}">View</a>
+                        <a href="{{ route('crm.notifications') }}">
+                            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+                            View
+                        </a>
                     </div>
                 </article>
 
@@ -88,7 +106,10 @@
                         <div>
                             <p>Channels</p>
                         </div>
-                        <a class="panel-button" href="{{ route('crm.channels') }}">Open</a>
+                        <a class="panel-button" href="{{ route('crm.channels') }}">
+                            <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+                            Open
+                        </a>
                     </div>
                     @foreach($channelMetrics as $channel)
                         @php($channelKey = strtolower($channel['name']))

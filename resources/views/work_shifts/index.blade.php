@@ -22,8 +22,14 @@
             <h1>Quan ly ca truc CSKH</h1>
         </div>
         <nav aria-label="Dieu huong nhanh">
-            <a href="{{ route('crm.conversations') }}">Conversations</a>
-            <a href="{{ route('dashboard') }}">Dashboard</a>
+            <a href="{{ route('crm.conversations') }}">
+                <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+                Conversations
+            </a>
+            <a href="{{ route('dashboard') }}">
+                <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+                Dashboard
+            </a>
         </nav>
     </header>
 
@@ -76,7 +82,10 @@
 
                 <footer>
                     <small data-form-message>Chon dung 2 nhan vien cho moi ca truc.</small>
-                    <button type="submit">Tao ca truc</button>
+                    <button type="submit">
+                        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                        Tao ca truc
+                    </button>
                 </footer>
             </form>
         </article>
@@ -135,14 +144,20 @@
 
                         <footer>
                             <small data-form-message>Chon dung 2 nhan vien cho moi ca truc.</small>
-                            <button type="submit">Luu thay doi</button>
+                            <button type="submit">
+                                <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                                Luu thay doi
+                            </button>
                         </footer>
                     </form>
 
                     <form class="work-shifts-delete" method="POST" action="{{ route('work-shifts.destroy', $shift) }}" data-delete-shift>
                         @csrf
                         @method('DELETE')
-                        <button type="submit">Xoa ca</button>
+                        <button type="submit">
+                            <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                            Xoa ca
+                        </button>
                     </form>
                 </article>
             @empty

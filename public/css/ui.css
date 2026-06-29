@@ -53,6 +53,22 @@ input {
     -webkit-font-smoothing: antialiased;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+button .material-symbols-outlined,
+a .material-symbols-outlined,
+label .material-symbols-outlined {
+    flex: 0 0 auto;
+    font-size: 18px;
+}
+
 a {
     color: inherit;
 }
@@ -133,6 +149,7 @@ a {
     text-decoration: none;
     font-weight: 800;
     cursor: pointer;
+    gap: 7px;
 }
 
 .customers-toolbar a {
@@ -359,6 +376,10 @@ a {
 }
 
 .login-form button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     background: #111827;
     color: #fff;
 }
@@ -373,7 +394,10 @@ a {
 }
 
 .facebook-login-button {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     min-height: 46px;
     border-radius: 8px;
     padding: 13px 18px;
@@ -463,6 +487,10 @@ a {
 
 .facebook-page-card button,
 .facebook-pages-panel header a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     border: 0;
     border-radius: 999px;
     padding: 10px 16px;
@@ -1006,6 +1034,7 @@ kbd {
     background: #fff;
     font-size: 14px;
     text-decoration: none;
+    gap: 7px;
 }
 
 .page-actions a:hover,
@@ -2531,6 +2560,10 @@ kbd {
 
 .conversation-claim-bar button {
     min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border-radius: 999px;
     padding: 0 14px;
     background: #111;

@@ -45,7 +45,7 @@
                     </div>
                     <div class="messenger-filter-menu">
                         <button type="button" class="messenger-filter-button" aria-label="Loc tag hoi thoai">
-                            <span></span>
+                            <span class="material-symbols-outlined" aria-hidden="true">filter_list</span>
                         </button>
                         <nav class="messenger-tag-menu" aria-label="Loc tag hoi thoai">
                             <a
@@ -178,14 +178,20 @@
                                 <option value="{{ $agent->id }}" @selected((int) $activeConversation->assigned_to === (int) $agent->id)>{{ $agent->name }}</option>
                             @endforeach
                         </select>
-                        <button type="submit">Lưu</button>
+                        <button type="submit">
+                            <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                            Lưu
+                        </button>
                         <small data-assign-status></small>
                     </form>
                 @endif
             </header>
             <div class="conversation-claim-bar {{ $canClaim || ! $canReply ? '' : 'is-hidden' }}" data-claim-bar>
                 <span data-claim-status>{{ $canClaim ? 'Hoi thoai moi trong ca truc cua ban.' : 'Ban can nhan xu ly truoc khi tra loi.' }}</span>
-                <button type="button" data-claim-button data-claim-url="{{ route('crm.conversations.claim', $activeConversation) }}" {{ $canClaim ? '' : 'disabled' }}>Nhan xu ly</button>
+                <button type="button" data-claim-button data-claim-url="{{ route('crm.conversations.claim', $activeConversation) }}" {{ $canClaim ? '' : 'disabled' }}>
+                    <span class="material-symbols-outlined" aria-hidden="true">how_to_reg</span>
+                    Nhan xu ly
+                </button>
             </div>
 
             <section
@@ -277,8 +283,14 @@
                 <input type="hidden" name="message_mode" value="message" data-message-mode>
                 @php($activeTagNames = $activeConversation->tags->pluck('name')->all())
                 <div class="composer-tabs" data-conversation-tags data-tags-url="{{ route('crm.conversations.tags.store', $activeConversation) }}">
-                    <button type="button" class="composer-mode active" data-composer-mode="message">Nhắn Tin</button>
-                    <button type="button" class="composer-mode" data-composer-mode="whisper">Thì Thầm</button>
+                    <button type="button" class="composer-mode active" data-composer-mode="message">
+                        <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+                        Nhắn Tin
+                    </button>
+                    <button type="button" class="composer-mode" data-composer-mode="whisper">
+                        <span class="material-symbols-outlined" aria-hidden="true">visibility_off</span>
+                        Thì Thầm
+                    </button>
                     <b></b>
                     @foreach($tagPresets as $tag)
                         @php($tagName = $tag['name'])
@@ -297,10 +309,14 @@
                 <div class="composer-bottom-row">
                     <div class="composer-actions" aria-label="Message tools">
                         <label class="composer-attach-button" title="Dinh kem file, anh, video">
+                            <span class="material-symbols-outlined" aria-hidden="true">attach_file</span>
                             Đính Kèm
                             <input type="file" name="attachments[]" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" multiple data-composer-files>
                         </label>
-                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>Gui</button>
+                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>
+                            <span class="material-symbols-outlined" aria-hidden="true">send</span>
+                            <span class="sr-only">Gui</span>
+                        </button>
                     </div>
                 </div>
                 <div class="composer-file-list" data-composer-file-list></div>
@@ -319,7 +335,9 @@
         @if($activeConversation)
             <section class="profile-contact-full" data-contact-full hidden>
                 <header>
-                    <button type="button" data-contact-back>&lt;</button>
+                    <button type="button" data-contact-back aria-label="Quay lai">
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                    </button>
                     <h4>Chi Tiết Liên Hệ</h4>
                 </header>
                 <div class="profile-contact-full-body">
@@ -355,7 +373,10 @@
                                 <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chua co kenh' }}" data-contact-channel disabled>
                             </label>
                             <div class="profile-contact-actions">
-                                <button type="submit">Save</button>
+                                <button type="submit">
+                                    <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                                    Save
+                                </button>
                                 <small data-contact-status></small>
                             </div>
                         </form>
@@ -365,7 +386,9 @@
 
             <section class="profile-notes-full" data-notes-full hidden>
                 <header>
-                    <button type="button" data-notes-back>&lt;</button>
+                    <button type="button" data-notes-back aria-label="Quay lai">
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                    </button>
                     <h4>Tất Cả Ghi Chú</h4>
                 </header>
                 <div class="profile-note-list is-full" data-note-list-full>
@@ -384,7 +407,10 @@
             <div class="profile-panel-main" data-profile-main>
             <header class="profile-panel-title">
                 <h3>Thông Tin Khách Hàng</h3>
-                <button type="button" class="profile-contact-toggle" data-contact-toggle>Chinh sua</button>
+                <button type="button" class="profile-contact-toggle" data-contact-toggle>
+                    <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                    Chinh sua
+                </button>
             </header>
 
             <section class="profile-card-head">
@@ -398,7 +424,10 @@
                 </span>
                 <div>
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
-                    <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi Tiết Liên Hệ</button>
+                    <button type="button" class="profile-contact-toggle" data-contact-toggle>
+                        <span class="material-symbols-outlined" aria-hidden="true">badge</span>
+                        Chi Tiết Liên Hệ
+                    </button>
                 </div>
             </section>
 
@@ -412,7 +441,11 @@
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
                 <header>
                     <h4>Ghi Chú (<span data-note-count>{{ count($profilePanel['notes']) }}</span>)</h4>
-                    <button type="button" data-notes-toggle>Xem tat ca &gt;</button>
+                    <button type="button" data-notes-toggle>
+                        <span class="material-symbols-outlined" aria-hidden="true">notes</span>
+                        Xem tat ca
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                    </button>
                 </header>
                 <textarea rows="3" placeholder="Nhập Ghi Chú Và Ấn Enter" data-note-input></textarea>
             </section>

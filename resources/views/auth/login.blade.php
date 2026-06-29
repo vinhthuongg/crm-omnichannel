@@ -33,11 +33,17 @@
                 <span>Giữ đăng nhập</span>
             </label>
 
-            <button type="submit">Vào dashboard</button>
+            <button type="submit">
+                <span class="material-symbols-outlined" aria-hidden="true">login</span>
+                Vào dashboard
+            </button>
         </form>
 
         <div class="login-divider"><span>hoac</span></div>
-        <a class="facebook-login-button" href="{{ route('facebook.redirect') }}">Dang nhap bang Facebook</a>
+        <a class="facebook-login-button" href="{{ route('facebook.redirect') }}">
+            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
+            Dang nhap bang Facebook
+        </a>
     </section>
 
     <aside class="login-insight">

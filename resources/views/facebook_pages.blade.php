@@ -15,8 +15,14 @@
                 <h1>Chon fanpage cua Messenger App</h1>
             </div>
             <div class="facebook-page-actions">
-                <a href="{{ route('facebook.redirect') }}">Ket noi Facebook</a>
-                <a href="{{ route('crm.conversations') }}">Vao CRM</a>
+                <a href="{{ route('facebook.redirect') }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">add_link</span>
+                    Ket noi Facebook
+                </a>
+                <a href="{{ route('crm.conversations') }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+                    Vao CRM
+                </a>
             </div>
         </header>
 
@@ -43,12 +49,18 @@
                         <form method="POST" action="{{ route('facebook.connect-page') }}">
                             @csrf
                             <input type="hidden" name="page_id" value="{{ $page->id }}">
-                            <button type="submit">{{ $connected ? 'Cap nhat ket noi' : 'Ket noi' }}</button>
+                            <button type="submit">
+                                <span class="material-symbols-outlined" aria-hidden="true">{{ $connected ? 'sync' : 'link' }}</span>
+                                {{ $connected ? 'Cap nhat ket noi' : 'Ket noi' }}
+                            </button>
                         </form>
                         @if($connected)
                             <form method="POST" action="{{ route('facebook.pages.sync-messages', $connectedPages[$page->id]) }}">
                                 @csrf
-                                <button type="submit">Dong bo tin nhan</button>
+                                <button type="submit">
+                                    <span class="material-symbols-outlined" aria-hidden="true">cloud_sync</span>
+                                    Dong bo tin nhan
+                                </button>
                             </form>
                         @endif
                     </article>

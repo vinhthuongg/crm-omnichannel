@@ -395,33 +395,9 @@ body.messenger-page .messenger-tag-menu a.active {
     color: var(--chat-blue);
 }
 
-body.messenger-page .messenger-filter-button span,
-body.messenger-page .messenger-filter-button span::before,
-body.messenger-page .messenger-filter-button span::after {
-    display: block;
-    height: 2px;
-    border-radius: 999px;
-    background: var(--chat-blue);
-}
-
-body.messenger-page .messenger-filter-button span {
-    width: 12px;
-}
-
-body.messenger-page .messenger-filter-button span::before,
-body.messenger-page .messenger-filter-button span::after {
-    content: "";
-    margin-top: 3px;
-}
-
-body.messenger-page .messenger-filter-button span::before {
-    width: 16px;
-    transform: translateY(-5px);
-}
-
-body.messenger-page .messenger-filter-button span::after {
-    width: 7px;
-    transform: translateY(-2px);
+body.messenger-page .messenger-filter-button .material-symbols-outlined {
+    color: var(--chat-blue);
+    font-size: 20px;
 }
 
 body.messenger-page .messenger-search {
@@ -748,6 +724,10 @@ body.messenger-page .conversation-assign-form select {
 
 body.messenger-page .conversation-assign-form button {
     min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: 1px solid var(--chat-line);
     border-radius: 8px;
     background: #fff;
@@ -939,6 +919,16 @@ body.messenger-page .composer-tabs span {
     font-weight: 900;
 }
 
+body.messenger-page .composer-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+body.messenger-page .composer-mode .material-symbols-outlined {
+    font-size: 15px;
+}
+
 body.messenger-page .composer-mode.active {
     border-color: var(--chat-blue);
     background: var(--chat-blue);
@@ -993,8 +983,10 @@ body.messenger-page .composer-actions label {
     min-width: 36px;
     width: auto;
     height: 34px;
-    display: grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: 1px solid var(--chat-line);
     border-radius: 8px;
     background: #fff;
@@ -1010,14 +1002,18 @@ body.messenger-page .composer-actions label input {
 }
 
 body.messenger-page .composer-actions .composer-send-button {
-    width: auto;
-    min-width: 52px;
+    width: 40px;
+    min-width: 40px;
     height: 38px;
     border-radius: 999px;
     background: var(--chat-red);
     border-color: var(--chat-red);
     color: #fff;
     font-size: 13px;
+}
+
+body.messenger-page .composer-send-button .material-symbols-outlined {
+    font-size: 20px;
 }
 
 body.messenger-page .composer-file-list {
@@ -1106,6 +1102,9 @@ body.messenger-page .channel-lead-badge {
 }
 
 body.messenger-page .profile-contact-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     border: 0;
     background: transparent;
     color: var(--chat-blue);
@@ -1195,6 +1194,10 @@ body.messenger-page .profile-notes textarea {
 body.messenger-page .profile-contact-actions button,
 body.messenger-page .profile-section button {
     min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: 1px solid var(--chat-blue);
     border-radius: 8px;
     background: var(--chat-blue);
