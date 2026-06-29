@@ -209,103 +209,118 @@
         @elseif(($activeSection ?? 'dashboard') === 'activity')
             @php
                 $activityTotal = $activityLogs->count();
-                $activityToday = $activityLogs->filter(fn ($log) => $log->created_at?->isToday())->count();
-                $activityUsers = $activityLogs->pluck('user_id')->filter()->unique()->count();
-                $latestActivity = $activityLogs->first()?->created_at?->diffForHumans() ?? 'Chua co du lieu';
             @endphp
 
             <section class="activity-log-page">
                 <header class="activity-page-header">
                     <div>
-                        <p>Activity Log</p>
-                        <h1>Nhật ký hoạt động</h1>
-                        <span>Theo dõi thao tác của nhân viên, hệ thống và các luồng chăm sóc khách hàng.</span>
+                        <h1>Activity Log</h1>
+                        <span>Track all system actions, assignments, and customer interactions.</span>
                     </div>
-                    <a href="{{ route('crm.conversations') }}">
-                        Xem hội thoại
+                    <a class="activity-export-button" href="{{ route('crm.activity') }}">
+                        <span class="material-symbols-outlined" aria-hidden="true">download</span>
+                        Export CSV
                     </a>
                 </header>
 
-                <section class="activity-summary-grid">
-                    <article>
-                        <span class="material-symbols-outlined" aria-hidden="true">history</span>
-                        <p>Tổng bản ghi gần đây</p>
-                        <strong>{{ number_format($activityTotal) }}</strong>
-                    </article>
-                    <article>
-                        <span class="material-symbols-outlined" aria-hidden="true">today</span>
-                        <p>Hoạt động hôm nay</p>
-                        <strong>{{ number_format($activityToday) }}</strong>
-                    </article>
-                    <article>
-                        <span class="material-symbols-outlined" aria-hidden="true">groups</span>
-                        <p>Nhân viên liên quan</p>
-                        <strong>{{ number_format($activityUsers) }}</strong>
-                    </article>
-                    <article>
-                        <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
-                        <p>Cập nhật mới nhất</p>
-                        <strong>{{ $latestActivity }}</strong>
-                    </article>
+                <section class="activity-filter-panel" aria-label="Activity filters">
+                    <div class="activity-filter-row">
+                        <label>
+                            <span>Timeframe:</span>
+                            <select>
+                                <option>Today</option>
+                                <option>This week</option>
+                                <option>This month</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Agent:</span>
+                            <select>
+                                <option>All Agents</option>
+                                @foreach($activityLogs->pluck('user.name')->filter()->unique()->take(6) as $agentName)
+                                    <option>{{ $agentName }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <div class="activity-group-tabs" aria-label="Action group">
+                            <button class="active" type="button">All</button>
+                            <button type="button">Conversations</button>
+                            <button type="button">Customers</button>
+                            <button type="button">System</button>
+                        </div>
+                    </div>
+                    <label class="activity-keyword-filter">
+                        <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                        <input type="search" placeholder="Filter by keyword...">
+                    </label>
                 </section>
 
-                <section class="activity-layout">
-                    <article class="activity-feed-panel">
-                        <header>
-                            <div>
-                                <h2>Dòng hoạt động</h2>
-                                <p>Các thao tác mới nhất trong phạm vi dữ liệu được phép xem.</p>
-                            </div>
-                        </header>
+                <section class="activity-feed-panel">
+                    <header>
+                        <h2>Recent Activity</h2>
+                    </header>
 
-                        <div class="activity-feed">
-                            @forelse($activityLogs as $log)
-                                @php
-                                    $metadata = collect($log->metadata ?? []);
-                                    $actionLabel = \Illuminate\Support\Str::headline(str_replace(['.', '_', '-'], ' ', (string) $log->action));
-                                    $subjectLabel = $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : 'He thong';
-                                @endphp
-                                <article class="activity-feed-item">
-                                    <span class="activity-feed-icon">
-                                        <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
-                                    </span>
-                                    <div>
-                                        <header>
-                                            <h3>{{ $actionLabel ?: 'Hoat dong' }}</h3>
-                                            <time>{{ $log->created_at?->format('H:i d/m/Y') }}</time>
-                                        </header>
+                    <div class="activity-feed">
+                        @forelse($activityLogs as $log)
+                            @php
+                                $metadata = collect($log->metadata ?? []);
+                                $action = (string) $log->action;
+                                $actionLabel = \Illuminate\Support\Str::headline(str_replace(['.', '_', '-'], ' ', $action));
+                                $actor = $log->user?->name ?: (str_contains($action, 'auto') ? 'System Auto-Reply' : 'System Admin');
+                                $subjectLabel = $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : 'CRM';
+                                $isSystem = ! $log->user_id || str_contains($action, 'system') || str_contains($action, 'auto');
+                                $channel = strtolower((string) ($metadata->get('channel') ?: $metadata->get('source') ?: 'System'));
+                                $badge = in_array($channel, ['facebook', 'zalo'], true) ? ucfirst($channel) : 'System';
+                                $detail = $metadata->isNotEmpty()
+                                    ? $metadata->map(fn ($value, $key) => \Illuminate\Support\Str::headline((string) $key).': '.(is_scalar($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE)))->take(1)->implode('')
+                                    : '# '.$subjectLabel;
+                            @endphp
+                            <article class="activity-feed-item {{ $isSystem ? 'is-system' : '' }}">
+                                <span class="activity-feed-icon">
+                                    @if($isSystem)
+                                        <span class="material-symbols-outlined" aria-hidden="true">smart_toy</span>
+                                    @else
+                                        {{ strtoupper(substr($actor, 0, 1)) }}
+                                    @endif
+                                </span>
+                                <div class="activity-card">
+                                    <div class="activity-card-main">
                                         <p>
-                                            {{ $log->user?->name ?? 'System' }}
-                                            <span>•</span>
-                                            {{ $subjectLabel }}
+                                            <strong>{{ $actor }}</strong>
+                                            <span>{{ strtolower($actionLabel ?: 'updated activity') }}</span>
+                                            <a href="{{ route('crm.activity') }}">{{ $subjectLabel }}</a>
                                         </p>
-                                        @if($metadata->isNotEmpty())
-                                            <dl>
-                                                @foreach($metadata->take(3) as $key => $value)
-                                                    <div>
-                                                        <dt>{{ \Illuminate\Support\Str::headline((string) $key) }}</dt>
-                                                        <dd>{{ is_scalar($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE) }}</dd>
-                                                    </div>
-                                                @endforeach
-                                            </dl>
-                                        @endif
+                                        <div class="activity-meta-line">
+                                            <span>{{ $detail }}</span>
+                                            <b class="activity-badge {{ strtolower($badge) }}">{{ $badge }}</b>
+                                        </div>
                                     </div>
-                                </article>
-                            @empty
-                                <div class="activity-empty">
-                                    <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
-                                    <p>Chưa có hoạt động nào được ghi nhận.</p>
+                                    <time>
+                                        <strong>{{ $log->created_at?->isToday() ? $log->created_at?->format('H:i A') : $log->created_at?->diffForHumans() }}</strong>
+                                        <span>{{ $log->created_at?->isToday() ? 'TODAY' : $log->created_at?->format('H:i A') }}</span>
+                                    </time>
                                 </div>
-                            @endforelse
-                        </div>
-                    </article>
+                            </article>
+                        @empty
+                            <div class="activity-empty">
+                                <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
+                                <p>Chua co hoat dong nao duoc ghi nhan.</p>
+                            </div>
+                        @endforelse
+                    </div>
 
-                    <aside class="activity-side-panel">
-                        <h2>Bộ lọc nhanh</h2>
-                        <a href="{{ route('crm.activity') }}">Tất cả hoạt động</a>
-                        <a href="{{ route('crm.conversations') }}">Hoạt động hội thoại</a>
-                        <a href="{{ route('crm.customers') }}">Hoạt động khách hàng</a>
-                    </aside>
+                    <footer class="activity-pagination">
+                        <span>Showing 1-{{ $activityTotal }} of {{ $activityTotal }} activities</span>
+                        <nav aria-label="Activity pagination">
+                            <button type="button" disabled>&lsaquo;</button>
+                            <b>1</b>
+                            <button type="button">2</button>
+                            <button type="button">3</button>
+                            <span>...</span>
+                            <button type="button">12</button>
+                            <button type="button">&rsaquo;</button>
+                        </nav>
+                    </footer>
                 </section>
             </section>
         @elseif(($activeSection ?? 'dashboard') === 'settings')
