@@ -16,11 +16,9 @@
             </div>
             <div class="facebook-page-actions">
                 <a href="{{ route('facebook.redirect') }}">
-                    <span class="material-symbols-outlined" aria-hidden="true">add_link</span>
                     Ket noi Facebook
                 </a>
                 <a href="{{ route('crm.conversations') }}">
-                    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
                     Vao CRM
                 </a>
             </div>
@@ -50,7 +48,6 @@
                             @csrf
                             <input type="hidden" name="page_id" value="{{ $page->id }}">
                             <button type="submit">
-                                <span class="material-symbols-outlined" aria-hidden="true">{{ $connected ? 'sync' : 'link' }}</span>
                                 {{ $connected ? 'Cap nhat ket noi' : 'Ket noi' }}
                             </button>
                         </form>
@@ -58,7 +55,6 @@
                             <form method="POST" action="{{ route('facebook.pages.sync-messages', $connectedPages[$page->id]) }}">
                                 @csrf
                                 <button type="submit">
-                                    <span class="material-symbols-outlined" aria-hidden="true">cloud_sync</span>
                                     Dong bo tin nhan
                                 </button>
                             </form>

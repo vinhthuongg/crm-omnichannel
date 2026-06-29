@@ -18,14 +18,12 @@
     </form>
     <div class="topbar-spacer"></div>
     <a class="help-link" href="{{ route('crm.settings', ['panel' => 'help']) }}">
-        <span class="material-symbols-outlined" aria-hidden="true">help</span>
         Help Center
     </a>
     <a class="profile-link" href="{{ route('crm.settings', ['panel' => 'profile']) }}">{{ $currentUser->name }}</a>
     <form method="POST" action="{{ route('logout') }}" class="account-menu">
         @csrf
         <button type="submit">
-            <span class="material-symbols-outlined" aria-hidden="true">logout</span>
             Dang xuat
         </button>
     </form>

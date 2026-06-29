@@ -846,7 +846,7 @@ kbd {
 
 .side-nav a {
     min-height: 42px;
-    grid-template-columns: 26px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
     border-left: 4px solid transparent;
     border-radius: 0;
@@ -861,13 +861,6 @@ kbd {
     border-left-color: #d70616;
     background: #eaf1ff;
     color: #111827;
-}
-
-.side-nav .nav-material-icon {
-    width: auto;
-    color: #7c2d12;
-    font-weight: 400;
-    font-size: 20px;
 }
 
 .team-switcher {

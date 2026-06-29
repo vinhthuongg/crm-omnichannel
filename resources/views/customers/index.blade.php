@@ -15,7 +15,6 @@
             </div>
             <div class="page-actions">
                 <a href="{{ route('crm.conversations') }}">
-                    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
                     Open Inbox
                 </a>
             </div>
@@ -51,12 +50,10 @@
                     </select>
                 </label>
                 <button type="submit">
-                    <span class="material-symbols-outlined" aria-hidden="true">filter_alt</span>
                     Loc
                 </button>
                 @if($filters['q'] !== '' || $filters['channel'] !== '')
                     <a href="{{ route('crm.customers') }}">
-                        <span class="material-symbols-outlined" aria-hidden="true">filter_alt_off</span>
                         Xoa loc
                     </a>
                 @endif
@@ -127,7 +124,6 @@
                                 <td>
                                     @if($conversation)
                                         <a class="customer-open-link" href="{{ route('crm.conversations.show', $conversation) }}">
-                                            <span class="material-symbols-outlined" aria-hidden="true">chat</span>
                                             Mo chat
                                         </a>
                                     @else

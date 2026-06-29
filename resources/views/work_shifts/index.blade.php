@@ -23,11 +23,9 @@
         </div>
         <nav aria-label="Dieu huong nhanh">
             <a href="{{ route('crm.conversations') }}">
-                <span class="material-symbols-outlined" aria-hidden="true">forum</span>
                 Conversations
             </a>
             <a href="{{ route('dashboard') }}">
-                <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
                 Dashboard
             </a>
         </nav>
@@ -83,7 +81,6 @@
                 <footer>
                     <small data-form-message>Chon dung 2 nhan vien cho moi ca truc.</small>
                     <button type="submit">
-                        <span class="material-symbols-outlined" aria-hidden="true">add</span>
                         Tao ca truc
                     </button>
                 </footer>
@@ -145,7 +142,6 @@
                         <footer>
                             <small data-form-message>Chon dung 2 nhan vien cho moi ca truc.</small>
                             <button type="submit">
-                                <span class="material-symbols-outlined" aria-hidden="true">save</span>
                                 Luu thay doi
                             </button>
                         </footer>
@@ -155,7 +151,6 @@
                         @csrf
                         @method('DELETE')
                         <button type="submit">
-                            <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                             Xoa ca
                         </button>
                     </form>
