@@ -32,7 +32,7 @@
     <nav class="side-nav" aria-label="CRM navigation">
         @foreach($navItems as $item)
             <a class="{{ ($activeSection ?? '') === $item['section'] ? 'active' : '' }}" href="{{ route($item['route']) }}">
-                {{ $navLabels[$item['section']] ?? $item['label'] }}
+                <span class="material-symbols-outlined nav-material-icon" aria-hidden="true">{{ $item['icon'] }}</span>{{ $navLabels[$item['section']] ?? $item['label'] }}
             </a>
         @endforeach
     </nav>
