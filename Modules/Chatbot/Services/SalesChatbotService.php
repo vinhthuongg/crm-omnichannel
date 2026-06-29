@@ -214,7 +214,7 @@ class SalesChatbotService
             $label = 'Vay tra gop';
         }
 
-        if ($topic === '' && $model !== '') {
+        if ($topic === '' && $model !== '' && ($this->isVehicleBuyingIntent($detail) || $this->isCommercialDataIntent($detail))) {
             $topic = 'PRICE_BY_AREA';
             $label = 'Bao gia lan banh';
         }
@@ -232,8 +232,16 @@ class SalesChatbotService
             'state_step' => $state['step'] ?? null,
         ]);
 
-        if ($directMatches === [] && $this->needsSpecificVehicle($topic, $detail)) {
-            return $this->askForVehicleModel($state);
+        if ($directMatches === []) {
+            if ($model === '' && $this->needsSpecificVehicle($topic, $detail)) {
+                return $this->askForVehicleModel($state);
+            }
+
+            if ($this->isCommercialDataIntent($detail) || $this->isCommercialTopic($topic)) {
+                return $this->noVerifiedCommercialDataAnswer($state, $detail, $topic, $model);
+            }
+
+            return $this->conversationalAnswer($conversation, $state, $detail);
         }
 
         $matches = $directMatches;
@@ -244,7 +252,7 @@ class SalesChatbotService
         $context = collect($matches)->pluck('text')->implode("\n");
 
         if ($context === '') {
-            return $this->askForVehicleModel($state);
+            return $this->conversationalAnswer($conversation, $state, $detail);
         }
 
         try {
@@ -265,6 +273,84 @@ class SalesChatbotService
             : "Dạ em đã ghi nhận nhu cầu {$detail} của Anh/Chị.";
 
         return $summary."\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ gọi lại ngay để tư vấn chi tiết và xác nhận báo giá/ưu đãi chính xác nhất ạ.";
+    }
+
+    private function conversationalAnswer(Conversation $conversation, array $state, string $content): string
+    {
+        $model = $this->conversationModel($state, $content);
+        $fallback = $model !== ''
+            ? "Dạ em nghe Anh/Chị ạ. Với mẫu {$model}, em có thể hỗ trợ mình xem giá lăn bánh, ưu đãi, trả góp hoặc tư vấn phiên bản phù hợp.\n\nAnh/Chị muốn em kiểm tra phần nào trước ạ?"
+            : "Dạ em nghe Anh/Chị ạ. Em rất sẵn lòng hỗ trợ mình.\n\nNếu Anh/Chị đang xem xe Toyota, Anh/Chị có thể nhắn nhu cầu như đi gia đình, đi làm, cần xe tiết kiệm, muốn trả góp hoặc mẫu xe đang quan tâm. Em sẽ tư vấn từng bước cho mình ạ.";
+
+        try {
+            $answer = $this->nim->chat(
+                $this->conversationalPrompt(),
+                "KHACH_NHAN: ".trim($content)."\nMAU_XE_DANG_QUAN_TAM: ".($model !== '' ? $model : 'chua co')."\nNGU_CANH_TRUOC: ".json_encode($state, JSON_UNESCAPED_UNICODE),
+            );
+        } catch (\Throwable) {
+            $answer = null;
+        }
+
+        $answer = trim((string) $answer);
+
+        return $answer !== ''
+            ? $this->guardCommercialClaims($answer, $fallback)
+            : $fallback;
+    }
+
+    private function noVerifiedCommercialDataAnswer(array $state, string $detail, string $topic, string $model): string
+    {
+        if ($model === '' && $this->needsSpecificVehicle($topic, $detail)) {
+            return $this->askForVehicleModel($state);
+        }
+
+        $target = $model !== '' ? "cho mẫu {$model}" : 'theo nhu cầu này';
+
+        return "Dạ em đã nhận thông tin của Anh/Chị.\n\nRiêng phần giá xe, khuyến mãi và trả góp {$target}, hiện em chưa thấy dữ liệu xác thực phù hợp trong hệ thống nên em không tự báo số để tránh sai thông tin.\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ kiểm tra trực tiếp và phản hồi thông tin chính xác cho mình ạ.";
+    }
+
+    private function guardCommercialClaims(string $answer, string $fallback): string
+    {
+        $normalized = str($answer)->lower()->ascii()->squish()->toString();
+        $hasUnsafeNumber = preg_match('/\b\d{2,4}([.,]\d{3}){1,}\b/u', $answer) === 1
+            || preg_match('/\b\d{1,4}\s*(trieu|ty|%|phan tram|dong)\b/u', $normalized) === 1;
+
+        if ($hasUnsafeNumber && (
+            str_contains($normalized, 'gia')
+            || str_contains($normalized, 'khuyen mai')
+            || str_contains($normalized, 'uu dai')
+            || str_contains($normalized, 'tra gop')
+            || str_contains($normalized, 'lai suat')
+        )) {
+            return $fallback;
+        }
+
+        return $answer;
+    }
+
+    private function isCommercialTopic(string $topic): bool
+    {
+        return in_array($topic, ['PRICE_BY_AREA', 'PROMOTIONS', 'INSTALLMENT_LOAN', 'VEHICLE_AVAILABILITY'], true);
+    }
+
+    private function isCommercialDataIntent(string $content): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        return str_contains($normalized, 'gia')
+            || str_contains($normalized, 'bao gia')
+            || str_contains($normalized, 'lan banh')
+            || str_contains($normalized, 'khuyen mai')
+            || str_contains($normalized, 'uu dai')
+            || str_contains($normalized, 'giam gia')
+            || str_contains($normalized, 'tra gop')
+            || str_contains($normalized, 'lai suat')
+            || str_contains($normalized, 'vay')
+            || str_contains($normalized, 'ngan hang')
+            || str_contains($normalized, 'mau xe')
+            || str_contains($normalized, 'giao xe')
+            || str_contains($normalized, 'con xe')
+            || str_contains($normalized, 'tinh trang xe');
     }
 
     private function needsSpecificVehicle(string $topic, string $detail): bool
@@ -1039,6 +1125,24 @@ class SalesChatbotService
             ->take(3)
             ->map(fn (string $line): string => '- '.trim($line))
             ->implode("\n");
+    }
+
+    private function conversationalPrompt(): string
+    {
+        return <<<'PROMPT'
+Bạn là trợ lý tư vấn của Toyota Kiên Giang.
+
+Nhiệm vụ:
+- Luôn trả lời vui vẻ, lịch sự, gần gũi, không bỏ mặc khách dù khách nói chuyện ngoài chủ đề.
+- Nếu khách đùa, hỏi chuyện đời thường, nói chưa rõ nhu cầu: phản hồi tự nhiên 1-3 câu rồi khéo léo kéo về nhu cầu mua xe/tư vấn Toyota.
+- Không được tự bịa giá xe, khuyến mãi, ưu đãi, lãi suất, số tiền trả trước, thời gian giao xe, màu xe còn hàng.
+- Nếu khách hỏi các thông tin thương mại đó mà không có CONTEXT dữ liệu xác thực, hãy nói cần kiểm tra lại và xin số điện thoại/Zalo.
+- Có thể tư vấn chung về cách chọn xe theo nhu cầu, trải nghiệm mua xe, hồ sơ cần chuẩn bị, nhưng không nêu con số cụ thể nếu không có nguồn.
+- Xưng "em", gọi khách là "Anh/Chị".
+- Trả lời tiếng Việt, ngắn gọn, dễ đọc, chuyên nghiệp.
+
+Không dùng format cứng. Hãy trò chuyện tự nhiên như một tư vấn viên đang trực chat.
+PROMPT;
     }
 
     private function systemPrompt(): string
