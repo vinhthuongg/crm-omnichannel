@@ -89,7 +89,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if($customers->isEmpty())
+                        @if($customerRows->isEmpty())
                             <tr>
                                 <td colspan="7">
                                     <div class="customers-empty">
@@ -99,52 +99,34 @@
                                 </td>
                             </tr>
                         @else
-                        @foreach($customers as $customer)
-                            @php
-                                $conversation = $latestConversations->get($customer->id);
-                                $primaryChannel = $customer->channels->first();
-                                $channelName = ucfirst($primaryChannel?->channel ?: 'Khac');
-                                $interestTags = ($conversation?->tags?->isNotEmpty() ? $conversation->tags : $customer->tags)->take(2);
-                                $status = $conversation?->status ?: 'open';
-                                $statusLabel = match ($status) {
-                                    'pending' => 'Dang cho',
-                                    'closed' => 'Da dong',
-                                    default => 'Dang xu ly',
-                                };
-                                $statusClass = match ($status) {
-                                    'pending' => 'waiting',
-                                    'closed' => 'success',
-                                    default => 'active',
-                                };
-                                $lastAt = $customer->last_message_at ? \Illuminate\Support\Carbon::parse($customer->last_message_at) : null;
-                            @endphp
+                        @foreach($customerRows as $row)
                             <tr>
                                 <td>
                                     <div class="customer-person">
                                         <span class="customer-avatar">
-                                            @if($customer->avatar)
-                                                <img src="{{ $customer->avatar }}" alt="{{ $customer->name ?: 'Khach hang' }}">
+                                            @if($row['avatar'])
+                                                <img src="{{ $row['avatar'] }}" alt="{{ $row['name'] }}">
                                             @else
-                                                {{ strtoupper(substr($customer->name ?: 'K', 0, 1)) }}
+                                                {{ $row['initial'] }}
                                             @endif
                                         </span>
                                         <span>
-                                            <span class="customer-name">{{ $customer->name ?: 'Khach hang #'.$customer->id }}</span>
-                                            <small class="customer-source customer-source-{{ strtolower($primaryChannel?->channel ?: 'other') }}">
-                                                {{ $channelName }}
+                                            <span class="customer-name">{{ $row['name'] }}</span>
+                                            <small class="customer-source customer-source-{{ $row['channel'] }}">
+                                                {{ $row['channel_label'] }}
                                             </small>
                                         </span>
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="customer-contact">{{ $customer->phone ?: 'Chua co so dien thoai' }}</span>
-                                    <small>{{ $customer->email ?: 'Chua co email' }}</small>
+                                    <span class="customer-contact">{{ $row['phone'] }}</span>
+                                    <small>{{ $row['email'] }}</small>
                                 </td>
                                 <td>
-                                    @if($interestTags->isNotEmpty())
+                                    @if($row['tags']->isNotEmpty())
                                         <div class="customer-interest-tags">
-                                            @foreach($interestTags as $tag)
-                                                <span style="--tag-color: {{ $tag->color ?: '#2563eb' }}">{{ $tag->name }}</span>
+                                            @foreach($row['tags'] as $tag)
+                                                <span style="--tag-color: {{ $tag['color'] }}">{{ $tag['name'] }}</span>
                                             @endforeach
                                         </div>
                                     @else
@@ -152,25 +134,25 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span>{{ $lastAt ? $lastAt->format('d/m/Y') : 'Chua co' }}</span>
-                                    <small>{{ $lastAt ? $lastAt->format('H:i') : '' }}</small>
+                                    <span>{{ $row['last_date'] }}</span>
+                                    <small>{{ $row['last_time'] }}</small>
                                 </td>
                                 <td>
-                                    @if($conversation?->assignee)
+                                    @if($row['assignee'])
                                         <span class="customer-agent">
-                                            <span class="customer-agent-avatar">{{ strtoupper(substr($conversation->assignee->name, 0, 1)) }}</span>
-                                            {{ $conversation->assignee->name }}
+                                            <span class="customer-agent-avatar">{{ $row['assignee_initial'] }}</span>
+                                            {{ $row['assignee'] }}
                                         </span>
                                     @else
                                         <span class="customer-muted">Chua gan</span>
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="customer-status customer-status-{{ $statusClass }}">{{ $statusLabel }}</span>
+                                    <span class="customer-status customer-status-{{ $row['status_class'] }}">{{ $row['status_label'] }}</span>
                                 </td>
                                 <td>
-                                    @if($conversation)
-                                        <a class="customer-action-button" href="{{ route('crm.conversations.show', $conversation) }}" aria-label="Mo hoi thoai">
+                                    @if($row['conversation_url'])
+                                        <a class="customer-action-button" href="{{ $row['conversation_url'] }}" aria-label="Mo hoi thoai">
                                             <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
                                         </a>
                                     @else

@@ -92,10 +92,54 @@ class CustomerPageController extends Controller
             ->get()
             ->unique('customer_id')
             ->keyBy('customer_id');
+        $customerRows = $customers->getCollection()
+            ->map(function (Customer $customer) use ($latestConversations): array {
+                $conversation = $latestConversations->get($customer->id);
+                $primaryChannel = $customer->channels->first();
+                $status = $conversation?->status ?: 'open';
+                $lastAt = $customer->last_message_at
+                    ? \Illuminate\Support\Carbon::parse($customer->last_message_at)
+                    : null;
+                $interestTags = ($conversation?->tags?->isNotEmpty() ? $conversation->tags : $customer->tags)
+                    ->take(2)
+                    ->map(fn ($tag): array => [
+                        'name' => $tag->name,
+                        'color' => $tag->color ?: '#2563eb',
+                    ])
+                    ->values();
+
+                return [
+                    'id' => (int) $customer->id,
+                    'name' => $customer->name ?: 'Khach hang #'.$customer->id,
+                    'avatar' => $customer->avatar,
+                    'initial' => strtoupper(substr($customer->name ?: 'K', 0, 1)),
+                    'phone' => $customer->phone ?: 'Chua co so dien thoai',
+                    'email' => $customer->email ?: 'Chua co email',
+                    'channel' => strtolower((string) ($primaryChannel?->channel ?: 'other')),
+                    'channel_label' => ucfirst((string) ($primaryChannel?->channel ?: 'Khac')),
+                    'tags' => $interestTags,
+                    'last_date' => $lastAt?->format('d/m/Y') ?: 'Chua co',
+                    'last_time' => $lastAt?->format('H:i') ?: '',
+                    'assignee' => $conversation?->assignee?->name,
+                    'assignee_initial' => $conversation?->assignee ? strtoupper(substr($conversation->assignee->name, 0, 1)) : null,
+                    'status_label' => match ($status) {
+                        'pending' => 'Dang cho',
+                        'closed' => 'Da dong',
+                        default => 'Dang xu ly',
+                    },
+                    'status_class' => match ($status) {
+                        'pending' => 'waiting',
+                        'closed' => 'success',
+                        default => 'active',
+                    },
+                    'conversation_url' => $conversation ? route('crm.conversations.show', $conversation) : null,
+                ];
+            });
 
         return view('customers.index', [
             'currentUser' => $user,
             'customers' => $customers,
+            'customerRows' => $customerRows,
             'latestConversations' => $latestConversations,
             'filters' => [
                 'q' => $search,
