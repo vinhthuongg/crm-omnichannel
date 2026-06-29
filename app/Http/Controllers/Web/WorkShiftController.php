@@ -14,8 +14,15 @@ class WorkShiftController extends Controller
     public function index(Request $request): View
     {
         abort_unless($request->user()->can('user.manage'), 403);
+        $user = $request->user();
 
         return view('work_shifts.index', [
+            'currentUser' => $user,
+            'activeSection' => 'work_shifts',
+            'navItems' => $this->navItems($user),
+            'sidebar' => [
+                'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
+            ],
             'shifts' => WorkShift::query()->with('agents')->latest('starts_at')->limit(50)->get(),
             'agents' => User::role(['CSKH', 'User'])->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -71,5 +78,31 @@ class WorkShiftController extends Controller
             'agent_ids' => ['required', 'array', 'size:2'],
             'agent_ids.*' => ['integer', 'exists:users,id'],
         ]);
+    }
+
+    private function navItems(User $user): array
+    {
+        $items = [
+            ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'D'],
+            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'C'],
+            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'K'],
+            ['section' => 'agents', 'label' => 'Agents', 'route' => 'crm.agents', 'icon' => 'A'],
+            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'O'],
+            ['section' => 'reports', 'label' => 'Reports', 'route' => 'crm.reports', 'icon' => 'R'],
+            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'L'],
+            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'N'],
+            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'S'],
+        ];
+
+        if ($user->can('user.manage')) {
+            array_splice($items, 4, 0, [[
+                'section' => 'work_shifts',
+                'label' => 'Shifts',
+                'route' => 'work-shifts.index',
+                'icon' => 'T',
+            ]]);
+        }
+
+        return $items;
     }
 }

@@ -2,35 +2,11 @@
 
 @section('content')
 <div class="crm-shell customers-page" data-crm-shell>
-    <aside class="crm-sidebar">
-        <a class="crm-logo" href="{{ route('dashboard') }}">CRM</a>
-
-        <nav class="side-nav" aria-label="CRM navigation">
-            @foreach($navItems as $item)
-                <a class="{{ $item['section'] === 'customers' ? 'active' : '' }}" href="{{ route($item['route']) }}">
-                    <span>{{ $item['icon'] }}</span>{{ $item['label'] }}
-                </a>
-            @endforeach
-        </nav>
-
-        <a class="team-switcher" href="{{ route('crm.agents') }}">
-            <span>{{ substr($sidebar['team_name'], 0, 1) }}</span>
-            <strong>{{ $sidebar['team_name'] }}</strong>
-            <b>v</b>
-        </a>
-    </aside>
+    @php($activeSection = 'customers')
+    @include('partials.crm.chrome')
 
     <main class="crm-main">
-        <header class="crm-topbar">
-            <button class="collapse-button" type="button" aria-label="Toggle sidebar" data-sidebar-toggle>&lt;&gt;</button>
-            <div class="topbar-spacer"></div>
-            <a class="help-link" href="{{ route('crm.settings', ['panel' => 'help']) }}"><span>?</span> Help Center</a>
-            <a class="profile-link" href="{{ route('crm.settings', ['panel' => 'profile']) }}">{{ $currentUser->name }}</a>
-            <form method="POST" action="{{ route('logout') }}" class="account-menu">
-                @csrf
-                <button type="submit">Logout</button>
-            </form>
-        </header>
+        @include('partials.crm.topbar')
 
         <section class="page-title customers-title">
             <div>

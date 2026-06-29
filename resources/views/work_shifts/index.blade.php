@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Ca truc - CRM', 'bodyClass' => 'work-shifts-page', 'useUi' => false])
+@extends('layouts.app', ['title' => 'Ca truc - CRM', 'bodyClass' => 'work-shifts-page'])
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('css/work-shifts.css') }}?v={{ filemtime(public_path('css/work-shifts.css')) }}">
@@ -9,7 +9,13 @@
 @endpush
 
 @section('content')
-<main class="work-shifts-shell" data-work-shifts-page>
+<div class="crm-shell" data-crm-shell>
+    @include('partials.crm.chrome')
+
+    <main class="crm-main">
+        @include('partials.crm.topbar')
+
+<section class="work-shifts-shell" data-work-shifts-page>
     <header class="work-shifts-topbar">
         <div>
             <p>Work Shifts</p>
@@ -147,5 +153,7 @@
             @endforelse
         </section>
     </section>
-</main>
+</section>
+    </main>
+</div>
 @endsection

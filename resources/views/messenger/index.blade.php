@@ -11,73 +11,14 @@
 })
 @php($customerTagOptionsJson = $allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values()->toJson())
 @php($inboxLastMessageId = $conversations->map(fn ($conversation) => (int) ($conversation->messages->first()?->id ?? 0))->max() ?? 0)
-@php($navLabels = [
-    'dashboard' => 'Dashboard',
-    'conversations' => 'Hoi thoai',
-    'customers' => 'Khach hang',
-    'agents' => 'Nhan vien',
-    'work_shifts' => 'Ca truc',
-    'channels' => 'Ket noi mang xa hoi',
-    'reports' => 'Bao cao',
-    'activity' => 'Hoat dong',
-    'activity_log' => 'Thong bao',
-    'notifications' => 'Thong bao',
-    'settings' => 'Cai dat',
-])
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/messenger/chat.css') }}?v={{ filemtime(public_path('css/messenger/chat.css')) }}">
 @endpush
 <div class="crm-shell messenger-crm-shell" data-crm-shell>
-    <aside class="crm-sidebar">
-        <a class="crm-logo" href="{{ route('dashboard') }}">Toyota CRM</a>
-
-        <a class="sidebar-user-card" href="{{ route('crm.settings', ['panel' => 'profile']) }}">
-            <span class="sidebar-user-avatar">
-                @if($currentUser->avatar ?? null)
-                    <img src="{{ $currentUser->avatar }}" alt="{{ $currentUser->name }}">
-                @else
-                    {{ strtoupper(substr($currentUser->name, 0, 1)) }}
-                @endif
-            </span>
-            <span>
-                <strong>{{ $currentUser->name }}</strong>
-                <small>{{ $currentUser->can('conversation.view_all') ? 'CRM Admin' : 'Sales Consultant' }}</small>
-            </span>
-        </a>
-
-        <nav class="side-nav" aria-label="CRM navigation">
-            @foreach($navItems as $item)
-                <a class="{{ $activeSection === $item['section'] ? 'active' : '' }}" href="{{ route($item['route']) }}">
-                    <span>{{ $item['icon'] }}</span>{{ $navLabels[$item['section']] ?? $item['label'] }}
-                </a>
-            @endforeach
-        </nav>
-
-        <a class="team-switcher" href="{{ route('crm.agents') }}">
-            <span>{{ substr($sidebar['team_name'], 0, 1) }}</span>
-            <strong>{{ $sidebar['team_name'] }}</strong>
-            <b>v</b>
-        </a>
-    </aside>
+    @include('partials.crm.chrome')
 
     <main class="crm-main messenger-crm-main">
-        <header class="crm-topbar">
-            <button class="collapse-button" type="button" aria-label="Toggle sidebar" data-sidebar-toggle>&lt;&gt;</button>
-            <div class="topbar-brand">
-                <strong>Toyota CRM</strong>
-                <span>Omnichannel CRM</span>
-            </div>
-            <form class="topbar-global-search" method="GET" action="{{ route('crm.conversations') }}">
-                <input type="search" name="q" placeholder="Tim kiem khach hang, tin nhan..." value="{{ $filters['search'] }}" data-auto-search-input>
-            </form>
-            <div class="topbar-spacer"></div>
-            <a class="help-link" href="{{ route('crm.settings', ['panel' => 'help']) }}"><span>?</span> Help Center</a>
-            <a class="profile-link" href="{{ route('crm.settings', ['panel' => 'profile']) }}">{{ $currentUser->name }}</a>
-            <form method="POST" action="{{ route('logout') }}" class="account-menu">
-                @csrf
-                <button type="submit">Dang xuat</button>
-            </form>
-        </header>
+        @include('partials.crm.topbar')
 
         <div
             class="messenger-shell"
@@ -100,7 +41,7 @@
 <aside class="messenger-list">
                 <div class="messenger-list-head">
                     <div>
-                        <h1>Hoi thoai</h1>
+                        <h1>Hội Thoại</h1>
                     </div>
                     <div class="messenger-filter-menu">
                         <button type="button" class="messenger-filter-button" aria-label="Loc tag hoi thoai">
@@ -232,12 +173,12 @@
                     <form class="conversation-assign-form" data-assign-form data-assign-url="{{ route('crm.conversations.assign', $activeConversation) }}">
                         <label for="conversation-assignee">Phan cong</label>
                         <select id="conversation-assignee" name="assigned_to" data-assign-select>
-                            <option value="">Chon nhan vien</option>
+                            <option value="">Chọn Nhân Viên</option>
                             @foreach($assignableAgents as $agent)
                                 <option value="{{ $agent->id }}" @selected((int) $activeConversation->assigned_to === (int) $agent->id)>{{ $agent->name }}</option>
                             @endforeach
                         </select>
-                        <button type="submit">Luu</button>
+                        <button type="submit">Lưu</button>
                         <small data-assign-status></small>
                     </form>
                 @endif
@@ -336,8 +277,8 @@
                 <input type="hidden" name="message_mode" value="message" data-message-mode>
                 @php($activeTagNames = $activeConversation->tags->pluck('name')->all())
                 <div class="composer-tabs" data-conversation-tags data-tags-url="{{ route('crm.conversations.tags.store', $activeConversation) }}">
-                    <button type="button" class="composer-mode active" data-composer-mode="message">Nhan tin</button>
-                    <button type="button" class="composer-mode" data-composer-mode="whisper">Thi tham</button>
+                    <button type="button" class="composer-mode active" data-composer-mode="message">Nhắn Tin</button>
+                    <button type="button" class="composer-mode" data-composer-mode="whisper">Thì Thầm</button>
                     <b></b>
                     @foreach($tagPresets as $tag)
                         @php($tagName = $tag['name'])
@@ -352,11 +293,11 @@
                     @endforeach
                     <span class="plus">+</span>
                 </div>
-                <textarea name="content" rows="3" placeholder="Nhap noi dung tin nhan va nhan Enter de gui" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
+                <textarea name="content" rows="3" placeholder="Nhập Nội Dung Tin Nhắn" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
                     <div class="composer-actions" aria-label="Message tools">
                         <label class="composer-attach-button" title="Dinh kem file, anh, video">
-                            Dinh kem
+                            Đính Kèm
                             <input type="file" name="attachments[]" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" multiple data-composer-files>
                         </label>
                         <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>Gui</button>
@@ -457,7 +398,7 @@
                 </span>
                 <div>
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
-                    <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi tiet lien he &gt;</button>
+                    <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi Tiết Liên Hệ</button>
                 </div>
             </section>
 
@@ -470,10 +411,10 @@
 
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
                 <header>
-                    <h4>Ghi chu (<span data-note-count>{{ count($profilePanel['notes']) }}</span>) (F6)</h4>
+                    <h4>Ghi Chú (<span data-note-count>{{ count($profilePanel['notes']) }}</span>)</h4>
                     <button type="button" data-notes-toggle>Xem tat ca &gt;</button>
                 </header>
-                <textarea rows="3" placeholder="Nhap ghi chu va an enter" data-note-input></textarea>
+                <textarea rows="3" placeholder="Nhập Ghi Chú Và Ấn Enter" data-note-input></textarea>
             </section>
 
             <section class="profile-section profile-customer-tags" data-profile-conversation-tags>

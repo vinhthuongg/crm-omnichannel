@@ -1,7 +1,13 @@
 @extends('layouts.app', ['title' => 'Ket noi Fanpage - CRM', 'bodyClass' => 'messenger-page'])
 
 @section('content')
-<main class="facebook-pages-shell">
+<div class="crm-shell" data-crm-shell>
+    @include('partials.crm.chrome')
+
+    <main class="crm-main">
+        @include('partials.crm.topbar')
+
+<section class="facebook-pages-shell">
     <section class="facebook-pages-panel">
         <header>
             <div>
@@ -54,5 +60,7 @@
             </div>
         @endif
     </section>
-</main>
+</section>
+    </main>
+</div>
 @endsection

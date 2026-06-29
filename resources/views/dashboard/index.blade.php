@@ -4,36 +4,10 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css">
 
 <div class="crm-shell" data-crm-shell>
-    <aside class="crm-sidebar">
-        <a class="crm-logo" href="{{ route('dashboard') }}">CRM</a>
-
-        <nav class="side-nav" aria-label="CRM navigation">
-            @foreach($navItems as $item)
-                <a class="{{ $activeSection === $item['section'] ? 'active' : '' }}" href="{{ route($item['route']) }}">
-                    <span>{{ $item['icon'] }}</span>{{ $item['label'] }}
-                </a>
-            @endforeach
-        </nav>
-
-        <a class="team-switcher" href="{{ route('crm.agents') }}">
-            <span>{{ substr($sidebar['team_name'], 0, 1) }}</span>
-            <strong>{{ $sidebar['team_name'] }}</strong>
-            <b>v</b>
-        </a>
-    </aside>
+    @include('partials.crm.chrome')
 
     <main class="crm-main">
-        <header class="crm-topbar">
-            <button class="collapse-button" type="button" aria-label="Toggle sidebar" data-sidebar-toggle>&lt;&gt;</button>
-
-            <div class="topbar-spacer"></div>
-            <a class="help-link" href="{{ route('crm.settings', ['panel' => 'help']) }}"><span>?</span> Help Center</a>
-            <a class="profile-link" href="{{ route('crm.settings', ['panel' => 'profile']) }}">{{ $currentUser->name }}</a>
-            <form method="POST" action="{{ route('logout') }}" class="account-menu">
-                @csrf
-                <button type="submit">Logout</button>
-            </form>
-        </header>
+        @include('partials.crm.topbar')
 
         <section class="page-title">
             <div>

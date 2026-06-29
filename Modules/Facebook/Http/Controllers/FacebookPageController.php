@@ -3,6 +3,7 @@
 namespace Modules\Facebook\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,12 @@ class FacebookPageController extends Controller
         }
 
         return view('facebook_pages', [
+            'currentUser' => $request->user(),
+            'activeSection' => 'channels',
+            'navItems' => $this->navItems($request->user()),
+            'sidebar' => [
+                'team_name' => $request->user()->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
+            ],
             'availablePages' => $availablePages,
             'connectedPages' => $connectedPages,
         ]);
@@ -156,5 +163,31 @@ class FacebookPageController extends Controller
         }
 
         return $pages->values()->all();
+    }
+
+    private function navItems(User $user): array
+    {
+        $items = [
+            ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'D'],
+            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'C'],
+            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'K'],
+            ['section' => 'agents', 'label' => 'Agents', 'route' => 'crm.agents', 'icon' => 'A'],
+            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'O'],
+            ['section' => 'reports', 'label' => 'Reports', 'route' => 'crm.reports', 'icon' => 'R'],
+            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'L'],
+            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'N'],
+            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'S'],
+        ];
+
+        if ($user->can('user.manage')) {
+            array_splice($items, 4, 0, [[
+                'section' => 'work_shifts',
+                'label' => 'Shifts',
+                'route' => 'work-shifts.index',
+                'icon' => 'T',
+            ]]);
+        }
+
+        return $items;
     }
 }
