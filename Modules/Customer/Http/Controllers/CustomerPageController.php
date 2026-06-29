@@ -36,10 +36,10 @@ class CustomerPageController extends Controller
             ? collect($this->vectors->searchCustomers($search, (int) config('search.vector.top_k', 50)))
             : collect();
         $conversationFilter = function (Builder $query) use ($visibleConversationIds, $status, $agentId, $date): void {
-            $query->whereIn('id', $visibleConversationIds)
-                ->when(in_array($status, ['open', 'pending', 'closed'], true), fn (Builder $query) => $query->where('status', $status))
-                ->when($agentId > 0, fn (Builder $query) => $query->where('assigned_to', $agentId))
-                ->when($date !== '', fn (Builder $query) => $query->whereDate('last_message_at', $date));
+            $query->whereIn('conversations.id', $visibleConversationIds)
+                ->when(in_array($status, ['open', 'pending', 'closed'], true), fn (Builder $query) => $query->where('conversations.status', $status))
+                ->when($agentId > 0, fn (Builder $query) => $query->where('conversations.assigned_to', $agentId))
+                ->when($date !== '', fn (Builder $query) => $query->whereDate('conversations.last_message_at', $date));
         };
 
         $customers = Customer::query()
@@ -101,11 +101,11 @@ class CustomerPageController extends Controller
                 'date' => $date,
             ],
             'agents' => User::query()
-                ->whereHas('assignedConversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                ->whereHas('assignedConversations', fn (Builder $query) => $query->whereIn('conversations.id', $visibleConversationIds))
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'customerTags' => CustomerTag::query()
-                ->whereHas('customers.conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                ->whereHas('customers.conversations', fn (Builder $query) => $query->whereIn('conversations.id', $visibleConversationIds))
                 ->orderBy('name')
                 ->get(['id', 'name', 'color']),
             'navItems' => $this->navItems($user),
@@ -114,14 +114,14 @@ class CustomerPageController extends Controller
             ],
             'summary' => [
                 'total' => Customer::query()
-                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('conversations.id', $visibleConversationIds))
                     ->count(),
                 'facebook' => Customer::query()
-                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('conversations.id', $visibleConversationIds))
                     ->whereHas('channels', fn (Builder $query) => $query->where('channel', 'facebook'))
                     ->count(),
                 'zalo' => Customer::query()
-                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('id', $visibleConversationIds))
+                    ->whereHas('conversations', fn (Builder $query) => $query->whereIn('conversations.id', $visibleConversationIds))
                     ->whereHas('channels', fn (Builder $query) => $query->where('channel', 'zalo'))
                     ->count(),
             ],

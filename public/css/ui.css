@@ -865,8 +865,16 @@ kbd {
     background: #f7f8fc;
 }
 
+.crm-shell.sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.crm-shell.sidebar-collapsed .crm-sidebar {
+    display: none;
+}
+
 .crm-sidebar {
-    padding-top: 86px;
+    padding-top: var(--topbar-height);
     border-right: 1px solid #f0cfd2;
     background: #fbfbff;
 }
