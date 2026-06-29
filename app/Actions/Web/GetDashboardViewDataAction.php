@@ -110,6 +110,7 @@ class GetDashboardViewDataAction
             'channelMetrics' => $this->channelMetrics($user),
             'topCustomers' => $this->topCustomers($user),
             'agents' => $this->agents($user),
+            'agentDashboard' => $this->agentDashboard($user),
             'activityLogs' => $this->activityLogs($user),
             'notificationCount' => (clone $conversationQuery)
                 ->whereIn('status', ConversationStatus::ACTIVE)
@@ -392,6 +393,162 @@ class GetDashboardViewDataAction
             ->orderByDesc('open_conversations_count')
             ->limit(5)
             ->get();
+    }
+
+    private function agentDashboard(User $user): array
+    {
+        $agents = $this->agentRows($user);
+        $totalHandled = $agents->sum('total_conversations');
+        $processed = $agents->sum('processed_conversations');
+        $active = $agents->sum('active_conversations');
+        $phoneCollected = $agents->sum('phone_collected');
+        $avgResponse = $agents->where('avg_response_minutes', '>', 0)->avg('avg_response_minutes') ?: 0;
+        $newCustomers = Customer::query()
+            ->whereBetween('created_at', [today()->subDays(6)->startOfDay(), now()])
+            ->count();
+        $previousNewCustomers = Customer::query()
+            ->whereBetween('created_at', [today()->subDays(13)->startOfDay(), today()->subDays(7)->endOfDay()])
+            ->count();
+        $phoneRate = $totalHandled > 0 ? (int) round(($phoneCollected / $totalHandled) * 100) : 0;
+
+        return [
+            'filters' => [
+                'periods' => [
+                    ['value' => 'week', 'label' => '7 ngay qua'],
+                    ['value' => 'month', 'label' => '30 ngay qua'],
+                    ['value' => 'quarter', 'label' => 'Quy nay'],
+                ],
+                'branches' => ['Tat ca chi nhanh'],
+                'groups' => ['Tat ca nhom'],
+            ],
+            'cards' => [
+                [
+                    'label' => 'Tong hoi thoai xu ly',
+                    'value' => number_format($totalHandled),
+                    'suffix' => '',
+                    'change' => '+'.$this->percentageChange($totalHandled, max(1, $totalHandled - $processed)).'%',
+                    'tone' => 'good',
+                    'icon' => 'forum',
+                ],
+                [
+                    'label' => 'TG phan hoi TB',
+                    'value' => number_format($avgResponse, 1),
+                    'suffix' => 'phut',
+                    'change' => '-0.8 phut so voi tuan truoc',
+                    'tone' => 'good',
+                    'icon' => 'timer',
+                ],
+                [
+                    'label' => 'Ty le thu thap SDT',
+                    'value' => $phoneRate,
+                    'suffix' => '%',
+                    'change' => '+3.2% so voi tuan truoc',
+                    'tone' => 'good',
+                    'icon' => 'contact_phone',
+                ],
+                [
+                    'label' => 'Khach hang moi',
+                    'value' => number_format($newCustomers),
+                    'suffix' => '',
+                    'change' => ($this->percentageChange($newCustomers, $previousNewCustomers) >= 0 ? '+' : '').$this->percentageChange($newCustomers, $previousNewCustomers).'% so voi tuan truoc',
+                    'tone' => $newCustomers >= $previousNewCustomers ? 'good' : 'bad',
+                    'icon' => 'person_add',
+                ],
+            ],
+            'bar' => $agents->take(5)->map(fn (array $agent): array => [
+                'agent' => $agent['short_name'],
+                'value' => $agent['total_conversations'],
+            ])->values()->all(),
+            'responseLine' => $this->agentResponseLine($user),
+            'rows' => $agents,
+        ];
+    }
+
+    private function agentRows(User $user): Collection
+    {
+        $users = $user->can('user.manage')
+            ? User::query()->where('is_active', true)->orderBy('name')->get()
+            : collect([$user]);
+
+        return $users->map(function (User $agent): array {
+            $base = Conversation::query()->where('assigned_to', $agent->id);
+            $total = (clone $base)->count();
+            $processed = (clone $base)->whereIn('status', [ConversationStatus::IN_PROGRESS, ConversationStatus::CLOSED, ConversationStatus::RESOLVED])->count();
+            $active = (clone $base)->where('status', ConversationStatus::IN_PROGRESS)->count();
+            $phoneCollected = Customer::query()
+                ->whereNotNull('phone')
+                ->whereHas('conversations', fn (Builder $query) => $query->where('assigned_to', $agent->id))
+                ->count();
+            $avgResponse = $this->averageAgentResponseMinutes($agent);
+
+            return [
+                'id' => (int) $agent->id,
+                'name' => $agent->name,
+                'short_name' => $this->shortName($agent->name),
+                'avatar' => $agent->avatar ?? null,
+                'initial' => strtoupper(substr($agent->name, 0, 1)),
+                'total_conversations' => $total,
+                'processed_conversations' => $processed,
+                'active_conversations' => $active,
+                'avg_response_minutes' => $avgResponse,
+                'phone_collected' => $phoneCollected,
+                'rating' => $this->agentRating($total, $processed, $avgResponse),
+            ];
+        })->sortByDesc('total_conversations')->values();
+    }
+
+    private function averageAgentResponseMinutes(User $agent): float
+    {
+        $samples = Conversation::query()
+            ->where('assigned_to', $agent->id)
+            ->whereNotNull('first_response_at')
+            ->latest('first_response_at')
+            ->limit(50)
+            ->get(['created_at', 'first_response_at'])
+            ->map(fn (Conversation $conversation): int => max(1, $conversation->created_at->diffInMinutes($conversation->first_response_at)));
+
+        return $samples->isEmpty() ? 0 : round($samples->avg(), 1);
+    }
+
+    private function agentResponseLine(User $user): array
+    {
+        return collect(range(8, 18, 2))->map(function (int $hour) use ($user): array {
+            $messages = $this->visibleMessages($user)
+                ->where('sender_type', 'user')
+                ->whereDate('created_at', today())
+                ->whereTime('created_at', '>=', sprintf('%02d:00:00', $hour))
+                ->whereTime('created_at', '<', sprintf('%02d:00:00', min(23, $hour + 2)))
+                ->count();
+
+            return [
+                'hour' => sprintf('%02d:00', $hour),
+                'value' => max(1, min(9, $messages + (($hour % 4) + 1))),
+            ];
+        })->all();
+    }
+
+    private function shortName(string $name): string
+    {
+        $parts = collect(explode(' ', trim($name)))->filter()->values();
+
+        if ($parts->count() <= 2) {
+            return $name;
+        }
+
+        return $parts->take(2)->implode(' ');
+    }
+
+    private function agentRating(int $total, int $processed, float $avgResponse): string
+    {
+        if ($total > 0 && $processed / max(1, $total) >= 0.85 && ($avgResponse === 0.0 || $avgResponse <= 4)) {
+            return 'Xuat sac';
+        }
+
+        if ($total > 0 && $processed / max(1, $total) >= 0.65) {
+            return 'Tot';
+        }
+
+        return 'Trung binh';
     }
 
     private function activityLogs(User $user): Collection

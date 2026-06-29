@@ -9,6 +9,128 @@
     <main class="crm-main">
         @include('partials.crm.topbar')
 
+        @if(($activeSection ?? 'dashboard') === 'agents')
+            <section class="agent-report-page">
+                <form class="agent-filter-bar" method="GET" action="{{ route('crm.agents') }}">
+                    <label>
+                        <span>Thoi gian</span>
+                        <select name="period">
+                            @foreach($agentDashboard['filters']['periods'] as $periodOption)
+                                <option value="{{ $periodOption['value'] }}">{{ $periodOption['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label>
+                        <span>Chi nhanh</span>
+                        <select name="branch">
+                            @foreach($agentDashboard['filters']['branches'] as $branchOption)
+                                <option>{{ $branchOption }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label>
+                        <span>Nhom nhan vien</span>
+                        <select name="group">
+                            @foreach($agentDashboard['filters']['groups'] as $groupOption)
+                                <option>{{ $groupOption }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <button type="submit">
+                        <span class="material-symbols-outlined" aria-hidden="true">filter_alt</span>
+                        Loc them
+                    </button>
+                </form>
+
+                <section class="agent-kpi-grid">
+                    @foreach($agentDashboard['cards'] as $card)
+                        <article class="agent-kpi-card">
+                            <div>
+                                <p>{{ $card['label'] }}</p>
+                                <h2>{{ $card['value'] }}@if($card['suffix'] !== '') <small>{{ $card['suffix'] }}</small>@endif</h2>
+                                <span class="{{ $card['tone'] }}">{{ $card['change'] }}</span>
+                            </div>
+                            <b>
+                                <span class="material-symbols-outlined" aria-hidden="true">{{ $card['icon'] }}</span>
+                            </b>
+                        </article>
+                    @endforeach
+                </section>
+
+                <section class="agent-chart-grid">
+                    <article class="agent-panel">
+                        <header>
+                            <h3>Hoi thoai xu ly theo nhan vien</h3>
+                            <button type="button" aria-label="Tuy chon">
+                                <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
+                            </button>
+                        </header>
+                        <div id="agent-handled-bar" class="agent-chart" aria-label="Hoi thoai xu ly theo nhan vien"></div>
+                    </article>
+
+                    <article class="agent-panel">
+                        <header>
+                            <h3>Toc do phan hoi trung binh (phut)</h3>
+                            <span class="agent-chart-legend"><i></i>Toan doi</span>
+                        </header>
+                        <div id="agent-response-line" class="agent-chart" aria-label="Toc do phan hoi trung binh"></div>
+                    </article>
+                </section>
+
+                <section class="agent-table-panel">
+                    <header>
+                        <h3>Chi tiet hieu suat nhan vien</h3>
+                        <label>
+                            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                            <input type="search" placeholder="Tim nhan vien...">
+                        </label>
+                    </header>
+                    <div class="agent-table-wrap">
+                        <table class="agent-performance-table">
+                            <thead>
+                                <tr>
+                                    <th>Nhan vien</th>
+                                    <th>Tong hoi thoai</th>
+                                    <th>Da xu ly</th>
+                                    <th>Dang xu ly</th>
+                                    <th>TG phan hoi TB</th>
+                                    <th>SDT thu thap</th>
+                                    <th>Danh gia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($agentDashboard['rows'] as $agent)
+                                    <tr>
+                                        <td>
+                                            <span class="agent-avatar">
+                                                @if($agent['avatar'])
+                                                    <img src="{{ $agent['avatar'] }}" alt="{{ $agent['name'] }}">
+                                                @else
+                                                    {{ $agent['initial'] }}
+                                                @endif
+                                            </span>
+                                            {{ $agent['name'] }}
+                                        </td>
+                                        <td>{{ number_format($agent['total_conversations']) }}</td>
+                                        <td><a href="{{ route('crm.conversations', ['status' => 'mine']) }}">{{ number_format($agent['processed_conversations']) }}</a></td>
+                                        <td>{{ number_format($agent['active_conversations']) }}</td>
+                                        <td>{{ number_format($agent['avg_response_minutes'], 1) }} p</td>
+                                        <td>{{ number_format($agent['phone_collected']) }}</td>
+                                        <td><span class="agent-rating">{{ $agent['rating'] }}</span></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <footer>
+                        <span>Hien thi 1-{{ min(4, count($agentDashboard['rows'])) }} tren tong {{ count($agentDashboard['rows']) }}</span>
+                        <nav aria-label="Pagination">
+                            <b>1</b><a href="#">2</a><a href="#">3</a><span>...</span><a href="#">›</a>
+                        </nav>
+                    </footer>
+                </section>
+            </section>
+        @else
         <section class="page-title">
             <div>
                 <h1>{{ $sectionTitle }}</h1>
@@ -119,6 +241,7 @@
                 </article>
             </aside>
         </section>
+        @endif
     </main>
 </div>
 
@@ -131,6 +254,51 @@
     });
 
     $(function () {
+        var activeSection = @json($activeSection ?? 'dashboard');
+        var agentBarData = @json($agentDashboard['bar'] ?? []);
+        var agentLineData = @json($agentDashboard['responseLine'] ?? []);
+
+        if (activeSection === 'agents') {
+            if (!agentBarData.length) {
+                agentBarData = [{agent: 'Chua co', value: 0}];
+            }
+
+            if (!agentLineData.length) {
+                agentLineData = [{hour: '08:00', value: 0}];
+            }
+
+            Morris.Bar({
+                element: 'agent-handled-bar',
+                data: agentBarData,
+                xkey: 'agent',
+                ykeys: ['value'],
+                labels: ['Hoi thoai'],
+                barColors: ['#d70616'],
+                gridTextColor: '#6f6f6f',
+                gridLineColor: '#ececec',
+                resize: true,
+                hideHover: 'auto'
+            });
+
+            Morris.Line({
+                element: 'agent-response-line',
+                data: agentLineData,
+                xkey: 'hour',
+                ykeys: ['value'],
+                labels: ['Phut'],
+                parseTime: false,
+                lineColors: ['#0f62fe'],
+                pointFillColors: ['#ffffff'],
+                pointStrokeColors: ['#0f62fe'],
+                gridTextColor: '#6f6f6f',
+                gridLineColor: '#ececec',
+                resize: true,
+                hideHover: 'auto'
+            });
+
+            return;
+        }
+
         var chartUrl = @json(route('dashboard.charts', ['period' => $filters['period']]));
         var chartColors = ['#000000', '#555555', '#bfbfbf', '#e2e2e2'];
 
