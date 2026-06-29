@@ -180,9 +180,11 @@ class SendMessengerMessageAction
 
     private function markConversationAsConsulting(Conversation $conversation): void
     {
+        Tag::ensureDefaults();
+
         $tag = Tag::query()->firstOrCreate(
-            ['name' => 'Dang tu van'],
-            ['color' => '#e11d48'],
+            ['name' => Tag::DEFAULT_CONSULTING],
+            ['color' => Tag::DEFAULTS[Tag::DEFAULT_CONSULTING], 'is_default' => true],
         );
 
         $conversation->tags()->sync([$tag->id]);

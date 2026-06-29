@@ -160,12 +160,7 @@ class MessengerController extends Controller
                 'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
                 'customer_notes' => $this->customerNotesPayload($conversation),
                 'customer_tags' => $this->customerTagsPayload($conversation),
-                'all_customer_tags' => Tag::query()
-                    ->orderBy('name')
-                    ->get()
-                    ->map(fn (Tag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
-                    ->values()
-                    ->all(),
+                'all_customer_tags' => $this->tagPayloads(),
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'assignee_name' => $conversation->assignee?->name,
                 'assigned_to' => $conversation->assigned_to,
@@ -459,14 +454,113 @@ class MessengerController extends Controller
         return response()->json([
             'data' => [
                 'tags' => $this->customerTagsPayload($conversation),
-                'all_tags' => Tag::query()
-                    ->orderBy('name')
-                    ->get()
-                    ->map(fn (Tag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
-                    ->values()
-                    ->all(),
+                'all_tags' => $this->tagPayloads(),
             ],
         ], 201);
+    }
+
+    public function conversationTags(Request $request): JsonResponse
+    {
+        $this->assertCanManageTags($request);
+        Tag::ensureDefaults();
+
+        return response()->json([
+            'data' => $this->tagPayloads(),
+        ]);
+    }
+
+    public function storeConversationTag(Request $request): JsonResponse
+    {
+        $this->assertCanManageTags($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'color' => ['nullable', 'string', 'max:24'],
+        ]);
+
+        $name = trim($validated['name']);
+
+        if ($name === '') {
+            return response()->json(['message' => 'Tag khong duoc de trong.'], 422);
+        }
+
+        Tag::ensureDefaults();
+
+        $tag = Tag::query()->updateOrCreate(
+            ['name' => $name],
+            [
+                'color' => $validated['color'] ?: '#2563eb',
+                'is_default' => array_key_exists($name, Tag::DEFAULTS),
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'tag' => $this->tagPayload($tag->refresh()),
+                'tags' => $this->tagPayloads(),
+            ],
+        ], 201);
+    }
+
+    public function updateConversationTag(Request $request, Tag $tag): JsonResponse
+    {
+        $this->assertCanManageTags($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'color' => ['nullable', 'string', 'max:24'],
+        ]);
+
+        $name = trim($validated['name']);
+
+        if ($name === '') {
+            return response()->json(['message' => 'Tag khong duoc de trong.'], 422);
+        }
+
+        if ($tag->is_default && $name !== $tag->name) {
+            return response()->json(['message' => 'Tag mac dinh khong duoc doi ten.'], 422);
+        }
+
+        $exists = Tag::query()
+            ->where('name', $name)
+            ->whereKeyNot($tag->id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['message' => 'Ten tag da ton tai.'], 422);
+        }
+
+        $tag->forceFill([
+            'name' => $name,
+            'color' => $validated['color'] ?: '#2563eb',
+        ])->save();
+
+        return response()->json([
+            'data' => [
+                'tag' => $this->tagPayload($tag->refresh()),
+                'tags' => $this->tagPayloads(),
+            ],
+        ]);
+    }
+
+    public function destroyConversationTag(Request $request, Tag $tag): JsonResponse
+    {
+        $this->assertCanManageTags($request);
+
+        if ($tag->is_default || array_key_exists($tag->name, Tag::DEFAULTS)) {
+            return response()->json(['message' => 'Tag mac dinh khong duoc xoa.'], 422);
+        }
+
+        DB::transaction(function () use ($tag): void {
+            $tag->conversations()->detach();
+            $tag->delete();
+        });
+
+        return response()->json([
+            'data' => [
+                'tags' => $this->tagPayloads(),
+            ],
+        ]);
     }
 
     public function claim(Request $request, Conversation $conversation, ConversationService $service, WorkShiftService $shifts): JsonResponse
@@ -668,6 +762,41 @@ class MessengerController extends Controller
         }
 
         abort(403);
+    }
+
+    private function assertCanManageTags(Request $request): void
+    {
+        abort_unless(
+            $request->user()->can('conversation.tag')
+            || $request->user()->can('conversation.view_all')
+            || $request->user()->hasRole('Admin'),
+            403,
+        );
+    }
+
+    private function tagPayloads(): array
+    {
+        Tag::ensureDefaults();
+
+        return Tag::query()
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Tag $tag): array => $this->tagPayload($tag))
+            ->values()
+            ->all();
+    }
+
+    private function tagPayload(Tag $tag): array
+    {
+        return [
+            'id' => (int) $tag->id,
+            'name' => $tag->name,
+            'color' => $tag->color ?: '#2563eb',
+            'is_default' => (bool) $tag->is_default,
+            'update_url' => route('crm.conversation-tags.update', $tag),
+            'delete_url' => route('crm.conversation-tags.destroy', $tag),
+        ];
     }
 
     private function markConversationRead(?Conversation $conversation): void

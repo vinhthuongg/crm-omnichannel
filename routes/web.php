@@ -40,6 +40,10 @@ Route::middleware('auth')->group(function (): void {
         Route::post('conversations/{conversation}/claim', [MessengerController::class, 'claim'])->name('crm.conversations.claim');
         Route::post('conversations/{conversation}/assign', [MessengerController::class, 'assign'])->name('crm.conversations.assign');
         Route::post('conversations/{conversation}/tags', [MessengerController::class, 'tags'])->name('crm.conversations.tags.store');
+        Route::get('conversation-tags', [MessengerController::class, 'conversationTags'])->name('crm.conversation-tags.index');
+        Route::post('conversation-tags', [MessengerController::class, 'storeConversationTag'])->name('crm.conversation-tags.store');
+        Route::patch('conversation-tags/{tag}', [MessengerController::class, 'updateConversationTag'])->name('crm.conversation-tags.update');
+        Route::delete('conversation-tags/{tag}', [MessengerController::class, 'destroyConversationTag'])->name('crm.conversation-tags.destroy');
         Route::post('conversations/{conversation}/messages', [MessengerController::class, 'send'])->name('crm.conversations.messages.store');
         Route::patch('conversations/{conversation}/messages/{message}/recall', [MessengerController::class, 'recallMessage'])->name('crm.conversations.messages.recall');
         Route::delete('conversations/{conversation}/messages/{message}', [MessengerController::class, 'deleteMessage'])->name('crm.conversations.messages.delete');

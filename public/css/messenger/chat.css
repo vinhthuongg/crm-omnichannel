@@ -907,7 +907,7 @@ body.messenger-page .composer-tabs.is-dragging {
 
 body.messenger-page .composer-mode,
 body.messenger-page .composer-tag,
-body.messenger-page .composer-tabs span {
+body.messenger-page .composer-tag-add {
     flex: 0 0 auto;
     min-height: 24px;
     border: 1px solid var(--chat-line);
@@ -944,6 +944,179 @@ body.messenger-page .composer-tabs b {
     width: 1px;
     height: 18px;
     background: var(--chat-line);
+}
+
+body.messenger-page .composer-tag-add {
+    width: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 1;
+}
+
+body.messenger-page .tag-manager-modal[hidden] {
+    display: none;
+}
+
+body.messenger-page .tag-manager-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    background: rgba(15, 23, 42, .35);
+    padding: 18px;
+}
+
+body.messenger-page .tag-manager-dialog {
+    width: min(560px, 100%);
+    max-height: min(720px, calc(100vh - 36px));
+    display: grid;
+    gap: 14px;
+    overflow: auto;
+    border: 1px solid var(--chat-line);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, .2);
+    padding: 18px;
+}
+
+body.messenger-page .tag-manager-dialog header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+body.messenger-page .tag-manager-dialog h3 {
+    margin: 0;
+    color: var(--chat-ink);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+body.messenger-page .tag-manager-dialog p {
+    margin: 4px 0 0;
+    color: #667085;
+    font-size: 13px;
+}
+
+body.messenger-page .tag-manager-close {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--chat-line);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--chat-ink);
+}
+
+body.messenger-page .tag-manager-form {
+    display: grid;
+    grid-template-columns: 1fr 84px auto auto;
+    align-items: end;
+    gap: 10px;
+}
+
+body.messenger-page .tag-manager-form label {
+    display: grid;
+    gap: 5px;
+    color: #667085;
+    font-size: 12px;
+}
+
+body.messenger-page .tag-manager-form input[type="text"] {
+    height: 38px;
+    border: 1px solid var(--chat-line);
+    border-radius: 9px;
+    padding: 0 11px;
+    color: var(--chat-ink);
+}
+
+body.messenger-page .tag-manager-form input[type="text"][readonly] {
+    background: #f1f5f9;
+    color: #667085;
+}
+
+body.messenger-page .tag-manager-form input[type="color"] {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--chat-line);
+    border-radius: 9px;
+    background: #fff;
+    padding: 3px;
+}
+
+body.messenger-page .tag-manager-form button {
+    height: 38px;
+    border: 1px solid var(--chat-line);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--chat-ink);
+    padding: 0 14px;
+}
+
+body.messenger-page .tag-manager-form button[type="submit"] {
+    border-color: var(--chat-blue);
+    background: var(--chat-blue);
+    color: #fff;
+}
+
+body.messenger-page .tag-manager-status {
+    min-height: 18px;
+    margin: 0;
+    color: #047857;
+    font-size: 13px;
+}
+
+body.messenger-page .tag-manager-status.is-error {
+    color: #dc2626;
+}
+
+body.messenger-page .tag-manager-list {
+    display: grid;
+    gap: 8px;
+}
+
+body.messenger-page .tag-manager-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--chat-line);
+    border-radius: 10px;
+    padding: 9px;
+}
+
+body.messenger-page .tag-manager-chip {
+    width: fit-content;
+    max-width: 100%;
+    border: 1px solid color-mix(in srgb, var(--tag-color, var(--chat-blue)) 55%, white);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tag-color, var(--chat-blue)) 12%, white);
+    color: var(--tag-color, var(--chat-blue));
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+body.messenger-page .tag-manager-row small {
+    color: #667085;
+    font-size: 12px;
+}
+
+body.messenger-page .tag-manager-row button {
+    height: 30px;
+    border: 1px solid var(--chat-line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--chat-ink);
+    padding: 0 10px;
+}
+
+body.messenger-page .tag-manager-row button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
 }
 
 body.messenger-page .messenger-composer textarea {

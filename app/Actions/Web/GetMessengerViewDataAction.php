@@ -64,8 +64,12 @@ class GetMessengerViewDataAction
             'inboxChannels' => $this->inboxChannels($user, $search, $tag, $channel, $status),
             'inboxStatuses' => $this->inboxStatuses($user, $search, $tag, $channel, $status),
             'tagPresets' => $this->tagPresets(),
-            'allTags' => Tag::query()->orderBy('name')->get(),
-            'allCustomerTags' => Tag::query()->orderBy('name')->get(),
+            'allTags' => $this->allTags(),
+            'allCustomerTags' => $this->allTags(),
+            'tagManager' => [
+                'index_url' => route('crm.conversation-tags.index'),
+                'store_url' => route('crm.conversation-tags.store'),
+            ],
             'assignableAgents' => $this->assignableAgents($user),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
@@ -221,25 +225,23 @@ class GetMessengerViewDataAction
 
     private function tagPresets(): Collection
     {
-        $defaults = collect([
-            ['name' => 'Dang tu van', 'color' => '#e11d48'],
-            ['name' => 'Khach dang doi tu van', 'color' => '#f59e0b'],
-            ['name' => 'Goi lan 1', 'color' => '#16a34a'],
-            ['name' => 'Goi lan 2', 'color' => '#2563eb'],
-            ['name' => 'Huy', 'color' => '#64748b'],
-            ['name' => 'Spam', 'color' => '#6b7280'],
-            ['name' => 'Da mua', 'color' => '#059669'],
-        ]);
+        return $this->allTags()
+            ->map(fn (Tag $tag): array => [
+                'id' => (int) $tag->id,
+                'name' => $tag->name,
+                'color' => $tag->color,
+                'is_default' => (bool) $tag->is_default,
+            ]);
+    }
 
-        $saved = Tag::query()
+    private function allTags(): Collection
+    {
+        Tag::ensureDefaults();
+
+        return Tag::query()
+            ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get(['name', 'color'])
-            ->map(fn (Tag $tag): array => ['name' => $tag->name, 'color' => $tag->color]);
-
-        return $defaults
-            ->merge($saved)
-            ->unique('name')
-            ->values();
+            ->get();
     }
 
     private function profilePanel(?Conversation $conversation): array

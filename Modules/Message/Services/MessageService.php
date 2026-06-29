@@ -438,19 +438,29 @@ class MessageService
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
     {
-        $this->syncConversationStatusTag($conversation, 'Khach dang doi tu van', '#f59e0b');
+        $this->syncConversationStatusTag(
+            $conversation,
+            Tag::DEFAULT_WAITING,
+            Tag::DEFAULTS[Tag::DEFAULT_WAITING],
+        );
     }
 
     private function markConversationAsConsulting(Conversation $conversation): void
     {
-        $this->syncConversationStatusTag($conversation, 'Dang tu van', '#e11d48');
+        $this->syncConversationStatusTag(
+            $conversation,
+            Tag::DEFAULT_CONSULTING,
+            Tag::DEFAULTS[Tag::DEFAULT_CONSULTING],
+        );
     }
 
     private function syncConversationStatusTag(Conversation $conversation, string $name, string $color): void
     {
+        Tag::ensureDefaults();
+
         $tag = Tag::query()->firstOrCreate(
             ['name' => $name],
-            ['color' => $color],
+            ['color' => $color, 'is_default' => array_key_exists($name, Tag::DEFAULTS)],
         );
 
         $conversation->tags()->sync([$tag->id]);

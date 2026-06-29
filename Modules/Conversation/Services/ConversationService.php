@@ -141,9 +141,14 @@ class ConversationService
 
     public function syncTags(Conversation $conversation, array $tags, User $actor): Conversation
     {
+        Tag::ensureDefaults();
+
         $ids = collect($tags)
             ->take(1)
-            ->map(fn (array $tag) => Tag::query()->firstOrCreate(['name' => $tag['name']], ['color' => $tag['color'] ?? null])->id)
+            ->map(fn (array $tag) => trim((string) ($tag['name'] ?? '')))
+            ->filter()
+            ->map(fn (string $name) => Tag::query()->where('name', $name)->value('id'))
+            ->filter()
             ->all();
         $conversation->tags()->sync($ids);
         $this->activityLog->record($actor, 'conversation.tagged', $conversation, ['tags' => $ids]);

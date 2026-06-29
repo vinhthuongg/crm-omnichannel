@@ -947,6 +947,178 @@
         });
     }
 
+    function tagManagerEndpoints() {
+        const tabs = document.querySelector('[data-conversation-tags]');
+
+        return {
+            index: tabs?.dataset.tagManagerUrl || '',
+            store: tabs?.dataset.tagManagerStoreUrl || '',
+        };
+    }
+
+    function tagManagerModal() {
+        return document.querySelector('[data-tag-manager-modal]');
+    }
+
+    function tagManagerForm() {
+        return document.querySelector('[data-tag-manager-form]');
+    }
+
+    function setTagManagerStatus(message, isError = false) {
+        const status = document.querySelector('[data-tag-manager-status]');
+
+        if (!status) {
+            return;
+        }
+
+        status.textContent = message || '';
+        status.classList.toggle('is-error', Boolean(isError));
+    }
+
+    function resetTagManagerForm() {
+        const form = tagManagerForm();
+
+        if (!form) {
+            return;
+        }
+
+        form.reset();
+        form.querySelector('[data-tag-manager-id]').value = '';
+        form.querySelector('[data-tag-manager-name]').readOnly = false;
+        form.querySelector('[data-tag-manager-color]').value = '#2563eb';
+        form.querySelector('[data-tag-manager-submit]').textContent = 'Luu tag';
+    }
+
+    function tagPayloadFromButton(button) {
+        return {
+            id: Number(button.dataset.tagId || 0),
+            name: button.dataset.tagName || button.textContent.trim(),
+            color: button.dataset.tagColor || '#2563eb',
+            is_default: button.dataset.tagDefault === '1',
+        };
+    }
+
+    function renderComposerTagButtons(tags) {
+        const tabs = document.querySelector('[data-conversation-tags]');
+
+        if (!tabs) {
+            return;
+        }
+
+        const activeName = tabs.querySelector('[data-tag-name].is-active')?.dataset.tagName || '';
+        const addButton = tabs.querySelector('[data-open-tag-manager]');
+
+        tabs.querySelectorAll('[data-tag-name]').forEach((button) => button.remove());
+
+        (tags || []).forEach(function (tag) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'composer-tag';
+            button.style.setProperty('--tag-color', tag.color || '#64748b');
+            button.dataset.tagId = String(tag.id || '');
+            button.dataset.tagName = tag.name || '';
+            button.dataset.tagColor = tag.color || '#64748b';
+            button.dataset.tagDefault = tag.is_default ? '1' : '0';
+            button.textContent = tag.name || '';
+
+            if (activeName !== '' && activeName === tag.name) {
+                button.classList.add('is-active');
+            }
+
+            tabs.insertBefore(button, addButton || null);
+        });
+    }
+
+    function renderTagManagerList(tags) {
+        const list = document.querySelector('[data-tag-manager-list]');
+
+        if (!list) {
+            return;
+        }
+
+        list.innerHTML = (tags || []).map(function (tag) {
+            const locked = tag.is_default ? '1' : '0';
+
+            return `
+                <article class="tag-manager-row" data-tag-manager-row
+                    data-tag-id="${escapeHtml(tag.id)}"
+                    data-tag-name="${escapeHtml(tag.name)}"
+                    data-tag-color="${escapeHtml(tag.color || '#2563eb')}"
+                    data-tag-default="${locked}"
+                    data-tag-update-url="${escapeHtml(tag.update_url || '')}"
+                    data-tag-delete-url="${escapeHtml(tag.delete_url || '')}"
+                    style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">
+                    <span class="tag-manager-chip">${escapeHtml(tag.name)}</span>
+                    ${tag.is_default ? '<small>Mac dinh</small>' : ''}
+                    <button type="button" data-edit-tag> Sua </button>
+                    <button type="button" data-delete-tag ${tag.is_default ? 'disabled' : ''}> Xoa </button>
+                </article>
+            `;
+        }).join('');
+    }
+
+    function applyTagCatalog(tags) {
+        renderComposerTagButtons(tags || []);
+        renderTagManagerList(tags || []);
+        customerTagOptions = (tags || []).map(function (tag) {
+            return {
+                id: tag.id,
+                name: tag.name,
+                color: tag.color,
+            };
+        });
+    }
+
+    async function loadTagCatalog() {
+        const endpoints = tagManagerEndpoints();
+
+        if (!endpoints.index) {
+            return;
+        }
+
+        const response = await fetch(endpoints.index, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Khong tai duoc tag.');
+        }
+
+        const payload = await response.json();
+        applyTagCatalog(payload.data || []);
+    }
+
+    async function openTagManager() {
+        const modal = tagManagerModal();
+
+        if (!modal) {
+            return;
+        }
+
+        modal.hidden = false;
+        resetTagManagerForm();
+        setTagManagerStatus('');
+
+        try {
+            await loadTagCatalog();
+        } catch (error) {
+            setTagManagerStatus(error.message || 'Khong tai duoc tag.', true);
+        }
+
+        modal.querySelector('[data-tag-manager-name]')?.focus();
+    }
+
+    function closeTagManager() {
+        const modal = tagManagerModal();
+
+        if (modal) {
+            modal.hidden = true;
+        }
+    }
+
     function renderProfileConversationTags(tags) {
         const list = document.querySelector('[data-profile-conversation-tag-list]');
 
@@ -2421,6 +2593,158 @@
             event.preventDefault();
             tabs.scrollLeft += event.deltaY;
         }, {passive: false});
+    });
+
+    document.addEventListener('click', function (event) {
+        if (event.target.closest('[data-open-tag-manager]')) {
+            event.preventDefault();
+            openTagManager();
+            return;
+        }
+
+        if (event.target.closest('[data-close-tag-manager]')) {
+            event.preventDefault();
+            closeTagManager();
+            return;
+        }
+
+        if (event.target === tagManagerModal()) {
+            closeTagManager();
+            return;
+        }
+
+        const editButton = event.target.closest('[data-edit-tag]');
+
+        if (editButton) {
+            event.preventDefault();
+            const row = editButton.closest('[data-tag-manager-row]');
+            const form = tagManagerForm();
+
+            if (!row || !form) {
+                return;
+            }
+
+            form.querySelector('[data-tag-manager-id]').value = row.dataset.tagId || '';
+            form.querySelector('[data-tag-manager-name]').value = row.dataset.tagName || '';
+            form.querySelector('[data-tag-manager-name]').readOnly = row.dataset.tagDefault === '1';
+            form.querySelector('[data-tag-manager-color]').value = row.dataset.tagColor || '#2563eb';
+            form.querySelector('[data-tag-manager-submit]').textContent = 'Cap nhat';
+            form.querySelector('[data-tag-manager-color]').focus();
+            return;
+        }
+
+        const deleteButton = event.target.closest('[data-delete-tag]');
+
+        if (deleteButton) {
+            event.preventDefault();
+            const row = deleteButton.closest('[data-tag-manager-row]');
+            const deleteUrl = row?.dataset.tagDeleteUrl;
+
+            if (!row || deleteButton.disabled) {
+                return;
+            }
+
+            const tag = tagPayloadFromButton({
+                dataset: {
+                    tagId: row.dataset.tagId,
+                    tagName: row.dataset.tagName,
+                    tagColor: row.dataset.tagColor,
+                    tagDefault: row.dataset.tagDefault,
+                },
+                textContent: row.dataset.tagName || '',
+            });
+
+            if (tag.is_default) {
+                setTagManagerStatus('Tag mac dinh khong duoc xoa.', true);
+                return;
+            }
+
+            const url = deleteUrl || row.dataset.tagDeleteUrl;
+
+            if (!url) {
+                setTagManagerStatus('Thieu URL xoa tag.', true);
+                return;
+            }
+
+            fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Khong xoa duoc tag.');
+                    }
+
+                    return response.json();
+                })
+                .then(function (payload) {
+                    applyTagCatalog(payload.data?.tags || []);
+                    resetTagManagerForm();
+                    setTagManagerStatus('Da xoa tag.');
+                    refreshThreadList();
+                })
+                .catch(function (error) {
+                    setTagManagerStatus(error.message || 'Khong xoa duoc tag.', true);
+                });
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !tagManagerModal()?.hidden) {
+            closeTagManager();
+        }
+    });
+
+    tagManagerForm()?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+
+        const form = event.currentTarget;
+        const endpoints = tagManagerEndpoints();
+        const id = form.querySelector('[data-tag-manager-id]')?.value || '';
+        const name = form.querySelector('[data-tag-manager-name]')?.value.trim() || '';
+        const color = form.querySelector('[data-tag-manager-color]')?.value || '#2563eb';
+        const row = id ? document.querySelector(`[data-tag-manager-row][data-tag-id="${CSS.escape(id)}"]`) : null;
+        const url = id ? row?.dataset.tagUpdateUrl : endpoints.store;
+
+        if (!name || !url) {
+            setTagManagerStatus('Vui long nhap ten tag.', true);
+            return;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: id ? 'PATCH' : 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+                body: JSON.stringify({name, color}),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.message || 'Khong luu duoc tag.');
+            }
+
+            applyTagCatalog(payload.data?.tags || []);
+            resetTagManagerForm();
+            setTagManagerStatus('Da luu tag.');
+            await refreshThreadList();
+        } catch (error) {
+            setTagManagerStatus(error.message || 'Khong luu duoc tag.', true);
+        }
+    });
+
+    document.querySelector('[data-tag-manager-reset]')?.addEventListener('click', function () {
+        resetTagManagerForm();
+        setTagManagerStatus('');
     });
 
     document.addEventListener('click', async function (event) {

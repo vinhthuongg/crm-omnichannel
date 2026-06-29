@@ -11,6 +11,7 @@
 })
 @php($customerTagOptionsJson = $allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values()->toJson())
 @php($inboxLastMessageId = $conversations->map(fn ($conversation) => (int) ($conversation->messages->first()?->id ?? 0))->max() ?? 0)
+@php($tagManager = $tagManager ?? ['index_url' => route('crm.conversation-tags.index'), 'store_url' => route('crm.conversation-tags.store')])
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/messenger/chat.css') }}?v={{ filemtime(public_path('css/messenger/chat.css')) }}">
 @endpush
@@ -280,7 +281,13 @@
                 <input type="hidden" name="channel" value="{{ $activeChannel }}">
                 <input type="hidden" name="message_mode" value="message" data-message-mode>
                 @php($activeTagNames = $activeConversation->tags->pluck('name')->all())
-                <div class="composer-tabs" data-conversation-tags data-tags-url="{{ route('crm.conversations.tags.store', $activeConversation) }}">
+                <div
+                    class="composer-tabs"
+                    data-conversation-tags
+                    data-tags-url="{{ route('crm.conversations.tags.store', $activeConversation) }}"
+                    data-tag-manager-url="{{ $tagManager['index_url'] }}"
+                    data-tag-manager-store-url="{{ $tagManager['store_url'] }}"
+                >
                     <button type="button" class="composer-mode active" data-composer-mode="message">
                         Nhắn Tin
                     </button>
@@ -295,11 +302,13 @@
                             type="button"
                             class="composer-tag {{ in_array($tagName, $activeTagNames, true) ? 'is-active' : '' }}"
                             style="--tag-color: {{ $tagColor }}"
+                            data-tag-id="{{ $tag['id'] ?? '' }}"
                             data-tag-name="{{ $tagName }}"
                             data-tag-color="{{ $tagColor }}"
+                            data-tag-default="{{ ! empty($tag['is_default']) ? '1' : '0' }}"
                         >{{ $tagName }}</button>
                     @endforeach
-                    <span class="plus">+</span>
+                    <button type="button" class="composer-tag-add" data-open-tag-manager aria-label="Custom tag">+</button>
                 </div>
                 <textarea name="content" rows="3" placeholder="Nhập Nội Dung Tin Nhắn" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
@@ -461,6 +470,35 @@
     </aside>
         </div>
     </main>
+</div>
+
+<div class="tag-manager-modal" data-tag-manager-modal hidden>
+    <div class="tag-manager-dialog" role="dialog" aria-modal="true" aria-label="Custom tag">
+        <header>
+            <div>
+                <h3>Custom tag</h3>
+                <p>Chi giu 2 tag mac dinh. Tag custom co the sua mau, doi ten va xoa.</p>
+            </div>
+            <button type="button" class="tag-manager-close" data-close-tag-manager aria-label="Dong">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+        </header>
+        <form class="tag-manager-form" data-tag-manager-form>
+            <input type="hidden" name="id" data-tag-manager-id>
+            <label>
+                <span>Ten tag</span>
+                <input type="text" name="name" maxlength="80" placeholder="Vi du: Uu tien" required data-tag-manager-name>
+            </label>
+            <label>
+                <span>Mau</span>
+                <input type="color" name="color" value="#2563eb" data-tag-manager-color>
+            </label>
+            <button type="submit" data-tag-manager-submit>Luu tag</button>
+            <button type="button" data-tag-manager-reset>Tag moi</button>
+        </form>
+        <p class="tag-manager-status" data-tag-manager-status></p>
+        <div class="tag-manager-list" data-tag-manager-list></div>
+    </div>
 </div>
 
 @push('scripts')
