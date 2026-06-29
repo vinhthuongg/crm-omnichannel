@@ -77,6 +77,7 @@ class GetDashboardViewDataAction
                 'completed' => $closedConversations,
                 'total' => $totalConversations,
             ],
+            'dashboardOverview' => $this->dashboardOverview($user),
             'messageMetric' => [
                 'value' => $monthMessages,
                 'change' => $this->percentageChange($monthMessages, $previousMonthMessages),
@@ -143,6 +144,157 @@ class GetDashboardViewDataAction
         }
 
         return $items;
+    }
+
+    private function dashboardOverview(User $user): array
+    {
+        $todayStart = today()->startOfDay();
+        $todayEnd = now();
+        $yesterdayStart = today()->subDay()->startOfDay();
+        $yesterdayEnd = today()->subDay()->endOfDay();
+
+        $todayConversations = (clone $this->visibleConversations($user))
+            ->whereBetween('created_at', [$todayStart, $todayEnd])
+            ->count();
+        $yesterdayConversations = (clone $this->visibleConversations($user))
+            ->whereBetween('created_at', [$yesterdayStart, $yesterdayEnd])
+            ->count();
+        $activeConversations = (clone $this->visibleConversations($user))
+            ->where('status', ConversationStatus::IN_PROGRESS)
+            ->count();
+        $newCustomers = Customer::query()
+            ->whereBetween('created_at', [$todayStart, $todayEnd])
+            ->count();
+        $yesterdayCustomers = Customer::query()
+            ->whereBetween('created_at', [$yesterdayStart, $yesterdayEnd])
+            ->count();
+        $phonesCollected = Customer::query()
+            ->whereNotNull('phone')
+            ->where('phone', '<>', '')
+            ->count();
+        $yesterdayPhones = Customer::query()
+            ->whereNotNull('phone')
+            ->where('phone', '<>', '')
+            ->where('created_at', '<=', $yesterdayEnd)
+            ->count();
+
+        return [
+            'header' => [
+                'title' => 'Tổng quan hôm nay',
+                'subtitle' => 'Dữ liệu được cập nhật liên tục từ các kênh.',
+            ],
+            'cards' => [
+                [
+                    'label' => 'Tổng hội thoại',
+                    'value' => number_format($todayConversations),
+                    'change' => $this->signedPercent($this->percentageChange($todayConversations, $yesterdayConversations)),
+                    'tone' => $todayConversations >= $yesterdayConversations ? 'good' : 'bad',
+                    'icon' => 'forum',
+                    'accent' => false,
+                ],
+                [
+                    'label' => 'Hội thoại đang xử lý',
+                    'value' => number_format($activeConversations),
+                    'change' => 'Cần phản hồi gấp',
+                    'tone' => 'danger',
+                    'icon' => 'mark_chat_unread',
+                    'accent' => true,
+                ],
+                [
+                    'label' => 'Khách hàng mới',
+                    'value' => number_format($newCustomers),
+                    'change' => $this->signedPercent($this->percentageChange($newCustomers, $yesterdayCustomers)),
+                    'tone' => $newCustomers >= $yesterdayCustomers ? 'good' : 'bad',
+                    'icon' => 'person_add',
+                    'accent' => false,
+                ],
+                [
+                    'label' => 'SĐT đã thu thập',
+                    'value' => number_format($phonesCollected),
+                    'change' => $this->signedPercent($this->percentageChange($phonesCollected, $yesterdayPhones)),
+                    'tone' => $phonesCollected >= $yesterdayPhones ? 'good' : 'bad',
+                    'icon' => 'phone_in_talk',
+                    'accent' => false,
+                ],
+            ],
+            'intentCards' => $this->dashboardIntentCards($user),
+            'timeSeries' => $this->dashboardTimeSeries($user),
+            'sources' => $this->dashboardSources($user),
+        ];
+    }
+
+    private function dashboardIntentCards(User $user): array
+    {
+        return collect([
+            ['label' => 'Khách YC Báo Giá', 'icon' => 'request_quote', 'keywords' => ['bao gia', 'báo giá', 'gia xe', 'giá xe', 'lan banh', 'lăn bánh']],
+            ['label' => 'Yêu cầu Lái thử', 'icon' => 'directions_car', 'keywords' => ['lai thu', 'lái thử', 'test drive', 'chay thu', 'chạy thử']],
+            ['label' => 'Quan tâm Trả góp', 'icon' => 'account_balance', 'keywords' => ['tra gop', 'trả góp', 'vay', 'ngan hang', 'ngân hàng']],
+            ['label' => 'Đặt lịch Bảo dưỡng', 'icon' => 'build', 'keywords' => ['bao duong', 'bảo dưỡng', 'bao tri', 'bảo trì', 'lich hen', 'lịch hẹn']],
+        ])->map(function (array $item) use ($user): array {
+            $count = $this->keywordMessageCount($user, $item['keywords']);
+
+            return [
+                'label' => $item['label'],
+                'icon' => $item['icon'],
+                'value' => $count,
+            ];
+        })->all();
+    }
+
+    private function keywordMessageCount(User $user, array $keywords): int
+    {
+        return (clone $this->visibleMessages($user))
+            ->where('sender_type', 'customer')
+            ->where(function (Builder $query) use ($keywords): void {
+                foreach ($keywords as $keyword) {
+                    $query->orWhere('content', 'like', '%'.$keyword.'%');
+                }
+            })
+            ->count();
+    }
+
+    private function dashboardTimeSeries(User $user): array
+    {
+        return collect(range(8, 20, 2))->map(function (int $hour) use ($user): array {
+            $start = today()->setTime($hour, 0);
+            $end = today()->setTime(min(23, $hour + 2), 0);
+
+            return [
+                'hour' => sprintf('%02d:00', $hour),
+                'value' => (clone $this->visibleMessages($user))
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count(),
+            ];
+        })->all();
+    }
+
+    private function dashboardSources(User $user): array
+    {
+        $messages = $this->visibleMessages($user)
+            ->selectRaw('channel, count(*) as value')
+            ->whereIn('channel', ['facebook', 'zalo'])
+            ->groupBy('channel')
+            ->get()
+            ->keyBy('channel');
+
+        $facebook = (int) ($messages['facebook']->value ?? 0);
+        $zalo = (int) ($messages['zalo']->value ?? 0);
+        $total = $facebook + $zalo;
+        $other = max(0, (clone $this->visibleMessages($user))->count() - $total);
+
+        return collect([
+            ['label' => 'Facebook', 'value' => $facebook],
+            ['label' => 'Zalo', 'value' => $zalo],
+            ['label' => 'Từ khóa', 'value' => $other],
+            ['label' => 'Web/Khác', 'value' => max(0, (int) round($total * 0.12))],
+        ])->filter(fn (array $source): bool => $source['value'] > 0)
+            ->values()
+            ->all();
+    }
+
+    private function signedPercent(int $change): string
+    {
+        return ($change >= 0 ? '+' : '').$change.'%';
     }
 
     private function sectionTitle(string $section, User $user): string

@@ -131,116 +131,77 @@
                 </section>
             </section>
         @else
-        <section class="page-title">
-            <div>
-                <h1>{{ $sectionTitle }}</h1>
-                <p>Omnichannel CRM workspace for Facebook and Zalo conversations.</p>
-            </div>
-            <div class="page-actions">
-                <a href="{{ route('crm.conversations') }}">
-                    Open Inbox
-                </a>
-                <a href="{{ route('crm.customers') }}">
-                    Customers
-                </a>
-            </div>
-        </section>
-
-        <section class="dashboard-grid">
-            <div class="dashboard-main-column">
-                <article class="panel summary-panel">
-                    <div class="panel-head">
-                        <div>
-                            <p>Conversation Management Summary</p>
-                            <h2>{{ number_format($weeklySummary['total']) }} Conversations <span class="{{ $weeklySummary['change'] >= 0 ? 'good' : 'bad' }}">{{ $weeklySummary['change'] >= 0 ? 'Up' : 'Down' }} {{ abs($weeklySummary['change']) }}%</span></h2>
-                            <small>Last 7 days by status</small>
-                        </div>
-                        <div class="filter-buttons">
-                            <a class="{{ $filters['period'] === 'week' ? 'active' : '' }}" href="{{ url()->current() }}?period=week">Week</a>
-                            <a class="{{ $filters['period'] === 'month' ? 'active' : '' }}" href="{{ url()->current() }}?period=month">Month</a>
-                            <a class="{{ $filters['period'] === 'year' ? 'active' : '' }}" href="{{ url()->current() }}?period=year">Year</a>
-                        </div>
-                    </div>
-
-                    <div class="legend">
-                        <span><b class="black"></b>Open</span>
-                        <span><b class="dark"></b>Pending</span>
-                        <span><b class="light"></b>Closed</span>
-                    </div>
-
-                    <div id="conversation-status-bar" class="morris-chart" aria-label="Conversation status chart"></div>
-                </article>
-
-                <div class="bottom-card-grid">
-                    <article class="panel revenue-card">
-                        <div class="panel-head compact-head">
-                            <div>
-                                <p>Conversation Trend</p>
-                                <h2>{{ number_format($yearTrend['total']) }} <span class="{{ $yearTrend['change'] >= 0 ? 'good' : 'bad' }}">{{ $yearTrend['change'] >= 0 ? 'Up' : 'Down' }} {{ abs($yearTrend['change']) }}%</span></h2>
-                            </div>
-                            <a class="panel-button" href="{{ route('crm.reports', ['period' => 'year']) }}">
-                                Year
-                            </a>
-                        </div>
-                        <div id="conversation-trend-line" class="morris-card-chart" aria-label="Conversation trend chart"></div>
-                    </article>
-
-                    <article class="panel allocation-card">
-                        <div class="panel-head compact-head">
-                            <div>
-                                <p>Platform Allocation</p>
-                                <h2>{{ number_format($channelMetrics->sum('messages')) }} Messages</h2>
-                            </div>
-                            <a class="panel-button" href="{{ route('crm.channels') }}">
-                                Channels
-                            </a>
-                        </div>
-                        <div id="platform-allocation-bar" class="morris-card-chart" aria-label="Platform allocation chart"></div>
-                    </article>
-                </div>
-            </div>
-
-            <aside class="dashboard-side-column">
-                <article class="panel completed-card">
-                    <p>Inbox Status</p>
+            <section class="today-dashboard-page">
+                <header class="today-dashboard-header">
                     <div>
-                        <h2>{{ number_format($statusCounts['open']) }} Open</h2>
-                        <a href="{{ route('crm.conversations', ['status' => 'open']) }}">
-                            View
+                        <h1>{{ $dashboardOverview['header']['title'] }}</h1>
+                        <p>{{ $dashboardOverview['header']['subtitle'] }}</p>
+                    </div>
+                    <div class="today-dashboard-actions">
+                        <button type="button">
+                            Hôm nay
+                            <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                        </button>
+                        <a href="{{ route('crm.reports') }}">
+                            <span class="material-symbols-outlined" aria-hidden="true">download</span>
+                            Xuất BC
                         </a>
                     </div>
-                    <div>
-                        <h2>{{ number_format($notificationCount) }} Needs Reply</h2>
-                        <a href="{{ route('crm.notifications') }}">
-                            View
-                        </a>
-                    </div>
-                </article>
+                </header>
 
-                <article class="panel crm-mini-panel">
-                    <div class="panel-head compact-head">
-                        <div>
-                            <p>Channels</p>
-                        </div>
-                        <a class="panel-button" href="{{ route('crm.channels') }}">
-                            Open
-                        </a>
-                    </div>
-                    @foreach($channelMetrics as $channel)
-                        @php($channelKey = strtolower($channel['name']))
-                        <a class="mini-row" href="{{ route('crm.channels', ['channel' => strtolower($channel['name'])]) }}">
-                            <span class="channel-name">
-                                <span class="channel-logo-frame">
-                                    <img class="channel-logo channel-logo-{{ $channelKey }}" src="{{ $channelKey === 'zalo' ? '/assets/img_zalo.png' : '/assets/img_fb.png' }}" alt="{{ $channel['name'] }} logo">
-                                </span>
-                                {{ $channel['name'] }}
-                            </span>
-                            <strong class="channel-unread {{ $channel['unread_messages'] > 0 ? 'has-unread' : '' }}">{{ number_format($channel['unread_messages']) }}</strong>
-                        </a>
+                <section class="today-kpi-grid">
+                    @foreach($dashboardOverview['cards'] as $card)
+                        <article class="today-kpi-card {{ $card['accent'] ? 'is-urgent' : '' }}">
+                            <div>
+                                <p>{{ $card['label'] }}</p>
+                                <h2>{{ $card['value'] }}</h2>
+                                <span class="{{ $card['tone'] }}">{{ $card['change'] }}</span>
+                            </div>
+                            <b>
+                                <span class="material-symbols-outlined" aria-hidden="true">{{ $card['icon'] }}</span>
+                            </b>
+                        </article>
                     @endforeach
-                </article>
-            </aside>
-        </section>
+                </section>
+
+                <section class="today-intent-grid">
+                    @foreach($dashboardOverview['intentCards'] as $intent)
+                        <article class="today-intent-card">
+                            <b>
+                                <span class="material-symbols-outlined" aria-hidden="true">{{ $intent['icon'] }}</span>
+                            </b>
+                            <div>
+                                <p>{{ $intent['label'] }}</p>
+                                <strong>{{ number_format($intent['value']) }}</strong>
+                            </div>
+                        </article>
+                    @endforeach
+                </section>
+
+                <section class="today-chart-grid">
+                    <article class="today-panel today-line-panel">
+                        <header>
+                            <h3>Hội thoại theo thời gian</h3>
+                            <button type="button" aria-label="Tuy chon">
+                                <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+                            </button>
+                        </header>
+                        <div id="today-conversation-line" class="today-line-chart" aria-label="Hoi thoai theo thoi gian"></div>
+                    </article>
+
+                    <article class="today-panel today-source-panel">
+                        <header>
+                            <h3>Nguồn khách hàng</h3>
+                        </header>
+                        <div id="today-source-donut" class="today-donut-chart" aria-label="Nguon khach hang"></div>
+                        <div class="today-source-legend">
+                            @foreach($dashboardOverview['sources'] as $source)
+                                <span>{{ $source['label'] }}</span>
+                            @endforeach
+                        </div>
+                    </article>
+                </section>
+            </section>
         @endif
     </main>
 </div>
@@ -257,6 +218,8 @@
         var activeSection = @json($activeSection ?? 'dashboard');
         var agentBarData = @json($agentDashboard['bar'] ?? []);
         var agentLineData = @json($agentDashboard['responseLine'] ?? []);
+        var todayLineData = @json($dashboardOverview['timeSeries'] ?? []);
+        var todaySourceData = @json($dashboardOverview['sources'] ?? []);
 
         if (activeSection === 'agents') {
             if (!agentBarData.length) {
@@ -299,57 +262,40 @@
             return;
         }
 
-        var chartUrl = @json(route('dashboard.charts', ['period' => $filters['period']]));
-        var chartColors = ['#000000', '#555555', '#bfbfbf', '#e2e2e2'];
+        if (!todayLineData.length) {
+            todayLineData = [{hour: '08:00', value: 0}];
+        }
 
-        $.ajax({
-            type: 'GET',
-            dataType: 'json',
-            url: chartUrl
-        }).done(function (data) {
-            Morris.Bar({
-                element: 'conversation-status-bar',
-                data: data.conversation_status,
-                xkey: 'period',
-                ykeys: ['open', 'pending', 'closed'],
-                labels: ['Open', 'Pending', 'Closed'],
-                barColors: ['#000000', '#555555', '#cfcfcf'],
-                gridTextColor: '#6f6f6f',
-                gridLineColor: '#dddddd',
-                stacked: true,
-                resize: true,
-                hideHover: 'auto'
-            });
+        if (!todaySourceData.length) {
+            todaySourceData = [{label: 'Chua co du lieu', value: 1}];
+        }
 
-            Morris.Line({
-                element: 'conversation-trend-line',
-                data: data.trend,
-                xkey: 'year',
-                ykeys: ['value'],
-                labels: ['Conversations'],
-                parseTime: false,
-                lineColors: ['#000000'],
-                pointFillColors: ['#000000'],
-                pointStrokeColors: ['#000000'],
-                gridTextColor: '#6f6f6f',
-                gridLineColor: '#dddddd',
-                resize: true,
-                hideHover: 'auto'
-            });
+        Morris.Area({
+            element: 'today-conversation-line',
+            data: todayLineData,
+            xkey: 'hour',
+            ykeys: ['value'],
+            labels: ['Hoi thoai'],
+            parseTime: false,
+            lineColors: ['#d70616'],
+            pointFillColors: ['#ffffff'],
+            pointStrokeColors: ['#d70616'],
+            fillOpacity: 0.14,
+            behaveLikeLine: true,
+            gridTextColor: '#6f6f6f',
+            gridLineColor: '#e5e7eb',
+            resize: true,
+            hideHover: 'auto'
+        });
 
-            Morris.Bar({
-                element: 'platform-allocation-bar',
-                data: data.channels,
-                xkey: 'label',
-                ykeys: ['value'],
-                labels: ['Messages'],
-                barColors: ['#000000'],
-                gridTextColor: '#6f6f6f',
-                gridLineColor: '#dddddd',
-                resize: true,
-                hideHover: 'auto'
-            });
-
+        Morris.Donut({
+            element: 'today-source-donut',
+            data: todaySourceData,
+            colors: ['#2581ee', '#0f62fe', '#000000', '#ee0d20'],
+            resize: true,
+            formatter: function (value) {
+                return value;
+            }
         });
     });
 </script>
