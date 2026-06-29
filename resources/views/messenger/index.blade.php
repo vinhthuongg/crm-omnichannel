@@ -10,6 +10,19 @@
     default => config('reverb.public.scheme'),
 })
 @php($customerTagOptionsJson = $allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values()->toJson())
+@php($navLabels = [
+    'dashboard' => 'Dashboard',
+    'conversations' => 'Hoi thoai',
+    'customers' => 'Khach hang',
+    'agents' => 'Nhan vien',
+    'work_shifts' => 'Ca truc',
+    'channels' => 'Ket noi mang xa hoi',
+    'reports' => 'Bao cao',
+    'activity' => 'Hoat dong',
+    'activity_log' => 'Thong bao',
+    'notifications' => 'Thong bao',
+    'settings' => 'Cai dat',
+])
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/messenger/chat.css') }}?v={{ filemtime(public_path('css/messenger/chat.css')) }}">
 @endpush
@@ -17,10 +30,24 @@
     <aside class="crm-sidebar">
         <a class="crm-logo" href="{{ route('dashboard') }}">Toyota CRM</a>
 
+        <a class="sidebar-user-card" href="{{ route('crm.settings', ['panel' => 'profile']) }}">
+            <span class="sidebar-user-avatar">
+                @if($currentUser->avatar ?? null)
+                    <img src="{{ $currentUser->avatar }}" alt="{{ $currentUser->name }}">
+                @else
+                    {{ strtoupper(substr($currentUser->name, 0, 1)) }}
+                @endif
+            </span>
+            <span>
+                <strong>{{ $currentUser->name }}</strong>
+                <small>{{ $currentUser->can('conversation.view_all') ? 'CRM Admin' : 'Sales Consultant' }}</small>
+            </span>
+        </a>
+
         <nav class="side-nav" aria-label="CRM navigation">
             @foreach($navItems as $item)
                 <a class="{{ $activeSection === $item['section'] ? 'active' : '' }}" href="{{ route($item['route']) }}">
-                    <span>{{ $item['icon'] }}</span>{{ $item['label'] }}
+                    <span>{{ $item['icon'] }}</span>{{ $navLabels[$item['section']] ?? $item['label'] }}
                 </a>
             @endforeach
         </nav>
@@ -47,7 +74,7 @@
             <a class="profile-link" href="{{ route('crm.settings', ['panel' => 'profile']) }}">{{ $currentUser->name }}</a>
             <form method="POST" action="{{ route('logout') }}" class="account-menu">
                 @csrf
-                <button type="submit">Logout</button>
+                <button type="submit">Dang xuat</button>
             </form>
         </header>
 
@@ -84,7 +111,7 @@
             <aside class="messenger-list">
                 <div class="messenger-list-head">
                     <div>
-                        <h1>All Chat</h1>
+                        <h1>Hoi thoai</h1>
                     </div>
                 </div>
 
@@ -92,14 +119,14 @@
             @if(($filters['channel'] ?? 'all') !== 'all')
                 <input type="hidden" name="channel" value="{{ $filters['channel'] }}">
             @endif
-            <input type="search" name="q" placeholder="Tim kiem tren Messenger" value="{{ $filters['search'] }}">
+            <input type="search" name="q" placeholder="Tim kiem..." value="{{ $filters['search'] }}">
             <select name="tag" aria-label="Loc theo tag">
                 <option value="">Tat ca tag</option>
                 @foreach($allTags as $tag)
                     <option value="{{ $tag->name }}" @selected(($filters['tag'] ?? '') === $tag->name)>{{ $tag->name }}</option>
                 @endforeach
             </select>
-            <button type="submit">Search</button>
+            <button type="submit">Tim kiem</button>
         </form>
 
         <div class="messenger-thread-list">
@@ -316,18 +343,18 @@
                         @endif
                     </span>
                     <div class="composer-actions" aria-label="Message tools">
-                        <button type="button" title="Bieu cam">☺</button>
-                        <button type="button" title="Mau tin">▱</button>
+                        <button type="button" title="Bieu cam">:)</button>
+                        <button type="button" title="Mau tin">M</button>
                         <label title="Dinh kem">
-                            ♧
+                            +
                             <input type="file" name="attachments[]" multiple data-composer-files>
                         </label>
-                        <button type="button" title="Hinh anh" data-upload-trigger>▧</button>
-                        <button type="button" title="Video" data-upload-trigger>▻</button>
-                        <button type="button" title="Ghi chu">▤</button>
-                        <button type="button" title="Lich">□</button>
-                        <button type="button" title="San pham">◇</button>
-                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>➤</button>
+                        <button type="button" title="Hinh anh" data-upload-trigger>Img</button>
+                        <button type="button" title="Video" data-upload-trigger>Vid</button>
+                        <button type="button" title="Ghi chu">Note</button>
+                        <button type="button" title="Lich">Cal</button>
+                        <button type="button" title="San pham">Xe</button>
+                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>Go</button>
                     </div>
                 </div>
                 <div class="composer-file-list" data-composer-file-list></div>
@@ -337,8 +364,8 @@
             @enderror
         @else
             <section class="messenger-no-chat">
-                <h2>Select a conversation</h2>
-                <p>No conversation data available.</p>
+                <h2>Chon hoi thoai</h2>
+                <p>Chon hoi thoai ben trai de bat dau xu ly.</p>
             </section>
         @endif
     </section>
@@ -409,7 +436,13 @@
             </section>
 
             <div class="profile-panel-main" data-profile-main>
-            <header class="profile-card-head">
+            <header class="profile-panel-title">
+                <h3>Thong tin Khach hang</h3>
+                <button type="button" class="profile-contact-toggle" data-contact-toggle>Chinh sua</button>
+            </header>
+
+            <section class="profile-card-head">
+                <span class="channel-lead-badge">{{ ucfirst($activeChannel) }} Lead</span>
                 <span class="thread-avatar" data-profile-avatar>
                     @if($activeConversation->customer?->avatar)
                         <img src="{{ $activeConversation->customer->avatar }}" alt="{{ $activeConversation->customer?->name ?? 'Customer' }}">
@@ -422,7 +455,30 @@
                     <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi tiet lien he &gt;</button>
                 </div>
                 <button type="button" aria-label="More profile actions">...</button>
-            </header>
+                <div class="profile-quick-actions">
+                    @if(filled($activeConversation->customer?->phone))
+                        <a href="tel:{{ $activeConversation->customer->phone }}">Goi</a>
+                    @else
+                        <span>Chua co SDT</span>
+                    @endif
+                    @if(filled($activeConversation->customer?->email))
+                        <a href="mailto:{{ $activeConversation->customer->email }}">Email</a>
+                    @else
+                        <span>Chua co email</span>
+                    @endif
+                </div>
+            </section>
+
+            <section class="profile-contact-summary">
+                <article>
+                    <span>So dien thoai</span>
+                    <strong data-profile-phone>{{ $activeConversation->customer?->phone ?: 'Chua co' }}</strong>
+                </article>
+                <article>
+                    <span>Kenh lien he</span>
+                    <strong>{{ ucfirst($activeChannel) }}</strong>
+                </article>
+            </section>
 
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">
                 <header>
