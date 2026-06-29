@@ -459,28 +459,12 @@
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
                     <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi tiet lien he &gt;</button>
                 </div>
-                <div class="profile-quick-actions">
-                    @if(filled($activeConversation->customer?->phone))
-                        <a href="tel:{{ $activeConversation->customer->phone }}">Goi</a>
-                    @else
-                        <span>Chưa Có SĐT</span>
-                    @endif
-                    @if(filled($activeConversation->customer?->email))
-                        <a href="mailto:{{ $activeConversation->customer->email }}">Email</a>
-                    @else
-                        <span>Chưa Có Email</span>
-                    @endif
-                </div>
             </section>
 
             <section class="profile-contact-summary">
                 <article>
                     <span>Số Điện Thoại</span>
                     <strong data-profile-phone>{{ $activeConversation->customer?->phone ?: 'Chua co' }}</strong>
-                </article>
-                <article>
-                    <span>Kênh Liên Hệ</span>
-                    <strong>{{ ucfirst($activeChannel) }}</strong>
                 </article>
             </section>
 

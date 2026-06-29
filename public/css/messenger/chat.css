@@ -892,14 +892,31 @@ body.messenger-page .composer-tabs {
     align-items: center;
     gap: 7px;
     overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    cursor: grab;
+    user-select: none;
+    scroll-behavior: smooth;
+    touch-action: pan-x;
     border: 0;
     background: transparent;
     padding: 0;
 }
 
+body.messenger-page .composer-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+body.messenger-page .composer-tabs.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+}
+
 body.messenger-page .composer-mode,
 body.messenger-page .composer-tag,
 body.messenger-page .composer-tabs span {
+    flex: 0 0 auto;
     min-height: 24px;
     border: 1px solid var(--chat-line);
     border-radius: 8px;
@@ -1052,7 +1069,7 @@ body.messenger-page .profile-card-head > .thread-avatar {
     margin-top: 8px;
 }
 
-body.messenger-page .profile-card-head > div:not(.profile-quick-actions) {
+body.messenger-page .profile-card-head > div {
     grid-column: 1 / -1;
     text-align: center;
 }
@@ -1084,44 +1101,6 @@ body.messenger-page .profile-contact-toggle {
     font-size: 12px;
     font-weight: 900;
     cursor: pointer;
-}
-
-body.messenger-page .profile-card-head button:not(.profile-contact-toggle) {
-    position: absolute;
-    top: 14px;
-    right: 16px;
-    border: 0;
-    background: transparent;
-    color: #344054;
-    font-size: 18px;
-    font-weight: 900;
-}
-
-body.messenger-page .profile-quick-actions {
-    grid-column: 1 / -1;
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 4px;
-}
-
-body.messenger-page .profile-quick-actions a,
-body.messenger-page .profile-quick-actions span {
-    min-height: 30px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--chat-line);
-    border-radius: 6px;
-    background: #f8fafc;
-    color: var(--chat-blue);
-    font-size: 12px;
-    font-weight: 900;
-    text-decoration: none;
-}
-
-body.messenger-page .profile-quick-actions span {
-    color: #94a3b8;
 }
 
 body.messenger-page .profile-contact-summary {
