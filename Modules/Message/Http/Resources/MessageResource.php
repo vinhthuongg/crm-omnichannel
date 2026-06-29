@@ -16,6 +16,7 @@ class MessageResource extends JsonResource
             'conversation_customer_name' => $this->conversation?->customer?->name,
             'conversation_customer_avatar' => $this->conversation?->customer?->avatar,
             'conversation_customer_phone' => $this->conversation?->customer?->phone,
+            'conversation_assigned_to' => $this->conversation?->assigned_to ? (int) $this->conversation->assigned_to : null,
             'conversation_unread_messages_count' => (int) ($this->conversation?->unread_messages_count ?? 0),
             'conversation_is_unread' => (int) ($this->conversation?->unread_messages_count ?? 0) > 0,
             'conversation_tags' => $this->conversation?->tags

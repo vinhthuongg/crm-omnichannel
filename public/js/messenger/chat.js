@@ -161,13 +161,22 @@
     let composer = document.querySelector('[data-messenger-composer]');
     const realtimeRoot = document.querySelector('[data-messenger-realtime]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    let customerTagOptions = JSON.parse(realtimeRoot?.dataset.customerTagOptions || '[]');
+    let customerTagOptions = readJsonDataset(realtimeRoot?.dataset.customerTagOptions, []);
     let attachmentUpload = {
         files: [],
         promise: Promise.resolve([]),
         uploaded: [],
     };
     let olderMessagesLoading = false;
+
+    function readJsonDataset(value, fallback) {
+        try {
+            return value ? JSON.parse(value) : fallback;
+        } catch (error) {
+            console.warn('CRM messenger dataset JSON parse failed:', error);
+            return fallback;
+        }
+    }
 
     function syncSearchInputs(value) {
         document.querySelectorAll('[data-auto-search-input]').forEach(function (input) {
@@ -214,6 +223,7 @@
 
         const targetUrl = new URL(url, window.location.origin);
         syncSearchInputs(targetUrl.searchParams.get('q') || '');
+        syncRealtimeFilters(targetUrl);
 
         try {
             const response = await fetch(targetUrl, {
@@ -256,6 +266,16 @@
         } catch (error) {
             console.warn('CRM messenger search failed:', error);
         }
+    }
+
+    function syncRealtimeFilters(url) {
+        if (!realtimeRoot) {
+            return;
+        }
+
+        realtimeRoot.dataset.channelFilter = url.searchParams.get('channel') || 'all';
+        realtimeRoot.dataset.statusFilter = url.searchParams.get('status') || 'all';
+        realtimeRoot.dataset.tagFilter = url.searchParams.get('tag') || '';
     }
 
     function escapeHtml(value) {
@@ -1459,13 +1479,17 @@
             return;
         }
 
-        if (!messageMatchesChannelFilter(message)) {
+        let thread = list.querySelector(`[data-thread-conversation-id="${message.conversation_id}"]`);
+        const isActiveThread = String(message.conversation_id) === String(timeline?.dataset.conversationId);
+
+        if (!messageMatchesCurrentFilters(message)) {
+            if (thread && !isActiveThread) {
+                thread.remove();
+            }
             return;
         }
 
         list.querySelector('.messenger-empty')?.remove();
-
-        let thread = list.querySelector(`[data-thread-conversation-id="${message.conversation_id}"]`);
 
         if (!thread) {
             thread = document.createElement('a');
@@ -1508,8 +1532,6 @@
         updateThreadPreview(message);
         updateThreadTags(message.conversation_id, message.conversation_tags || []);
 
-        const isActiveThread = String(message.conversation_id) === String(timeline?.dataset.conversationId);
-
         if (isActiveThread) {
             updateConversationTags(document.querySelector('[data-conversation-tags]')?.dataset.tagsUrl || '', message.conversation_tags || []);
 
@@ -1532,15 +1554,33 @@
         }
     }
 
-    function messageMatchesChannelFilter(message) {
+    function messageMatchesCurrentFilters(message) {
         const channelFilter = realtimeRoot?.dataset.channelFilter || 'all';
         const messageChannel = String(message?.channel || '');
 
-        if (channelFilter === 'all' || !['facebook', 'zalo'].includes(messageChannel)) {
-            return true;
+        if (channelFilter !== 'all' && ['facebook', 'zalo'].includes(messageChannel) && messageChannel !== channelFilter) {
+            return false;
         }
 
-        return messageChannel === channelFilter;
+        const statusFilter = realtimeRoot?.dataset.statusFilter || 'all';
+        const currentUserId = Number(realtimeRoot?.dataset.currentUserId || timeline?.dataset.currentUserId || 0);
+
+        if (statusFilter === 'unread' && Number(message?.conversation_unread_messages_count || 0) <= 0) {
+            return false;
+        }
+
+        if (statusFilter === 'mine' && Number(message?.conversation_assigned_to || 0) !== currentUserId) {
+            return false;
+        }
+
+        const tagFilter = String(realtimeRoot?.dataset.tagFilter || '').trim().toLowerCase();
+
+        if (tagFilter) {
+            const tags = Array.isArray(message?.conversation_tags) ? message.conversation_tags : [];
+            return tags.some((tag) => String(tag?.name || '').trim().toLowerCase() === tagFilter);
+        }
+
+        return true;
     }
 
     function platformIconHtml(channel) {
@@ -1662,7 +1702,9 @@
 
     let messageSocket = null;
     let streamSource = null;
+    let inboxStreamSource = null;
     let streamReconnectTimer = null;
+    let inboxStreamReconnectTimer = null;
     let pollingTimer = null;
     let fallbackTimer = null;
     let pollingInFlight = false;
@@ -1690,7 +1732,8 @@
             });
 
             if (!response.ok) {
-                throw new Error('Broadcast authentication failed.');
+                const details = await response.text().catch(() => '');
+                throw new Error(`Broadcast authentication failed (${response.status}): ${details.slice(0, 160)}`);
             }
 
             const auth = await response.json();
@@ -1879,12 +1922,28 @@
         }
     }
 
+    function stopInboxStreamReconnectTimer() {
+        if (inboxStreamReconnectTimer) {
+            window.clearTimeout(inboxStreamReconnectTimer);
+            inboxStreamReconnectTimer = null;
+        }
+    }
+
     function closeMessageStream() {
         stopStreamReconnectTimer();
 
         if (streamSource) {
             streamSource.close();
             streamSource = null;
+        }
+    }
+
+    function closeInboxMessageStream() {
+        stopInboxStreamReconnectTimer();
+
+        if (inboxStreamSource) {
+            inboxStreamSource.close();
+            inboxStreamSource = null;
         }
     }
 
@@ -1903,6 +1962,10 @@
             realtimeMode === 'websocket'
         ) {
             return false;
+        }
+
+        if (streamSource) {
+            return true;
         }
 
         closeMessageStream();
@@ -1938,6 +2001,63 @@
             streamReconnectTimer = window.setTimeout(function () {
                 if (!document.hidden && realtimeMode !== 'websocket') {
                     startMessageStream();
+                }
+            }, 2500);
+        });
+
+        return true;
+    }
+
+    function startInboxMessageStream() {
+        if (
+            !realtimeRoot?.dataset.inboxStreamUrl ||
+            !window.EventSource ||
+            realtimeMode === 'websocket'
+        ) {
+            return false;
+        }
+
+        if (inboxStreamSource) {
+            return true;
+        }
+
+        closeInboxMessageStream();
+
+        const url = new URL(realtimeRoot.dataset.inboxStreamUrl, window.location.origin);
+        url.searchParams.set('after_id', realtimeRoot.dataset.inboxLastMessageId || '0');
+
+        inboxStreamSource = new EventSource(url);
+
+        inboxStreamSource.addEventListener('open', function () {
+            console.info('CRM messenger realtime: inbox stream connected');
+            realtimeMode = realtimeMode === 'websocket' ? 'websocket' : 'stream';
+        });
+
+        inboxStreamSource.addEventListener('message', function (event) {
+            try {
+                const message = JSON.parse(event.data);
+                realtimeRoot.dataset.inboxLastMessageId = String(Math.max(
+                    Number(realtimeRoot.dataset.inboxLastMessageId || 0),
+                    Number(message.id || 0),
+                ));
+                handleRealtimeMessage(message);
+            } catch (error) {
+                console.warn('CRM messenger inbox stream message failed:', error);
+            }
+        });
+
+        inboxStreamSource.addEventListener('error', function () {
+            closeInboxMessageStream();
+
+            if (document.hidden || realtimeMode === 'websocket') {
+                return;
+            }
+
+            realtimeMode = 'polling';
+            startPolling();
+            inboxStreamReconnectTimer = window.setTimeout(function () {
+                if (!document.hidden && realtimeMode !== 'websocket') {
+                    startInboxMessageStream();
                 }
             }, 2500);
         });
@@ -1982,6 +2102,7 @@
                     stopFallbackTimer();
                     stopPolling();
                     closeMessageStream();
+                    closeInboxMessageStream();
                     return;
                 }
 
@@ -2023,6 +2144,7 @@
             if (!document.hidden) {
                 realtimeMode = 'polling';
                 stopFallbackTimer();
+                startInboxMessageStream();
                 startMessageStream();
                 startPolling();
                 stopReconnectTimer();
@@ -2035,6 +2157,7 @@
             closeMessageSocket();
             realtimeMode = 'polling';
             stopFallbackTimer();
+            startInboxMessageStream();
             startMessageStream();
             startPolling();
         });
@@ -2045,24 +2168,29 @@
     function startRealtime() {
         closeMessageSocket();
         closeMessageStream();
+        closeInboxMessageStream();
         stopReconnectTimer();
         stopFallbackTimer();
         stopPolling();
         realtimeMode = 'connecting';
 
-        if (startBroadcastSocket()) {
+        const socketStarted = startBroadcastSocket();
+        const inboxStreamStarted = startInboxMessageStream();
+        const messageStreamStarted = startMessageStream();
+
+        if (socketStarted) {
             fallbackTimer = window.setTimeout(function () {
                 if (realtimeMode !== 'websocket') {
-                    realtimeMode = 'polling';
+                    realtimeMode = inboxStreamStarted || messageStreamStarted ? 'stream' : 'polling';
+                    startInboxMessageStream();
                     startMessageStream();
                     startPolling();
                 }
-            }, 8000);
+            }, 3000);
             return;
         }
 
-        realtimeMode = 'polling';
-        startMessageStream();
+        realtimeMode = inboxStreamStarted || messageStreamStarted ? 'stream' : 'polling';
         startPolling();
     }
 
@@ -2094,6 +2222,7 @@
 
         closeMessageSocket();
         closeMessageStream();
+        closeInboxMessageStream();
         stopFallbackTimer();
         stopReconnectTimer();
         stopPolling();

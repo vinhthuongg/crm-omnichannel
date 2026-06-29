@@ -10,6 +10,7 @@
     default => config('reverb.public.scheme'),
 })
 @php($customerTagOptionsJson = $allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values()->toJson())
+@php($inboxLastMessageId = $conversations->map(fn ($conversation) => (int) ($conversation->messages->first()?->id ?? 0))->max() ?? 0)
 @php($navLabels = [
     'dashboard' => 'Dashboard',
     'conversations' => 'Hoi thoai',
@@ -82,7 +83,12 @@
             class="messenger-shell"
             data-messenger-realtime
             data-conversations-url="{{ route('crm.conversations') }}"
+            data-inbox-stream-url="{{ route('crm.conversations.messages.stream.inbox') }}"
+            data-inbox-last-message-id="{{ $inboxLastMessageId }}"
+            data-current-user-id="{{ $currentUser->id }}"
             data-channel-filter="{{ $filters['channel'] ?? 'all' }}"
+            data-status-filter="{{ $filters['status'] ?? 'all' }}"
+            data-tag-filter="{{ $filters['tag'] ?? '' }}"
             data-inbox-broadcast-channel="private-crm.conversations"
             data-broadcast-auth-url="{{ url('/broadcasting/auth') }}"
             data-reverb-key="{{ $reverb['key'] }}"

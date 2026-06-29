@@ -248,6 +248,54 @@ class MessengerController extends Controller
         ]);
     }
 
+    public function inboxMessageStream(Request $request, ConversationVisibilityService $visibility): StreamedResponse
+    {
+        $lastId = max(0, $request->integer('after_id'));
+        $user = $request->user();
+
+        return response()->stream(function () use ($visibility, $user, $lastId): void {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(0);
+            }
+
+            if (function_exists('session_write_close')) {
+                @session_write_close();
+            }
+
+            $startedAt = time();
+            echo "retry: 1000\n\n";
+            echo ': '.str_repeat(' ', 2048)."\n\n";
+            $this->flushStream();
+
+            while (! connection_aborted() && time() - $startedAt < 55) {
+                $visibleConversationIds = $visibility->visibleFor($user)->select('id');
+                $messages = Message::query()
+                    ->with(['sender', 'conversation.customer', 'conversation.tags'])
+                    ->where('id', '>', $lastId)
+                    ->whereIn('conversation_id', $visibleConversationIds)
+                    ->oldest()
+                    ->limit(100)
+                    ->get();
+
+                foreach ($messages as $message) {
+                    $lastId = max($lastId, (int) $message->id);
+                    echo 'id: '.$lastId."\n";
+                    echo "event: message\n";
+                    echo 'data: '.json_encode((new MessageResource($message))->resolve(), JSON_UNESCAPED_UNICODE)."\n\n";
+                }
+
+                echo ": heartbeat\n\n";
+                $this->flushStream();
+                sleep(1);
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache, no-transform',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
     private function flushStream(): void
     {
         if (ob_get_level() > 0) {
