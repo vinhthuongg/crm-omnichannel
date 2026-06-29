@@ -65,17 +65,6 @@
         loadConversation(window.location.href);
     });
 
-    document.querySelector('.chat-actions')?.addEventListener('click', function (event) {
-        const deleteButton = event.target.closest('[data-delete-conversation-button]');
-
-        if (!deleteButton) {
-            return;
-        }
-
-        event.preventDefault();
-        deleteConversation(deleteButton);
-    });
-
     document.querySelector('[data-assign-form]')?.addEventListener('submit', async function (event) {
         event.preventDefault();
         assignConversation(event.target);
@@ -886,10 +875,8 @@
         const chatName = document.querySelector('[data-chat-customer-name]');
         const chatPhone = document.querySelector('[data-chat-customer-phone]');
         const chatAssignee = document.querySelector('[data-chat-assignee]');
-        const chatChannel = document.querySelector('[data-chat-channel]');
         const assignForm = document.querySelector('[data-assign-form]');
         const assignSelect = document.querySelector('[data-assign-select]');
-        const deleteButton = document.querySelector('[data-delete-conversation-button]');
 
         if (chatAvatar) {
             chatAvatar.innerHTML = avatarHtml(conversation.customer_avatar, customerName);
@@ -915,15 +902,6 @@
 
         if (assignSelect) {
             assignSelect.value = conversation.assigned_to ? String(conversation.assigned_to) : '';
-        }
-
-        if (chatChannel) {
-            chatChannel.textContent = (conversation.active_channel || 'facebook').replace(/^./, (char) => char.toUpperCase());
-            chatChannel.href = `/channels?channel=${encodeURIComponent(conversation.active_channel || 'facebook')}`;
-        }
-
-        if (deleteButton) {
-            deleteButton.dataset.deleteConversationUrl = conversation.delete_url || '';
         }
 
         timeline.dataset.conversationId = conversation.id;

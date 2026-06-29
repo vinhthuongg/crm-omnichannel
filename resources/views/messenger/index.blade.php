@@ -241,23 +241,6 @@
                         <small data-assign-status></small>
                     </form>
                 @endif
-                <nav class="chat-actions" aria-label="Conversation actions">
-                    <a href="{{ route('crm.customers', ['q' => $activeConversation->customer?->name]) }}">Info</a>
-                    <a href="{{ route('crm.channels', ['channel' => $activeChannel]) }}" data-chat-channel>{{ ucfirst($activeChannel) }}</a>
-                    <a href="{{ route('dashboard') }}">Dashboard</a>
-                    <button
-                        type="button"
-                        class="chat-delete-messages"
-                        title="Xoa hoi thoai"
-                        aria-label="Xoa hoi thoai"
-                        data-delete-conversation-url="{{ route('crm.conversations.destroy', $activeConversation) }}"
-                        data-delete-conversation-button
-                    >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" fill="currentColor"/>
-                        </svg>
-                    </button>
-                </nav>
             </header>
             <div class="conversation-claim-bar {{ $canClaim || ! $canReply ? '' : 'is-hidden' }}" data-claim-bar>
                 <span data-claim-status>{{ $canClaim ? 'Hoi thoai moi trong ca truc cua ban.' : 'Ban can nhan xu ly truoc khi tra loi.' }}</span>

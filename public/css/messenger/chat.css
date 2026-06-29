@@ -734,9 +734,7 @@ body.messenger-page .conversation-assign-form select {
     font-size: 12px;
 }
 
-body.messenger-page .conversation-assign-form button,
-body.messenger-page .chat-actions a,
-body.messenger-page .chat-actions button {
+body.messenger-page .conversation-assign-form button {
     min-height: 34px;
     border: 1px solid var(--chat-line);
     border-radius: 8px;
@@ -745,17 +743,6 @@ body.messenger-page .chat-actions button {
     padding: 0 12px;
     font-size: 12px;
     font-weight: 900;
-}
-
-body.messenger-page .chat-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-body.messenger-page .chat-actions button {
-    width: 36px;
-    padding: 0;
 }
 
 body.messenger-page .conversation-claim-bar {
