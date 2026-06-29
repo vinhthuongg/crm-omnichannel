@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Modules\Conversation\Models\WorkShift;
+use Modules\Conversation\Support\ConversationStatus;
 
 class WorkShiftController extends Controller
 {
@@ -16,6 +18,17 @@ class WorkShiftController extends Controller
         abort_unless($request->user()->can('user.manage'), 403);
         $user = $request->user();
 
+        $shifts = WorkShift::query()
+            ->with(['agents' => fn ($query) => $query->withCount([
+                'assignedConversations as active_conversations_count' => fn (Builder $conversationQuery) => $conversationQuery->whereIn('status', ConversationStatus::ACTIVE),
+            ])])
+            ->orderBy('starts_at')
+            ->limit(50)
+            ->get();
+        $now = now();
+        $currentShift = $shifts->first(fn (WorkShift $shift): bool => $shift->is_active && $this->containsTime($shift, $now));
+        $nextShift = $shifts->first(fn (WorkShift $shift): bool => $shift->is_active && $shift->starts_at && $shift->starts_at->greaterThan($now));
+
         return view('work_shifts.index', [
             'currentUser' => $user,
             'activeSection' => 'work_shifts',
@@ -23,8 +36,16 @@ class WorkShiftController extends Controller
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
-            'shifts' => WorkShift::query()->with('agents')->latest('starts_at')->limit(50)->get(),
-            'agents' => User::role(['CSKH', 'User'])->where('is_active', true)->orderBy('name')->get(),
+            'shifts' => $shifts,
+            'currentShift' => $currentShift,
+            'nextShift' => $nextShift,
+            'agents' => User::role(['CSKH', 'User'])
+                ->where('is_active', true)
+                ->withCount([
+                    'assignedConversations as active_conversations_count' => fn (Builder $query) => $query->whereIn('status', ConversationStatus::ACTIVE),
+                ])
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -78,6 +99,31 @@ class WorkShiftController extends Controller
             'agent_ids' => ['required', 'array', 'size:2'],
             'agent_ids.*' => ['integer', 'exists:users,id'],
         ]);
+    }
+
+    private function containsTime(WorkShift $shift, $time): bool
+    {
+        if (! $shift->starts_at || ! $shift->ends_at) {
+            return false;
+        }
+
+        if ($shift->starts_at <= $time && $shift->ends_at > $time) {
+            return true;
+        }
+
+        $start = ((int) $shift->starts_at->format('H') * 3600) + ((int) $shift->starts_at->format('i') * 60);
+        $end = ((int) $shift->ends_at->format('H') * 3600) + ((int) $shift->ends_at->format('i') * 60);
+        $current = ((int) $time->format('H') * 3600) + ((int) $time->format('i') * 60);
+
+        if ($start === $end) {
+            return true;
+        }
+
+        if ($start < $end) {
+            return $current >= $start && $current < $end;
+        }
+
+        return $current >= $start || $current < $end;
     }
 
     private function navItems(User $user): array
