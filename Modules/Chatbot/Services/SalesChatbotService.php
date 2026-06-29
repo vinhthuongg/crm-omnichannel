@@ -83,6 +83,17 @@ class SalesChatbotService
             return $this->greetingReply($conversation, $state, $source);
         }
 
+        $intent = $content !== ''
+            ? $this->classifyCustomerIntent($content, $state)
+            : ['intent' => 'empty', 'needs_data' => false];
+
+        if ($content !== '' && ! (bool) ($intent['needs_data'] ?? false)) {
+            return new ChatbotReply(
+                content: $this->intentConversationAnswer($conversation, $this->resetStaleFlowForChat($conversation, $state), $content, $intent),
+                clientMessageKey: $this->replyKey($conversation, $source, 'intent-chat'),
+            );
+        }
+
         if ($content !== '' && $this->shouldChatNormally($content, $state)) {
             return new ChatbotReply(
                 content: $this->conversationalAnswer($conversation, $this->resetStaleFlowForChat($conversation, $state), $content),
@@ -347,6 +358,89 @@ class SalesChatbotService
             || str_contains($normalized, 'giao xe')
             || str_contains($normalized, 'con xe')
             || str_contains($normalized, 'tinh trang xe');
+    }
+
+    private function classifyCustomerIntent(string $content, array $state): array
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+        $model = $this->conversationModel($state, $content);
+
+        $ruleIntent = match (true) {
+            str_contains($normalized, 'lai thu')
+                || str_contains($normalized, 'test drive')
+                || str_contains($normalized, 'chay thu') => 'test_drive',
+            str_contains($normalized, 'doi cu')
+                || str_contains($normalized, 'xe cu')
+                || str_contains($normalized, 'da qua su dung')
+                || str_contains($normalized, 'second hand') => 'used_car',
+            str_contains($normalized, 'cho anh hoi')
+                || str_contains($normalized, 'cho chi hoi')
+                || str_contains($normalized, 'hoi chut')
+                || str_contains($normalized, 'hoi 1 chut')
+                || str_contains($normalized, 'duoc khong')
+                || str_contains($normalized, 'duoc ko') => 'permission_question',
+            default => null,
+        };
+
+        if ($ruleIntent) {
+            return [
+                'intent' => $ruleIntent,
+                'model' => $model,
+                'needs_data' => false,
+            ];
+        }
+
+        if ($this->isCommercialDataIntent($content) || $this->wantsInstallment($content) || $this->wantsCash($content)) {
+            return [
+                'intent' => 'commercial_data',
+                'model' => $model,
+                'needs_data' => true,
+            ];
+        }
+
+        try {
+            $answer = $this->nim->chat(
+                $this->intentClassifierPrompt(),
+                "TIN_NHAN_KHACH: {$content}\nMAU_XE_TRONG_NGU_CANH: ".($model !== '' ? $model : 'chua co')."\nSTATE: ".json_encode($state, JSON_UNESCAPED_UNICODE),
+            );
+            $json = json_decode(trim((string) $answer), true, flags: JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            $json = [];
+        }
+
+        $intent = (string) ($json['intent'] ?? 'casual');
+        $needsData = (bool) ($json['needs_data'] ?? false);
+
+        if (! in_array($intent, ['casual', 'permission_question', 'test_drive', 'used_car', 'commercial_data', 'product_consulting'], true)) {
+            $intent = 'casual';
+            $needsData = false;
+        }
+
+        if (in_array($intent, ['test_drive', 'used_car', 'permission_question', 'casual'], true)) {
+            $needsData = false;
+        }
+
+        return [
+            'intent' => $intent,
+            'model' => (string) ($json['model'] ?? $model),
+            'needs_data' => $needsData,
+        ];
+    }
+
+    private function intentConversationAnswer(Conversation $conversation, array $state, string $content, array $intent): string
+    {
+        $model = (string) ($intent['model'] ?? $this->conversationModel($state, $content));
+
+        return match ((string) ($intent['intent'] ?? 'casual')) {
+            'permission_question' => "Dạ được anh ạ, anh cứ hỏi thoải mái giúp em.\n\nAnh đang muốn hỏi về mẫu xe, lái thử, giá lăn bánh, trả góp hay ưu đãi hiện tại ạ?",
+            'test_drive' => $model !== ''
+                ? "Dạ được anh ạ. Với mẫu {$model}, bên em có thể hỗ trợ đăng ký lái thử theo lịch phù hợp.\n\nAnh cho em xin số điện thoại/Zalo và thời gian anh tiện, Toyota Kiên Giang sẽ kiểm tra lịch xe lái thử rồi xác nhận lại cho anh ạ."
+                : "Dạ được anh ạ. Bên em có hỗ trợ đăng ký lái thử theo lịch phù hợp.\n\nAnh cho em biết mẫu xe anh muốn lái thử và để lại số điện thoại/Zalo, Toyota Kiên Giang sẽ kiểm tra lịch rồi xác nhận lại cho anh ạ.",
+            'used_car' => $model !== ''
+                ? "Dạ em hiểu anh đang hỏi {$model} đời cũ ạ.\n\nPhần xe đời cũ/xe đã qua sử dụng cần kiểm tra tồn thực tế riêng, nên em không tự xác nhận khi chưa có dữ liệu trong hệ thống. Anh cho em xin số điện thoại/Zalo, bên em sẽ kiểm tra lại và báo anh chính xác ạ."
+                : "Dạ xe đời cũ/xe đã qua sử dụng cần kiểm tra tồn thực tế riêng anh ạ.\n\nAnh cho em biết mẫu xe mình đang tìm và để lại số điện thoại/Zalo, bên em sẽ kiểm tra rồi phản hồi chính xác cho anh ạ.",
+            default => $this->conversationalAnswer($conversation, $state, $content),
+        };
     }
 
     private function shouldChatNormally(string $content, array $state): bool
@@ -1162,13 +1256,7 @@ class SalesChatbotService
 
     private function followUpGreetingMessage(array $state): string
     {
-        $model = (string) ($state['model'] ?? '');
-
-        if ($model !== '') {
-            return "Dạ em vẫn đang hỗ trợ Anh/Chị về mẫu {$model} ạ. Anh/Chị muốn em kiểm tra thêm giá lăn bánh, ưu đãi, trả góp hay tình trạng xe cho mình ạ?";
-        }
-
-        return 'Dạ em đang hỗ trợ Anh/Chị ạ. Anh/Chị muốn em kiểm tra mẫu xe hoặc nhu cầu tư vấn nào tiếp theo ạ?';
+        return 'Dạ em nghe Anh/Chị ạ. Anh/Chị cứ nhắn câu hỏi hoặc nhu cầu của mình, em sẽ hỗ trợ từng phần cho mình ạ.';
     }
 
     private function hasGreeted(Conversation $conversation, array $state): bool
@@ -1232,6 +1320,27 @@ Nhiệm vụ:
 - Trả lời tiếng Việt, ngắn gọn, dễ đọc, chuyên nghiệp.
 
 Không dùng format cứng. Hãy trò chuyện tự nhiên như một tư vấn viên đang trực chat.
+PROMPT;
+    }
+
+    private function intentClassifierPrompt(): string
+    {
+        return <<<'PROMPT'
+Bạn là bộ phân loại ý định cho CRM Toyota Kiên Giang.
+
+Chỉ trả về JSON hợp lệ, không giải thích.
+
+Schema:
+{"intent":"casual|permission_question|test_drive|used_car|commercial_data|product_consulting","needs_data":true|false,"model":"tên mẫu xe nếu có hoặc rỗng"}
+
+Quy tắc:
+- casual: chào hỏi, nói chuyện bình thường, cảm ơn, đùa, hỏi chung chưa rõ nhu cầu. needs_data=false.
+- permission_question: khách hỏi "anh hỏi chút được không", "cho anh hỏi..." needs_data=false.
+- test_drive: khách muốn lái thử/chạy thử/test drive. needs_data=false.
+- used_car: khách hỏi xe đời cũ, xe cũ, xe đã qua sử dụng. needs_data=false.
+- commercial_data: khách hỏi giá, báo giá lăn bánh, khuyến mãi, ưu đãi, trả góp, lãi suất, còn xe, giao xe, màu xe, tồn kho. needs_data=true.
+- product_consulting: khách hỏi tư vấn chọn xe/tính năng/so sánh phiên bản, chưa cần số liệu giá/ưu đãi. needs_data=false.
+- Nếu khách nói mẫu xe nhưng không hỏi số liệu, không tự chuyển thành commercial_data.
 PROMPT;
     }
 
