@@ -83,6 +83,13 @@ class SalesChatbotService
             return $this->greetingReply($conversation, $state, $source);
         }
 
+        if ($content !== '' && $this->shouldChatNormally($content, $state)) {
+            return new ChatbotReply(
+                content: $this->conversationalAnswer($conversation, $this->resetStaleFlowForChat($conversation, $state), $content),
+                clientMessageKey: $this->replyKey($conversation, $source, 'normal-chat'),
+            );
+        }
+
         if (($state['step'] ?? '') === 'awaiting_detail' && $content !== '') {
             $conversation->forceFill([
                 'automation_state' => [
@@ -340,6 +347,69 @@ class SalesChatbotService
             || str_contains($normalized, 'giao xe')
             || str_contains($normalized, 'con xe')
             || str_contains($normalized, 'tinh trang xe');
+    }
+
+    private function shouldChatNormally(string $content, array $state): bool
+    {
+        $normalized = str($content)->lower()->ascii()->squish()->toString();
+
+        if ($this->isCommercialDataIntent($content)
+            || $this->wantsInstallment($content)
+            || $this->wantsCash($content)
+            || $this->downPaymentAmount($content) !== ''
+            || $this->conversationModel([], $content) !== ''
+            || preg_match('/(?:\+?84|0)(?:[\s.\-()]?\d){8,10}/', $content)) {
+            return false;
+        }
+
+        $normalChatPhrases = [
+            'cho anh hoi',
+            'cho chi hoi',
+            'hoi chut',
+            'hoi 1 chut',
+            'duoc khong',
+            'duoc ko',
+            'ok',
+            'oke',
+            'cam on',
+            'thank',
+            'de anh xem',
+            'de chi xem',
+            'tu tu',
+            'chua ro',
+            'anh dang xem',
+            'chi dang xem',
+        ];
+
+        foreach ($normalChatPhrases as $phrase) {
+            if (str_contains($normalized, $phrase)) {
+                return true;
+            }
+        }
+
+        $words = array_values(array_filter(explode(' ', $normalized)));
+
+        if (count($words) <= 4 && ! $this->isVehicleBuyingIntent($content)) {
+            return true;
+        }
+
+        return ($state['step'] ?? '') !== ''
+            && ! $this->isVehicleBuyingIntent($content);
+    }
+
+    private function resetStaleFlowForChat(Conversation $conversation, array $state): array
+    {
+        $nextState = array_filter([
+            'greeted_at' => $state['greeted_at'] ?? null,
+            'model' => $state['model'] ?? null,
+            'last_normal_chat_at' => now()->toISOString(),
+        ], fn ($value): bool => filled($value));
+
+        $conversation->forceFill([
+            'automation_state' => $nextState,
+        ])->save();
+
+        return $nextState;
     }
 
     private function needsSpecificVehicle(string $topic, string $detail): bool
