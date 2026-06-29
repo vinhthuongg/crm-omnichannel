@@ -354,26 +354,12 @@
                 </div>
                 <textarea name="content" rows="3" placeholder="Nhap noi dung tin nhan va nhan Enter de gui" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
-                    <span class="thread-avatar mini composer-user-avatar">
-                        @if($currentUser->avatar ?? null)
-                            <img src="{{ $currentUser->avatar }}" alt="{{ $currentUser->name }}">
-                        @else
-                            {{ strtoupper(substr($currentUser->name, 0, 1)) }}
-                        @endif
-                    </span>
                     <div class="composer-actions" aria-label="Message tools">
-                        <button type="button" title="Bieu cam">:)</button>
-                        <button type="button" title="Mau tin">M</button>
-                        <label title="Dinh kem">
-                            +
-                            <input type="file" name="attachments[]" multiple data-composer-files>
+                        <label class="composer-attach-button" title="Dinh kem file, anh, video">
+                            Dinh kem
+                            <input type="file" name="attachments[]" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" multiple data-composer-files>
                         </label>
-                        <button type="button" title="Hinh anh" data-upload-trigger>Img</button>
-                        <button type="button" title="Video" data-upload-trigger>Vid</button>
-                        <button type="button" title="Ghi chu">Note</button>
-                        <button type="button" title="Lich">Cal</button>
-                        <button type="button" title="San pham">Xe</button>
-                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>Go</button>
+                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>Gui</button>
                     </div>
                 </div>
                 <div class="composer-file-list" data-composer-file-list></div>
@@ -473,7 +459,6 @@
                     <h3 data-profile-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h3>
                     <button type="button" class="profile-contact-toggle" data-contact-toggle>Chi tiet lien he &gt;</button>
                 </div>
-                <button type="button" aria-label="More profile actions">...</button>
                 <div class="profile-quick-actions">
                     @if(filled($activeConversation->customer?->phone))
                         <a href="tel:{{ $activeConversation->customer->phone }}">Goi</a>

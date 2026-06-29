@@ -949,7 +949,7 @@ body.messenger-page .composer-bottom-row {
     min-height: 36px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
 }
 
@@ -961,18 +961,18 @@ body.messenger-page .composer-actions {
 
 body.messenger-page .composer-actions button,
 body.messenger-page .composer-actions label {
-    min-width: 26px;
+    min-width: 36px;
     width: auto;
-    height: 26px;
+    height: 34px;
     display: grid;
     place-items: center;
-    border: 0;
+    border: 1px solid var(--chat-line);
     border-radius: 8px;
-    background: transparent;
+    background: #fff;
     color: #475467;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 900;
-    padding: 0 5px;
+    padding: 0 12px;
     cursor: pointer;
 }
 
@@ -981,12 +981,14 @@ body.messenger-page .composer-actions label input {
 }
 
 body.messenger-page .composer-actions .composer-send-button {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    width: auto;
+    min-width: 52px;
+    height: 38px;
+    border-radius: 999px;
     background: var(--chat-red);
+    border-color: var(--chat-red);
     color: #fff;
-    font-size: 20px;
+    font-size: 13px;
 }
 
 body.messenger-page .composer-file-list {

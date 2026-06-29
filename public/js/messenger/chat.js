@@ -2360,12 +2360,6 @@
         });
     });
 
-    composer?.querySelectorAll('[data-upload-trigger]')?.forEach(function (trigger) {
-        trigger.addEventListener('click', function () {
-            composer.querySelector('[data-composer-files]')?.click();
-        });
-    });
-
     document.addEventListener('click', async function (event) {
         const button = event.target.closest('[data-tag-name]');
         const tabs = button?.closest('[data-conversation-tags]');
