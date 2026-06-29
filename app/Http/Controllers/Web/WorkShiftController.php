@@ -83,15 +83,15 @@ class WorkShiftController extends Controller
     private function navItems(User $user): array
     {
         $items = [
-            ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'D'],
-            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'C'],
-            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'K'],
-            ['section' => 'agents', 'label' => 'Agents', 'route' => 'crm.agents', 'icon' => 'A'],
-            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'O'],
-            ['section' => 'reports', 'label' => 'Reports', 'route' => 'crm.reports', 'icon' => 'R'],
-            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'L'],
-            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'N'],
-            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'S'],
+            ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'dashboard'],
+            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'forum'],
+            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'contacts'],
+            ['section' => 'agents', 'label' => 'Agents', 'route' => 'crm.agents', 'icon' => 'support_agent'],
+            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'hub'],
+            ['section' => 'reports', 'label' => 'Reports', 'route' => 'crm.reports', 'icon' => 'bar_chart'],
+            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'history'],
+            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'notifications'],
+            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'settings'],
         ];
 
         if ($user->can('user.manage')) {
@@ -99,7 +99,7 @@ class WorkShiftController extends Controller
                 'section' => 'work_shifts',
                 'label' => 'Shifts',
                 'route' => 'work-shifts.index',
-                'icon' => 'T',
+                'icon' => 'schedule',
             ]]);
         }
 

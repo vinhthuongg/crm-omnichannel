@@ -34,6 +34,25 @@ input {
     font: inherit;
 }
 
+.material-symbols-outlined {
+    font-family: "Material Symbols Outlined";
+    font-weight: 400;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+}
+
 a {
     color: inherit;
 }
@@ -816,10 +835,11 @@ kbd {
     color: #111827;
 }
 
-.side-nav span {
+.side-nav .nav-material-icon {
     width: auto;
     color: #7c2d12;
     font-weight: 400;
+    font-size: 20px;
 }
 
 .team-switcher {
@@ -876,6 +896,17 @@ kbd {
 .topbar-global-search {
     width: min(490px, 40vw);
     margin: 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.topbar-global-search > span {
+    position: absolute;
+    left: 12px;
+    color: #64748b;
+    font-size: 18px;
+    pointer-events: none;
 }
 
 .topbar-global-search input {
@@ -884,7 +915,7 @@ kbd {
     border: 1px solid #efb7bd;
     border-radius: 8px;
     background: #f8fafc;
-    padding: 0 14px;
+    padding: 0 14px 0 38px;
     color: #161925;
     outline: none;
 }
@@ -919,11 +950,18 @@ kbd {
 .account-menu button {
     min-width: auto;
     min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     border: 0;
     background: transparent;
     color: #374151;
     font-size: 13px;
     font-weight: 400;
+}
+
+.account-menu button .material-symbols-outlined {
+    font-size: 18px;
 }
 
 .page-title {

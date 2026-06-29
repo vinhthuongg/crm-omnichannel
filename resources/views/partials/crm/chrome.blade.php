@@ -32,14 +32,14 @@
     <nav class="side-nav" aria-label="CRM navigation">
         @foreach($navItems as $item)
             <a class="{{ ($activeSection ?? '') === $item['section'] ? 'active' : '' }}" href="{{ route($item['route']) }}">
-                <span>{{ $item['icon'] }}</span>{{ $navLabels[$item['section']] ?? $item['label'] }}
+                <span class="material-symbols-outlined nav-material-icon" aria-hidden="true">{{ $item['icon'] }}</span>{{ $navLabels[$item['section']] ?? $item['label'] }}
             </a>
         @endforeach
     </nav>
 
     <a class="team-switcher" href="{{ route('crm.agents') }}">
-        <span>{{ substr($sidebar['team_name'], 0, 1) }}</span>
+        <span class="material-symbols-outlined" aria-hidden="true">groups</span>
         <strong>{{ $sidebar['team_name'] }}</strong>
-        <b>v</b>
+        <b class="material-symbols-outlined" aria-hidden="true">expand_more</b>
     </a>
 </aside>
