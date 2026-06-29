@@ -1623,6 +1623,212 @@ kbd {
     background: #ee0d20;
 }
 
+.connection-page {
+    min-height: calc(100vh - 64px);
+    display: grid;
+    align-content: start;
+    gap: 28px;
+    padding: 24px 32px 32px;
+    background: #f6f7fb;
+}
+
+.connection-header h1 {
+    margin: 0;
+    color: #172033;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 800;
+}
+
+.connection-header p {
+    margin: 12px 0 0;
+    color: #7a5d5d;
+    font-size: 13px;
+}
+
+.connection-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    max-width: 980px;
+}
+
+.connection-card {
+    min-height: 204px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 14px;
+    border: 1px solid #efc9cf;
+    border-radius: 8px;
+    background: #fff;
+    padding: 24px;
+}
+
+.connection-card > header {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 12px;
+}
+
+.connection-card > header h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.connection-card > header p {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 6px 0 0;
+    font-size: 11px;
+}
+
+.connection-card > header p i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.connection-card > header p.healthy {
+    color: #16a34a;
+}
+
+.connection-card > header p.failed {
+    color: #dc2626;
+}
+
+.connection-card > header button {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #7a3d42;
+}
+
+.connection-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #e7f0ff;
+    color: #0f62fe;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.connection-card-tiktok .connection-icon {
+    background: #f1f2f5;
+    color: #000;
+}
+
+.connection-icon .material-symbols-outlined {
+    font-size: 24px;
+}
+
+.connection-card dl {
+    display: grid;
+    gap: 15px;
+    margin: 4px 0 0;
+}
+
+.connection-card dl div {
+    display: grid;
+    grid-template-columns: minmax(92px, .9fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+}
+
+.connection-card dt {
+    color: #7a5d5d;
+    font-size: 12px;
+}
+
+.connection-card dd {
+    margin: 0;
+    color: #111827;
+    font-size: 12px;
+    text-align: right;
+}
+
+.connection-card-tiktok dd {
+    color: #7a5d5d;
+    font-style: italic;
+}
+
+.connection-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    border-radius: 999px;
+    padding: 0 8px;
+    font-size: 10px;
+    font-weight: 800;
+    font-style: normal;
+}
+
+.connection-badge.healthy {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.connection-badge.failed {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.connection-card footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.connection-card footer form {
+    margin: 0;
+}
+
+.connection-card footer button,
+.connection-card footer a {
+    width: 100%;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 5px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.connection-outline {
+    border: 1px solid #0f62fe;
+    background: #fff;
+    color: #0f62fe;
+}
+
+.connection-primary {
+    border: 1px solid #c80013;
+    background: #c80013;
+    color: #fff;
+}
+
+.connection-primary .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.connection-primary.is-full {
+    grid-column: 1 / -1;
+}
+
 .agent-report-page {
     display: grid;
     gap: 24px;
@@ -3417,6 +3623,11 @@ kbd {
     .today-chart-grid {
         grid-template-columns: 1fr;
     }
+
+    .connection-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: none;
+    }
 }
 
 @media (max-width: 920px) {
@@ -3480,6 +3691,10 @@ kbd {
         justify-content: flex-start;
         flex-wrap: wrap;
     }
+
+    .connection-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 640px) {
@@ -3524,6 +3739,10 @@ kbd {
 
     .today-line-chart {
         height: 300px;
+    }
+
+    .connection-page {
+        padding: 16px;
     }
 
     .panel-head,

@@ -13,6 +13,7 @@ use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Customer\Models\Customer;
+use Modules\Facebook\Models\FacebookPage;
 use Modules\Message\Models\Message;
 
 class GetDashboardViewDataAction
@@ -109,6 +110,7 @@ class GetDashboardViewDataAction
                 'closed' => $closedConversations,
             ],
             'channelMetrics' => $this->channelMetrics($user),
+            'channelManagement' => $this->channelManagement($user),
             'topCustomers' => $this->topCustomers($user),
             'agents' => $this->agents($user),
             'agentDashboard' => $this->agentDashboard($user),
@@ -508,6 +510,80 @@ class GetDashboardViewDataAction
             'messages' => (int) ($messages[$channel]->messages_count ?? 0),
             'unread_messages' => (int) ($unreadConversations[$channel] ?? 0),
         ]);
+    }
+
+    private function channelManagement(User $user): array
+    {
+        $facebookPage = FacebookPage::query()
+            ->latest('updated_at')
+            ->first();
+        $facebookConnected = (bool) $facebookPage;
+        $zaloConnected = trim((string) config('services.zalo.access_token')) !== '';
+
+        return [
+            'title' => 'Quản lý kết nối',
+            'subtitle' => 'Quản lý và đồng bộ các kênh giao tiếp đa phương tiện.',
+            'cards' => [
+                [
+                    'key' => 'facebook',
+                    'title' => 'Facebook Page',
+                    'icon' => 'thumb_up',
+                    'icon_label' => null,
+                    'connected' => $facebookConnected,
+                    'status' => $facebookConnected ? 'Đang hoạt động' : 'Mất kết nối',
+                    'status_tone' => $facebookConnected ? 'healthy' : 'failed',
+                    'account' => $facebookPage?->page_name ?: 'Chưa kết nối',
+                    'last_sync' => $this->lastChannelSync('facebook') ?: 'Chưa có',
+                    'webhook' => $facebookPage?->subscribed_at && ($facebookPage->token_status ?? 'valid') !== 'invalid' ? 'HEALTHY' : 'FAILED',
+                    'webhook_tone' => $facebookPage?->subscribed_at && ($facebookPage->token_status ?? 'valid') !== 'invalid' ? 'healthy' : 'failed',
+                    'connect_url' => route('facebook.redirect'),
+                    'sync_url' => $facebookPage ? route('facebook.pages.sync-messages', $facebookPage) : null,
+                    'menu' => true,
+                ],
+                [
+                    'key' => 'zalo',
+                    'title' => 'Zalo OA',
+                    'icon' => null,
+                    'icon_label' => 'Zalo',
+                    'connected' => $zaloConnected,
+                    'status' => $zaloConnected ? 'Đang hoạt động' : 'Mất kết nối',
+                    'status_tone' => $zaloConnected ? 'healthy' : 'failed',
+                    'account' => $zaloConnected ? 'Toyota Hưng Yên OA' : 'Chưa kết nối',
+                    'last_sync' => $this->lastChannelSync('zalo') ?: 'Chưa có',
+                    'webhook' => $zaloConnected ? 'HEALTHY' : 'FAILED',
+                    'webhook_tone' => $zaloConnected ? 'healthy' : 'failed',
+                    'connect_url' => route('crm.settings', ['panel' => 'zalo']),
+                    'sync_url' => null,
+                    'menu' => false,
+                ],
+                [
+                    'key' => 'tiktok',
+                    'title' => 'TikTok',
+                    'icon' => 'music_note',
+                    'icon_label' => null,
+                    'connected' => false,
+                    'status' => 'Mất kết nối',
+                    'status_tone' => 'failed',
+                    'account' => 'Chưa kết nối',
+                    'last_sync' => 'Chưa có',
+                    'webhook' => 'FAILED',
+                    'webhook_tone' => 'failed',
+                    'connect_url' => route('crm.settings', ['panel' => 'tiktok']),
+                    'sync_url' => null,
+                    'menu' => false,
+                ],
+            ],
+        ];
+    }
+
+    private function lastChannelSync(string $channel): ?string
+    {
+        $syncedAt = Message::query()
+            ->where('channel', $channel)
+            ->latest('created_at')
+            ->value('created_at');
+
+        return $syncedAt ? Carbon::parse($syncedAt)->format('H:i d/m/Y') : null;
     }
 
     private function applyConversationChannelFilter(Builder $query, string $channel): Builder

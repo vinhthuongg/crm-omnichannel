@@ -9,7 +9,83 @@
     <main class="crm-main">
         @include('partials.crm.topbar')
 
-        @if(($activeSection ?? 'dashboard') === 'agents')
+        @if(($activeSection ?? 'dashboard') === 'channels')
+            <section class="connection-page">
+                <header class="connection-header">
+                    <h1>{{ $channelManagement['title'] }}</h1>
+                    <p>{{ $channelManagement['subtitle'] }}</p>
+                </header>
+
+                <section class="connection-grid">
+                    @foreach($channelManagement['cards'] as $channel)
+                        <article class="connection-card connection-card-{{ $channel['key'] }}">
+                            <header>
+                                <span class="connection-icon">
+                                    @if($channel['icon_label'])
+                                        {{ $channel['icon_label'] }}
+                                    @else
+                                        <span class="material-symbols-outlined" aria-hidden="true">{{ $channel['icon'] }}</span>
+                                    @endif
+                                </span>
+                                <div>
+                                    <h2>{{ $channel['title'] }}</h2>
+                                    <p class="{{ $channel['status_tone'] }}">
+                                        <i></i>{{ $channel['status'] }}
+                                    </p>
+                                </div>
+                                @if($channel['menu'])
+                                    <button type="button" aria-label="Tuy chon">
+                                        <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
+                                    </button>
+                                @endif
+                            </header>
+
+                            <dl>
+                                <div>
+                                    <dt>Tài khoản</dt>
+                                    <dd>{{ $channel['account'] }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Đồng bộ lần cuối</dt>
+                                    <dd>{{ $channel['last_sync'] }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Webhook</dt>
+                                    <dd>
+                                        <span class="connection-badge {{ $channel['webhook_tone'] }}">{{ $channel['webhook'] }}</span>
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            <footer>
+                                @if($channel['connected'])
+                                    <button type="button" class="connection-outline">Ngắt kết nối</button>
+                                    @if($channel['sync_url'])
+                                        <form method="POST" action="{{ $channel['sync_url'] }}">
+                                            @csrf
+                                            <button type="submit" class="connection-primary">
+                                                <span class="material-symbols-outlined" aria-hidden="true">sync</span>
+                                                Đồng bộ
+                                            </button>
+                                        </form>
+                                    @else
+                                        <button type="button" class="connection-primary">
+                                            <span class="material-symbols-outlined" aria-hidden="true">sync</span>
+                                            Đồng bộ
+                                        </button>
+                                    @endif
+                                @else
+                                    <a class="connection-primary is-full" href="{{ $channel['connect_url'] }}">
+                                        <span class="material-symbols-outlined" aria-hidden="true">login</span>
+                                        Kết nối ngay
+                                    </a>
+                                @endif
+                            </footer>
+                        </article>
+                    @endforeach
+                </section>
+            </section>
+        @elseif(($activeSection ?? 'dashboard') === 'agents')
             <section class="agent-report-page">
                 <form class="agent-filter-bar" method="GET" action="{{ route('crm.agents') }}">
                     <label>
@@ -259,6 +335,10 @@
                 hideHover: 'auto'
             });
 
+            return;
+        }
+
+        if (activeSection === 'channels') {
             return;
         }
 
