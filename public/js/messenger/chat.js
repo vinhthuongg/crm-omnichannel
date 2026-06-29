@@ -13,6 +13,43 @@
         loadConversation(thread.dataset.conversationUrl || thread.href);
     });
 
+    document.querySelector('.messenger-channel-tabs')?.addEventListener('click', function (event) {
+        const link = event.target.closest('a');
+
+        if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+            return;
+        }
+
+        event.preventDefault();
+        runConversationSearchUrl(link.href);
+    });
+
+    let searchDebounceTimer = null;
+
+    document.querySelectorAll('.messenger-search, .topbar-global-search').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            runConversationSearch(form);
+        });
+
+        form.addEventListener('input', function (event) {
+            if (!event.target.matches('[name="q"]')) {
+                return;
+            }
+
+            window.clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = window.setTimeout(function () {
+                runConversationSearch(form);
+            }, 280);
+        });
+
+        form.addEventListener('change', function (event) {
+            if (event.target.matches('[name="tag"]')) {
+                runConversationSearch(form);
+            }
+        });
+    });
+
     window.addEventListener('popstate', function () {
         loadConversation(window.location.href);
     });
@@ -120,6 +157,89 @@
         uploaded: [],
     };
     let olderMessagesLoading = false;
+
+    function syncSearchInputs(value) {
+        document.querySelectorAll('[data-auto-search-input]').forEach(function (input) {
+            if (input.value !== value) {
+                input.value = value;
+            }
+        });
+    }
+
+    async function runConversationSearch(form) {
+        const list = document.querySelector('.messenger-thread-list');
+
+        if (!list || !form) {
+            form?.submit();
+            return;
+        }
+
+        const params = new URLSearchParams(new FormData(form));
+        const currentUrl = new URL(window.location.href);
+        const targetUrl = new URL(form.action || realtimeRoot?.dataset.conversationsUrl || currentUrl.pathname, window.location.origin);
+
+        ['channel', 'q', 'tag'].forEach(function (key) {
+            const value = params.has(key) ? String(params.get(key) || '') : (currentUrl.searchParams.get(key) || '');
+
+            if (value) {
+                targetUrl.searchParams.set(key, value);
+            } else {
+                targetUrl.searchParams.delete(key);
+            }
+        });
+
+        syncSearchInputs(targetUrl.searchParams.get('q') || '');
+
+        await runConversationSearchUrl(targetUrl);
+    }
+
+    async function runConversationSearchUrl(url) {
+        const list = document.querySelector('.messenger-thread-list');
+
+        if (!list) {
+            window.location.href = String(url);
+            return;
+        }
+
+        const targetUrl = new URL(url, window.location.origin);
+        syncSearchInputs(targetUrl.searchParams.get('q') || '');
+
+        try {
+            const response = await fetch(targetUrl, {
+                headers: {
+                    Accept: 'text/html',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const html = await response.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const freshList = doc.querySelector('.messenger-thread-list');
+            const freshTabs = doc.querySelector('.messenger-channel-tabs');
+            const currentTabs = document.querySelector('.messenger-channel-tabs');
+
+            if (freshList) {
+                list.innerHTML = freshList.innerHTML;
+                const activeId = timeline?.dataset.conversationId;
+
+                if (activeId) {
+                    list.querySelector(`[data-thread-conversation-id="${activeId}"]`)?.classList.add('active');
+                }
+            }
+
+            if (freshTabs && currentTabs) {
+                currentTabs.innerHTML = freshTabs.innerHTML;
+            }
+
+            window.history.replaceState({conversationUrl: window.location.href}, '', targetUrl);
+        } catch (error) {
+            console.warn('CRM messenger search failed:', error);
+        }
+    }
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, function (character) {
@@ -1340,7 +1460,7 @@
             const customerName = message.conversation_customer_name || message.sender_name || 'Customer';
             const customerAvatar = message.conversation_customer_avatar || message.sender_avatar;
             thread.innerHTML = `
-                <span class="thread-avatar">${avatarHtml(customerAvatar, customerName)}</span>
+                <span class="thread-avatar">${avatarHtml(customerAvatar, customerName)}${platformIconHtml(message.channel)}</span>
                 <span class="thread-body">
                     <strong>${escapeHtml(customerName)}</strong>
                     <small data-thread-last-message></small>
@@ -1360,7 +1480,7 @@
             const customerAvatar = message.conversation_customer_avatar || (message.sender_type === 'customer' ? message.sender_avatar : '');
 
             if (customerName && avatar) {
-                avatar.innerHTML = avatarHtml(customerAvatar, customerName);
+                avatar.innerHTML = avatarHtml(customerAvatar, customerName) + platformIconHtml(message.channel);
             }
 
             if (customerName && name) {
@@ -1404,6 +1524,14 @@
         }
 
         return messageChannel === channelFilter;
+    }
+
+    function platformIconHtml(channel) {
+        const normalized = String(channel || 'facebook').toLowerCase();
+        const asset = normalized === 'zalo' ? '/assets/img_zalo.png' : '/assets/img_fb.png';
+        const label = normalized === 'zalo' ? 'Zalo' : 'Facebook';
+
+        return `<img class="thread-platform-icon" src="${asset}" alt="${label}">`;
     }
 
     async function refreshThreadList() {
@@ -1516,6 +1644,8 @@
     }
 
     let messageSocket = null;
+    let streamSource = null;
+    let streamReconnectTimer = null;
     let pollingTimer = null;
     let fallbackTimer = null;
     let pollingInFlight = false;
@@ -1652,10 +1782,6 @@
         }
 
         refreshThreadList();
-
-        if (String(conversation.id) === String(timeline?.dataset.conversationId)) {
-            loadConversation(window.location.href);
-        }
     }
 
     function removeConversationThread(conversationId) {
@@ -1729,12 +1855,77 @@
         }
     }
 
+    function stopStreamReconnectTimer() {
+        if (streamReconnectTimer) {
+            window.clearTimeout(streamReconnectTimer);
+            streamReconnectTimer = null;
+        }
+    }
+
+    function closeMessageStream() {
+        stopStreamReconnectTimer();
+
+        if (streamSource) {
+            streamSource.close();
+            streamSource = null;
+        }
+    }
+
     function closeMessageSocket() {
         if (messageSocket) {
             messageSocket.manualClose = true;
             messageSocket.close();
             messageSocket = null;
         }
+    }
+
+    function startMessageStream() {
+        if (
+            !timeline?.dataset.streamUrl ||
+            !window.EventSource ||
+            realtimeMode === 'websocket'
+        ) {
+            return false;
+        }
+
+        closeMessageStream();
+
+        const url = new URL(timeline.dataset.streamUrl, window.location.origin);
+        url.searchParams.set('after_id', timeline.dataset.lastMessageId || '0');
+
+        streamSource = new EventSource(url);
+
+        streamSource.addEventListener('open', function () {
+            console.info('CRM messenger realtime: stream connected');
+            realtimeMode = realtimeMode === 'websocket' ? 'websocket' : 'stream';
+        });
+
+        streamSource.addEventListener('message', function (event) {
+            try {
+                const message = JSON.parse(event.data);
+                handleRealtimeMessage(message);
+            } catch (error) {
+                console.warn('CRM messenger stream message failed:', error);
+            }
+        });
+
+        streamSource.addEventListener('error', function () {
+            closeMessageStream();
+
+            if (document.hidden || realtimeMode === 'websocket') {
+                return;
+            }
+
+            realtimeMode = 'polling';
+            startPolling();
+            streamReconnectTimer = window.setTimeout(function () {
+                if (!document.hidden && realtimeMode !== 'websocket') {
+                    startMessageStream();
+                }
+            }, 2500);
+        });
+
+        return true;
     }
 
     function startBroadcastSocket() {
@@ -1773,6 +1964,7 @@
                     realtimeMode = 'websocket';
                     stopFallbackTimer();
                     stopPolling();
+                    closeMessageStream();
                     return;
                 }
 
@@ -1796,7 +1988,7 @@
             }
         });
 
-        socket.addEventListener('close', function () {
+        socket.addEventListener('close', function (event) {
             if (socket.manualClose) {
                 return;
             }
@@ -1814,6 +2006,7 @@
             if (!document.hidden) {
                 realtimeMode = 'polling';
                 stopFallbackTimer();
+                startMessageStream();
                 startPolling();
                 stopReconnectTimer();
                 reconnectTimer = window.setTimeout(startRealtime, 10000);
@@ -1825,6 +2018,7 @@
             closeMessageSocket();
             realtimeMode = 'polling';
             stopFallbackTimer();
+            startMessageStream();
             startPolling();
         });
 
@@ -1833,6 +2027,7 @@
 
     function startRealtime() {
         closeMessageSocket();
+        closeMessageStream();
         stopReconnectTimer();
         stopFallbackTimer();
         stopPolling();
@@ -1842,6 +2037,7 @@
             fallbackTimer = window.setTimeout(function () {
                 if (realtimeMode !== 'websocket') {
                     realtimeMode = 'polling';
+                    startMessageStream();
                     startPolling();
                 }
             }, 8000);
@@ -1849,6 +2045,7 @@
         }
 
         realtimeMode = 'polling';
+        startMessageStream();
         startPolling();
     }
 
@@ -1879,6 +2076,7 @@
         }
 
         closeMessageSocket();
+        closeMessageStream();
         stopFallbackTimer();
         stopReconnectTimer();
         stopPolling();

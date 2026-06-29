@@ -67,7 +67,7 @@
                 <span>Omnichannel CRM</span>
             </div>
             <form class="topbar-global-search" method="GET" action="{{ route('crm.conversations') }}">
-                <input type="search" name="q" placeholder="Tim kiem khach hang, tin nhan..." value="{{ $filters['search'] }}">
+                <input type="search" name="q" placeholder="Tim kiem khach hang, tin nhan..." value="{{ $filters['search'] }}" data-auto-search-input>
             </form>
             <div class="topbar-spacer"></div>
             <a class="help-link" href="{{ route('crm.settings', ['panel' => 'help']) }}"><span>?</span> Help Center</a>
@@ -119,14 +119,16 @@
             @if(($filters['channel'] ?? 'all') !== 'all')
                 <input type="hidden" name="channel" value="{{ $filters['channel'] }}">
             @endif
-            <input type="search" name="q" placeholder="Tim kiem..." value="{{ $filters['search'] }}">
+            <label class="messenger-search-box">
+                <span aria-hidden="true"></span>
+                <input type="search" name="q" placeholder="Tim kiem..." value="{{ $filters['search'] }}" data-auto-search-input>
+            </label>
             <select name="tag" aria-label="Loc theo tag">
                 <option value="">Tat ca tag</option>
                 @foreach($allTags as $tag)
                     <option value="{{ $tag->name }}" @selected(($filters['tag'] ?? '') === $tag->name)>{{ $tag->name }}</option>
                 @endforeach
             </select>
-            <button type="submit">Tim kiem</button>
         </form>
 
         <div class="messenger-thread-list">
@@ -136,6 +138,7 @@
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
                 @php($threadTags = $conversation->tags->take(1)->values())
+                @php($threadChannel = $lastMessage?->channel ?: $conversation->customer?->channels?->first()?->channel ?: 'facebook')
                 <a
                     class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}"
                     href="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
@@ -149,6 +152,7 @@
                         @else
                             {{ strtoupper(substr($conversation->customer?->name ?? 'C', 0, 1)) }}
                         @endif
+                        <img class="thread-platform-icon" src="{{ asset($threadChannel === 'zalo' ? 'assets/img_zalo.png' : 'assets/img_fb.png') }}" alt="{{ ucfirst($threadChannel) }}">
                     </span>
                     <span class="thread-body">
                         <strong>{{ $conversation->customer?->name ?? 'Customer' }}</strong>
