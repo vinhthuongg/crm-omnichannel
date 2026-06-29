@@ -27,6 +27,9 @@ class GetMessengerViewDataAction
         $channel = in_array(($filters['channel'] ?? 'all'), ['facebook', 'zalo'], true)
             ? (string) $filters['channel']
             : 'all';
+        $status = in_array(($filters['status'] ?? 'all'), ['unread', 'mine'], true)
+            ? (string) $filters['status']
+            : 'all';
         $conversationQuery = $this->visibleConversations($user)
             ->with(['customer.channels', 'customer.tags', 'assignee', 'tags', 'messages' => fn ($query) => $query->latest()->limit(1)])
             ->when($search !== '', function (Builder $query) use ($search): void {
@@ -40,7 +43,7 @@ class GetMessengerViewDataAction
                 $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tag));
             });
 
-        $conversationQuery = $this->applyChannelFilter($conversationQuery, $channel)
+        $conversationQuery = $this->applyStatusFilter($this->applyChannelFilter($conversationQuery, $channel), $status, $user)
             ->latest('last_message_at');
 
         $conversations = $conversationQuery->limit(30)->get();
@@ -57,8 +60,9 @@ class GetMessengerViewDataAction
             'sidebar' => [
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
-            'filters' => ['search' => $search, 'tag' => $tag, 'channel' => $channel],
-            'inboxChannels' => $this->inboxChannels($user, $search, $tag, $channel),
+            'filters' => ['search' => $search, 'tag' => $tag, 'channel' => $channel, 'status' => $status],
+            'inboxChannels' => $this->inboxChannels($user, $search, $tag, $channel, $status),
+            'inboxStatuses' => $this->inboxStatuses($user, $search, $tag, $channel, $status),
             'tagPresets' => $this->tagPresets(),
             'allTags' => Tag::query()->orderBy('name')->get(),
             'allCustomerTags' => Tag::query()->orderBy('name')->get(),
@@ -135,13 +139,22 @@ class GetMessengerViewDataAction
         });
     }
 
-    private function inboxChannels(User $user, string $search, string $tag, string $activeChannel): array
+    private function applyStatusFilter(Builder $query, string $status, User $user): Builder
+    {
+        return match ($status) {
+            'unread' => $query->where('unread_messages_count', '>', 0),
+            'mine' => $query->where('assigned_to', $user->id),
+            default => $query,
+        };
+    }
+
+    private function inboxChannels(User $user, string $search, string $tag, string $activeChannel, string $status): array
     {
         return collect([
             ['key' => 'all', 'label' => 'Tat ca'],
             ['key' => 'facebook', 'label' => 'Facebook'],
             ['key' => 'zalo', 'label' => 'Zalo'],
-        ])->map(function (array $item) use ($user, $search, $tag, $activeChannel): array {
+        ])->map(function (array $item) use ($user, $search, $tag, $activeChannel, $status): array {
             $query = $this->visibleConversations($user)
                 ->when($search !== '', function (Builder $query) use ($search): void {
                     $query->whereHas('customer', function (Builder $customerQuery) use ($search): void {
@@ -154,12 +167,43 @@ class GetMessengerViewDataAction
                     $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tag));
                 });
 
+            $query = $this->applyStatusFilter($query, $status, $user);
+
             return [
                 ...$item,
                 'active' => $activeChannel === $item['key'],
                 'unread' => (int) $this->applyChannelFilter($query, $item['key'])
                     ->where('unread_messages_count', '>', 0)
                     ->count(),
+            ];
+        })->all();
+    }
+
+    private function inboxStatuses(User $user, string $search, string $tag, string $channel, string $activeStatus): array
+    {
+        return collect([
+            ['key' => 'all', 'label' => 'Tat ca'],
+            ['key' => 'unread', 'label' => 'Chua doc'],
+            ['key' => 'mine', 'label' => 'Cua toi'],
+        ])->map(function (array $item) use ($user, $search, $tag, $channel, $activeStatus): array {
+            $query = $this->visibleConversations($user)
+                ->when($search !== '', function (Builder $query) use ($search): void {
+                    $query->whereHas('customer', function (Builder $customerQuery) use ($search): void {
+                        $customerQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                })
+                ->when($tag !== '', function (Builder $query) use ($tag): void {
+                    $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tag));
+                });
+
+            $query = $this->applyChannelFilter($query, $channel);
+
+            return [
+                ...$item,
+                'active' => $activeStatus === $item['key'],
+                'count' => (int) $this->applyStatusFilter($query, $item['key'], $user)->count(),
             ];
         })->all();
     }

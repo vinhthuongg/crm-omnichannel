@@ -339,6 +339,50 @@ body.messenger-page .messenger-filter-button {
     cursor: pointer;
 }
 
+body.messenger-page .messenger-filter-menu {
+    position: relative;
+}
+
+body.messenger-page .messenger-tag-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    width: 190px;
+    max-height: 280px;
+    display: none;
+    overflow-y: auto;
+    border: 1px solid var(--chat-line);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 14px 36px rgba(20, 23, 40, .14);
+    padding: 6px;
+}
+
+body.messenger-page .messenger-filter-menu:hover .messenger-tag-menu,
+body.messenger-page .messenger-filter-menu:focus-within .messenger-tag-menu {
+    display: grid;
+    gap: 4px;
+}
+
+body.messenger-page .messenger-tag-menu a {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    border-radius: 7px;
+    color: #475467;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+body.messenger-page .messenger-tag-menu a:hover,
+body.messenger-page .messenger-tag-menu a.active {
+    background: #eef4ff;
+    color: var(--chat-blue);
+}
+
 body.messenger-page .messenger-filter-button span,
 body.messenger-page .messenger-filter-button span::before,
 body.messenger-page .messenger-filter-button span::after {
@@ -464,16 +508,33 @@ body.messenger-page .messenger-status-tabs a {
     text-decoration: none;
 }
 
+body.messenger-page .messenger-status-tabs a span {
+    min-width: 18px;
+    min-height: 18px;
+    display: inline-grid;
+    place-items: center;
+    margin-left: 5px;
+    border-radius: 999px;
+    background: #fff;
+    color: #d70616;
+    font-size: 10px;
+    font-weight: 900;
+}
+
 body.messenger-page .messenger-status-tabs a.active {
     border-color: #d6e6ff;
     background: #e8f1ff;
     color: var(--chat-blue);
 }
 
-body.messenger-page .messenger-status-tabs a:not(.active):nth-child(2) {
+body.messenger-page .messenger-status-tabs a:nth-child(2) {
     border-color: #ffd5de;
     background: #fff0f3;
     color: #d70616;
+}
+
+body.messenger-page .messenger-status-tabs a:nth-child(2).active {
+    background: #ffe5eb;
 }
 
 body.messenger-page .messenger-thread-list {

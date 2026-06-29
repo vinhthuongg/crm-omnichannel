@@ -33,6 +33,7 @@ class MessengerController extends Controller
             'search' => $request->string('q')->toString(),
             'tag' => $request->string('tag')->toString(),
             'channel' => $request->string('channel')->toString(),
+            'status' => $request->string('status')->toString(),
         ]);
 
         return view('messenger.index', $data);
@@ -44,6 +45,7 @@ class MessengerController extends Controller
             'search' => $request->string('q')->toString(),
             'tag' => $request->string('tag')->toString(),
             'channel' => $request->string('channel')->toString(),
+            'status' => $request->string('status')->toString(),
         ]);
         $this->markConversationRead($data['activeConversation'] ?? null);
         $this->syncReadStateInViewData($data);

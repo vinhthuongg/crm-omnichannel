@@ -96,14 +96,43 @@
                     <div>
                         <h1>Hoi thoai</h1>
                     </div>
-                    <button type="button" class="messenger-filter-button" aria-label="Bo loc hoi thoai">
-                        <span></span>
-                    </button>
+                    <div class="messenger-filter-menu">
+                        <button type="button" class="messenger-filter-button" aria-label="Loc tag hoi thoai">
+                            <span></span>
+                        </button>
+                        <nav class="messenger-tag-menu" aria-label="Loc tag hoi thoai">
+                            <a
+                                class="{{ blank($filters['tag'] ?? '') ? 'active' : '' }}"
+                                href="{{ route('crm.conversations', array_filter([
+                                    'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'],
+                                    'status' => ($filters['status'] ?? 'all') === 'all' ? null : $filters['status'],
+                                    'q' => $filters['search'] ?: null,
+                                ])) }}"
+                            >Tat ca tag</a>
+                            @foreach($allTags as $tag)
+                                <a
+                                    class="{{ ($filters['tag'] ?? '') === $tag->name ? 'active' : '' }}"
+                                    href="{{ route('crm.conversations', array_filter([
+                                        'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'],
+                                        'status' => ($filters['status'] ?? 'all') === 'all' ? null : $filters['status'],
+                                        'q' => $filters['search'] ?: null,
+                                        'tag' => $tag->name,
+                                    ])) }}"
+                                >{{ $tag->name }}</a>
+                            @endforeach
+                        </nav>
+                    </div>
                 </div>
 
         <form class="messenger-search" method="GET" action="{{ route('crm.conversations') }}">
             @if(($filters['channel'] ?? 'all') !== 'all')
                 <input type="hidden" name="channel" value="{{ $filters['channel'] }}">
+            @endif
+            @if(($filters['status'] ?? 'all') !== 'all')
+                <input type="hidden" name="status" value="{{ $filters['status'] }}">
+            @endif
+            @if(filled($filters['tag'] ?? ''))
+                <input type="hidden" name="tag" value="{{ $filters['tag'] }}">
             @endif
             <label class="messenger-search-box">
                 <span aria-hidden="true"></span>
@@ -111,22 +140,21 @@
             </label>
 </form>
         <nav class="messenger-status-tabs" aria-label="Trang thai hoi thoai">
-            <a
-                class="{{ blank($filters['tag'] ?? '') ? 'active' : '' }}"
-                href="{{ route('crm.conversations', array_filter([
-                    'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'],
-                    'q' => $filters['search'] ?: null,
-                ])) }}"
-            >Tat ca</a>
-            @foreach($allTags->take(8) as $tag)
+            @foreach($inboxStatuses as $statusTab)
                 <a
-                    class="{{ ($filters['tag'] ?? '') === $tag->name ? 'active' : '' }}"
+                    class="{{ $statusTab['active'] ? 'active' : '' }}"
                     href="{{ route('crm.conversations', array_filter([
                         'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'],
+                        'status' => $statusTab['key'] === 'all' ? null : $statusTab['key'],
                         'q' => $filters['search'] ?: null,
-                        'tag' => $tag->name,
+                        'tag' => $filters['tag'] ?: null,
                     ])) }}"
-                >{{ $tag->name }}</a>
+                >
+                    {{ $statusTab['label'] }}
+                    @if($statusTab['key'] === 'unread' && $statusTab['count'] > 0)
+                        <span>{{ $statusTab['count'] }}</span>
+                    @endif
+                </a>
             @endforeach
         </nav>
         <div class="messenger-thread-list">
@@ -139,9 +167,9 @@
                 @php($threadChannel = $lastMessage?->channel ?: $conversation->customer?->channels?->first()?->channel ?: 'facebook')
                 <a
                     class="messenger-thread {{ $isActive ? 'active' : '' }} {{ $unreadCount > 0 ? 'is-unread' : '' }}"
-                    href="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
+                    href="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'status' => ($filters['status'] ?? 'all') === 'all' ? null : $filters['status'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
                     data-thread-conversation-id="{{ $conversation->id }}"
-                    data-conversation-url="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
+                    data-conversation-url="{{ route('crm.conversations.show', array_filter(['conversation' => $conversation, 'channel' => ($filters['channel'] ?? 'all') === 'all' ? null : $filters['channel'], 'status' => ($filters['status'] ?? 'all') === 'all' ? null : $filters['status'], 'q' => $filters['search'] ?: null, 'tag' => $filters['tag'] ?: null])) }}"
                     data-thread-unread-count="{{ $unreadCount }}"
                 >
                     <span class="thread-avatar">

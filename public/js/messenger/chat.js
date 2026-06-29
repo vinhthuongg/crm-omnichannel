@@ -24,6 +24,17 @@
         runConversationSearchUrl(link.href);
     });
 
+    document.querySelector('.messenger-filter-menu')?.addEventListener('click', function (event) {
+        const link = event.target.closest('a');
+
+        if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+            return;
+        }
+
+        event.preventDefault();
+        runConversationSearchUrl(link.href);
+    });
+
     let searchDebounceTimer = null;
 
     document.querySelectorAll('.messenger-search, .topbar-global-search').forEach(function (form) {
@@ -178,7 +189,7 @@
         const currentUrl = new URL(window.location.href);
         const targetUrl = new URL(form.action || realtimeRoot?.dataset.conversationsUrl || currentUrl.pathname, window.location.origin);
 
-        ['channel', 'q', 'tag'].forEach(function (key) {
+        ['channel', 'status', 'q', 'tag'].forEach(function (key) {
             const value = params.has(key) ? String(params.get(key) || '') : (currentUrl.searchParams.get(key) || '');
 
             if (value) {
@@ -221,6 +232,8 @@
             const freshList = doc.querySelector('.messenger-thread-list');
             const freshTabs = doc.querySelector('.messenger-status-tabs');
             const currentTabs = document.querySelector('.messenger-status-tabs');
+            const freshTagMenu = doc.querySelector('.messenger-tag-menu');
+            const currentTagMenu = document.querySelector('.messenger-tag-menu');
 
             if (freshList) {
                 list.innerHTML = freshList.innerHTML;
@@ -233,6 +246,10 @@
 
             if (freshTabs && currentTabs) {
                 currentTabs.innerHTML = freshTabs.innerHTML;
+            }
+
+            if (freshTagMenu && currentTagMenu) {
+                currentTagMenu.innerHTML = freshTagMenu.innerHTML;
             }
 
             window.history.replaceState({conversationUrl: window.location.href}, '', targetUrl);
