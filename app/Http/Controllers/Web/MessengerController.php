@@ -647,37 +647,6 @@ class MessengerController extends Controller
         ]);
     }
 
-    public function toggleChatbot(Request $request, Conversation $conversation): JsonResponse
-    {
-        $this->authorizeConversationAccess($request, $conversation);
-
-        $validated = $request->validate([
-            'enabled' => ['required', 'boolean'],
-        ]);
-
-        $state = (array) ($conversation->automation_state ?? []);
-        $enabled = (bool) $validated['enabled'];
-
-        if ($enabled) {
-            unset($state['chatbot_disabled'], $state['chatbot_disabled_at'], $state['chatbot_disabled_by']);
-            $state['chatbot_enabled_at'] = now()->toISOString();
-            $state['chatbot_enabled_by'] = $request->user()->id;
-        } else {
-            $state['chatbot_disabled'] = true;
-            $state['chatbot_disabled_at'] = now()->toISOString();
-            $state['chatbot_disabled_by'] = $request->user()->id;
-        }
-
-        $conversation->forceFill(['automation_state' => $state])->save();
-
-        return response()->json([
-            'data' => [
-                'id' => (int) $conversation->id,
-                'chatbot_enabled' => $enabled,
-            ],
-        ]);
-    }
-
     public function recallMessage(Request $request, Conversation $conversation, Message $message): JsonResponse
     {
         $this->authorizeConversationAccess($request, $conversation);

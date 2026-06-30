@@ -2,12 +2,8 @@
 
 namespace Modules\Message\Services;
 
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Modules\Chatbot\DTO\ChatbotReply;
-use Modules\Chatbot\Jobs\SendChatbotReplyJob;
-use Modules\Chatbot\Services\SalesChatbotService;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationService;
@@ -16,7 +12,6 @@ use Modules\Customer\Models\CustomerChannel;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
-use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -28,7 +23,6 @@ class MessageService
         private readonly MessageRepository $repository,
         private readonly OutboundMessageService $outbound,
         private readonly WorkShiftService $shifts,
-        private readonly SalesChatbotService $chatbot,
         private readonly ConversationService $conversations,
     ) {
     }
@@ -81,88 +75,7 @@ class MessageService
         });
 
         $this->broadcastNewMessage($message);
-        Log::info('Chatbot inbound message stored', [
-            'message_id' => $message->id,
-            'conversation_id' => $conversation->id,
-            'channel' => $data->channel,
-            'chatbot_enabled' => (bool) config('chatbot.enabled', true),
-            'chatbot_async' => (bool) config('chatbot.async', false),
-            'content_blank' => blank($data->content),
-            'customer_has_phone' => filled($customer->phone),
-            'unread_messages_count' => (int) $conversation->unread_messages_count,
-        ]);
-
         $this->queueCustomerVectorRefresh($customer);
-
-        if ($this->shouldSkipChatbotReply($conversation, $message)) {
-            Log::info('Chatbot auto reply skipped because human is handling conversation', [
-                'message_id' => $message->id,
-                'conversation_id' => $conversation->id,
-                'automation_state' => $conversation->automation_state,
-                'last_read_at' => $conversation->last_read_at?->toISOString(),
-            ]);
-
-            return $message;
-        }
-
-        if (config('chatbot.async', false)) {
-            Log::info('Chatbot auto reply dispatched async', [
-                'message_id' => $message->id,
-                'conversation_id' => $conversation->id,
-            ]);
-            SendChatbotReplyJob::dispatch($message->id);
-
-            return $message;
-        }
-
-        $reply = $this->chatbot->replyFor($conversation, $customer, $data);
-
-        if (! $reply || $reply->content === '') {
-            Log::warning('Chatbot auto reply skipped', [
-                'message_id' => $message->id,
-                'conversation_id' => $conversation->id,
-                'channel' => $data->channel,
-                'reason' => ! $reply ? 'reply_null' : 'content_blank',
-                'automation_state' => $conversation->automation_state,
-                'customer_has_phone' => filled($customer->phone),
-            ]);
-
-            return $message;
-        }
-
-        try {
-            $autoReply = $this->createChatbotReply($conversation, $data->channel, $reply);
-        } catch (\Throwable $exception) {
-            Log::error('Chatbot auto reply create failed', [
-                'message_id' => $message->id,
-                'conversation_id' => $conversation->id,
-                'channel' => $data->channel,
-                'client_message_key' => $reply->clientMessageKey,
-                'error' => $exception->getMessage(),
-                'exception' => $exception::class,
-            ]);
-
-            return $message;
-        }
-
-        if ($autoReply) {
-            Log::info('Chatbot auto reply created', [
-                'message_id' => $message->id,
-                'auto_message_id' => $autoReply->id,
-                'conversation_id' => $conversation->id,
-                'channel' => $data->channel,
-                'client_message_id' => $autoReply->client_message_id,
-            ]);
-            $this->broadcastNewMessage($autoReply);
-            $this->sendAutoReplyAfterResponse($autoReply);
-        } else {
-            Log::warning('Chatbot auto reply duplicate skipped', [
-                'message_id' => $message->id,
-                'conversation_id' => $conversation->id,
-                'channel' => $data->channel,
-                'client_message_key' => $reply->clientMessageKey,
-            ]);
-        }
 
         return $message;
     }
@@ -253,192 +166,6 @@ class MessageService
                 ]);
             }
         });
-    }
-
-    private function createChatbotReply(Conversation $conversation, string $channel, ?ChatbotReply $reply): ?Message
-    {
-        if (! $reply || $reply->content === '') {
-            return null;
-        }
-
-        $clientMessageId = $reply->clientMessageKey ?: 'auto-chatbot-'.$conversation->id.'-'.md5($reply->content);
-        if (strlen($clientMessageId) > 80) {
-            $clientMessageId = 'auto-chatbot-'.$conversation->id.'-'.md5($clientMessageId);
-        }
-        $existing = Message::query()
-            ->where('channel', $channel)
-            ->where('client_message_id', $clientMessageId)
-            ->first();
-
-        if ($existing) {
-            return null;
-        }
-
-        $message = $this->repository->create([
-            'conversation_id' => $conversation->id,
-            'sender_type' => 'user',
-            'sender_id' => $this->autoReplySenderId($conversation),
-            'channel' => $channel,
-            'content' => $reply->content,
-            'message_type' => 'text',
-            'attachments' => $channel === 'facebook' && $reply->quickReplies
-                ? [['type' => 'quick_reply', 'quick_replies' => $reply->quickReplies]]
-                : [],
-            'client_message_id' => $clientMessageId,
-            'outbound_status' => 'queued',
-        ]);
-
-        $conversation->forceFill([
-            'last_message_at' => $message->created_at,
-        ])->save();
-
-        return $message;
-    }
-
-    private function autoReplySenderId(Conversation $conversation): ?int
-    {
-        if ($conversation->assigned_to) {
-            return (int) $conversation->assigned_to;
-        }
-
-        try {
-            $adminId = User::role('Admin')->value('id');
-
-            if ($adminId) {
-                return (int) $adminId;
-            }
-        } catch (\Throwable $exception) {
-            Log::warning('Chatbot auto reply admin sender lookup failed', [
-                'conversation_id' => $conversation->id,
-                'error' => $exception->getMessage(),
-            ]);
-        }
-
-        $fallbackId = User::query()->value('id');
-
-        return $fallbackId ? (int) $fallbackId : null;
-    }
-
-    private function sendAutoReplyAfterResponse(Message $message): void
-    {
-        app()->terminating(function () use ($message): void {
-            $message = $message->fresh(['conversation.customer.channels']);
-
-            if (! $message?->conversation || $message->outbound_status !== 'queued') {
-                Log::warning('Chatbot auto outbound skipped before send', [
-                    'message_id' => $message?->id,
-                    'conversation_id' => $message?->conversation_id,
-                    'outbound_status' => $message?->outbound_status,
-                    'has_conversation' => (bool) $message?->conversation,
-                ]);
-
-                return;
-            }
-
-            try {
-                Log::info('Chatbot auto outbound sending', [
-                    'message_id' => $message->id,
-                    'conversation_id' => $message->conversation_id,
-                    'channel' => $message->channel,
-                ]);
-
-                $message->forceFill([
-                    'outbound_status' => 'sending',
-                    'outbound_error' => null,
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-
-                $externalMessageId = $this->outbound->send(
-                    $message->conversation,
-                    $message->channel,
-                    (string) $message->content,
-                    $message->attachments ?? [],
-                );
-
-                $message->forceFill([
-                    'external_message_id' => $externalMessageId,
-                    'outbound_status' => 'sent',
-                    'outbound_error' => null,
-                    'sent_at' => now(),
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-
-                Log::info('Chatbot auto outbound sent', [
-                    'message_id' => $message->id,
-                    'conversation_id' => $message->conversation_id,
-                    'channel' => $message->channel,
-                    'external_message_id' => $externalMessageId,
-                ]);
-            } catch (\Throwable $exception) {
-                $message->forceFill([
-                    'outbound_status' => 'failed',
-                    'outbound_error' => $exception->getMessage(),
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-
-                Log::warning('Auto chatbot outbound send failed', [
-                    'message_id' => $message->id,
-                    'conversation_id' => $message->conversation_id,
-                    'channel' => $message->channel,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        });
-    }
-
-    private function shouldSkipChatbotReply(Conversation $conversation, Message $inbound): bool
-    {
-        $state = (array) ($conversation->automation_state ?? []);
-
-        if ((bool) ($state['chatbot_disabled'] ?? false)) {
-            return true;
-        }
-
-        return $conversation->messages()
-            ->where('sender_type', 'user')
-            ->where('id', '<>', $inbound->id)
-            ->where(function ($query): void {
-                $query->whereNull('client_message_id')
-                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
-            })
-            ->where(function ($query): void {
-                $query->whereNull('content')
-                    ->orWhere(function ($content): void {
-                        $content->where('content', 'not like', '%Toyota Ki%')
-                            ->where('content', 'not like', '%Kinh chao%')
-                            ->where('content', 'not like', '%KÃ%');
-                    });
-            })
-            ->exists();
-
-        return $conversation->messages()
-            ->where('id', '>', $inbound->id)
-            ->where('sender_type', 'user')
-            ->where(function ($query): void {
-                $query->whereNull('client_message_id')
-                    ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
-            })
-            ->exists();
-
-        if (! $conversation->last_read_at || ! $inbound->created_at) {
-            return false;
-        }
-
-        return $conversation->last_read_at->greaterThanOrEqualTo($inbound->created_at);
-
-        $pausedByMessageId = (int) ($state['paused_by_user_message_id'] ?? 0);
-
-        return $pausedByMessageId > 0
-            && $conversation->messages()
-                ->whereKey($pausedByMessageId)
-                ->where('sender_type', 'user')
-                ->where(function ($query): void {
-                    $query->whereNull('client_message_id')
-                        ->orWhere('client_message_id', 'not like', 'auto-chatbot-%');
-                })
-                ->where('content', 'not like', '%Toyota Kiên Giang cảm ơn%')
-                ->where('content', 'not like', '%Toyota KiÃªn Giang%')
-                ->exists();
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void

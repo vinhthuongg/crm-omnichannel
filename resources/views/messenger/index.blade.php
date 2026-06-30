@@ -313,15 +313,6 @@
                 </div>
                 <textarea name="content" rows="3" placeholder="Nhập Nội Dung Tin Nhắn" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
-                    @php($chatbotEnabled = ! (bool) data_get($activeConversation->automation_state, 'chatbot_disabled', false))
-                    <button
-                        type="button"
-                        class="chatbot-toggle {{ $chatbotEnabled ? 'is-enabled' : 'is-disabled' }}"
-                        data-chatbot-toggle
-                        data-chatbot-url="{{ route('crm.conversations.chatbot.toggle', $activeConversation) }}"
-                        data-enabled="{{ $chatbotEnabled ? '1' : '0' }}"
-                        aria-pressed="{{ $chatbotEnabled ? 'true' : 'false' }}"
-                    >{{ $chatbotEnabled ? 'Chatbot bat' : 'Chatbot tat' }}</button>
                     <div class="composer-actions" aria-label="Message tools">
                         <label class="composer-attach-button" title="Dinh kem file, anh, video">
                             Đính Kèm

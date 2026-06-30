@@ -5,16 +5,11 @@ namespace Modules\Search\Services;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Modules\Chatbot\Services\NvidiaNimClient;
 use Modules\Customer\Models\Customer;
 use Modules\Search\Models\VectorSearchDocument;
 
 class VectorSearchService
 {
-    public function __construct(private readonly NvidiaNimClient $nim)
-    {
-    }
-
     public function rebuildCustomers(?Collection $customers = null): int
     {
         $count = 0;
@@ -70,9 +65,7 @@ class VectorSearchService
             'content' => $content,
             'embedding' => $embedding,
             'embedding_provider' => $mode,
-            'embedding_model' => $mode === 'nim'
-                ? (string) config('chatbot.nim.embedding_model')
-                : 'local-hash-'.config('search.vector.dimensions', 384),
+            'embedding_model' => 'local-hash-'.config('search.vector.dimensions', 384),
             'content_hash' => $hash,
             'indexed_at' => now(),
         ])->save();
@@ -137,21 +130,11 @@ class VectorSearchService
 
     private function provider(): string
     {
-        $provider = (string) config('search.vector.provider', 'local');
-
-        return $provider === 'nim' && $this->nim->configured() ? 'nim' : 'local';
+        return 'local';
     }
 
     private function embed(string $text, string $provider): array
     {
-        if ($provider === 'nim' && $this->nim->configured()) {
-            try {
-                return $this->nim->embed($text) ?: $this->localVector($text);
-            } catch (\Throwable) {
-                return $this->localVector($text);
-            }
-        }
-
         return $this->localVector($text);
     }
 
