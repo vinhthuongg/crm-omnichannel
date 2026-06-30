@@ -204,11 +204,25 @@
 
     function readJsonDataset(value, fallback) {
         try {
-            return value ? JSON.parse(value) : fallback;
+            if (!value) {
+                return fallback;
+            }
+
+            const normalized = String(value).includes('&quot;')
+                ? decodeHtmlEntities(value)
+                : value;
+
+            return JSON.parse(normalized);
         } catch (error) {
             console.warn('CRM messenger dataset JSON parse failed:', error);
             return fallback;
         }
+    }
+
+    function decodeHtmlEntities(value) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = String(value || '');
+        return textarea.value;
     }
 
     function syncSearchInputs(value) {
@@ -1017,7 +1031,11 @@
 
         renderMessages(conversation.messages || []);
         window.history.pushState({conversationUrl: url}, '', url);
-        startRealtime();
+
+        if (realtimeMode !== 'websocket') {
+            closeMessageStream();
+            startMessageStream();
+        }
     }
 
     function updateConversationTags(tagsUrl, tags) {
@@ -2407,6 +2425,13 @@
     }
 
     function startRealtime() {
+        if (
+            messageSocket &&
+            (messageSocket.readyState === WebSocket.CONNECTING || messageSocket.readyState === WebSocket.OPEN)
+        ) {
+            return;
+        }
+
         closeMessageSocket();
         closeMessageStream();
         closeInboxMessageStream();

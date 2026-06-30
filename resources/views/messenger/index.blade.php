@@ -9,7 +9,7 @@
     'http' => 'ws',
     default => config('reverb.public.scheme'),
 })
-@php($customerTagOptionsJson = $allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values()->toJson())
+@php($customerTagOptions = $allCustomerTags->map(fn ($tag) => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values())
 @php($inboxLastMessageId = $conversations->map(fn ($conversation) => (int) ($conversation->messages->first()?->id ?? 0))->max() ?? 0)
 @php($tagManager = $tagManager ?? ['index_url' => route('crm.conversation-tags.index'), 'store_url' => route('crm.conversation-tags.store')])
 @php($activeSection = 'conversations')
@@ -40,7 +40,7 @@
             data-reverb-host="{{ $reverbPublicHost ?: (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) ? request()->getHost() : $reverb['options']['host']) }}"
             data-reverb-port="{{ $reverbPublicHost ? $reverbPublicPort : (in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) && request()->secure() ? '' : $reverb['options']['port']) }}"
             data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
-            data-customer-tag-options-json="{{ e($customerTagOptionsJson) }}"
+            data-customer-tag-options-json='@json($customerTagOptions)'
         >
             <button type="button" class="messenger-drawer-backdrop" data-messenger-drawer-close aria-label="Dong bang dieu khien"></button>
 <aside class="messenger-list" data-messenger-list-panel>
