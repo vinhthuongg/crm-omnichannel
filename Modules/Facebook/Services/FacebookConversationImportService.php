@@ -199,7 +199,7 @@ class FacebookConversationImportService
                     'status' => ConversationStatus::WAITING,
                     'facebook_page_id' => $page->page_id,
                     'external_conversation_id' => $remoteConversationId,
-                    'last_message_at' => $this->createdAt($remoteMessage),
+                    'last_message_at' => $this->createdAt($remoteMessage, $remoteConversation),
                     'work_shift_id' => $currentShift?->id,
                     'owner_shift_id' => $currentShift?->id,
                     'queue_shift_id' => $currentShift?->id,
@@ -226,7 +226,7 @@ class FacebookConversationImportService
             };
             $attachments = $this->attachments($remoteMessage);
 
-            $remoteCreatedAt = $this->createdAt($remoteMessage);
+            $remoteCreatedAt = $this->createdAt($remoteMessage, $remoteConversation);
             $message = Message::withTrashed()->firstOrNew([
                 'channel' => 'facebook',
                 'external_message_id' => $messageId,
@@ -341,9 +341,13 @@ class FacebookConversationImportService
         return null;
     }
 
-    private function createdAt(array $message): Carbon
+    private function createdAt(array $message, array $fallbackConversation = []): Carbon
     {
-        $createdTime = (string) Arr::get($message, 'created_time', '');
+        $createdTime = (string) (
+            Arr::get($message, 'created_time')
+            ?: Arr::get($fallbackConversation, 'updated_time')
+            ?: ''
+        );
 
         if ($createdTime === '') {
             return now();

@@ -19,6 +19,7 @@ class MessageResource extends JsonResource
             'conversation_assigned_to' => $this->conversation?->assigned_to ? (int) $this->conversation->assigned_to : null,
             'conversation_unread_messages_count' => (int) ($this->conversation?->unread_messages_count ?? 0),
             'conversation_is_unread' => (int) ($this->conversation?->unread_messages_count ?? 0) > 0,
+            'conversation_last_message_at' => $this->conversation?->last_message_at?->toISOString() ?: $this->created_at?->toISOString(),
             'conversation_tags' => $this->conversation?->tags
                 ?->map(fn ($tag): array => [
                     'id' => (int) $tag->id,

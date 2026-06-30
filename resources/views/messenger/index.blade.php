@@ -110,6 +110,7 @@
             @forelse($conversations as $conversation)
                 @php($lastMessage = $conversation->messages->first())
                 @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
+                @php($threadLastMessageAt = $conversation->last_message_at ?: $lastMessage?->created_at)
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
                 @php($threadTags = $conversation->tags->take(1)->values())
@@ -141,7 +142,7 @@
                         @endif
                     </span>
                     <span class="thread-side">
-                        <span class="thread-meta" data-thread-meta>{{ $conversation->last_message_at?->diffForHumans() }}</span>
+                        <span class="thread-meta" data-thread-meta>{{ $threadLastMessageAt?->diffForHumans() }}</span>
                         <span class="thread-unread-badge" data-thread-unread-badge>{{ $unreadCount > 0 ? $unreadCount : '' }}</span>
                     </span>
                 </a>
