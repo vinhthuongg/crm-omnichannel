@@ -2,6 +2,7 @@
 
 namespace Modules\Dashboard\Actions;
 
+use App\Models\User;
 use Modules\Dashboard\Services\DashboardService;
 
 class GetDashboardOverviewAction
@@ -10,8 +11,8 @@ class GetDashboardOverviewAction
     {
     }
 
-    public function execute(): array
+    public function execute(User $user): array
     {
-        return $this->service->overview();
+        return $this->service->overview($user);
     }
 }

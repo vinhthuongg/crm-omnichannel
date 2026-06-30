@@ -11,6 +11,7 @@ class DashboardController extends ApiController
     public function overview(Request $request, GetDashboardOverviewAction $action)
     {
         abort_unless($request->user()->can('report.view'), 403);
-        return response()->json(['data' => $action->execute()]);
+
+        return response()->json(['data' => $action->execute($request->user())]);
     }
 }

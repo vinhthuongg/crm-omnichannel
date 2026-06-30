@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Modules\ActivityLog\Models\ActivityLog;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
@@ -34,15 +35,16 @@ class GetDashboardViewDataAction
         $closedConversations = (clone $conversationQuery)->where('status', ConversationStatus::CLOSED)->count();
         $progress = $totalConversations > 0 ? (int) round(($closedConversations / $totalConversations) * 100) : 0;
 
-        $monthConversations = (clone $this->visibleConversations($user))
-            ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
-            ->count();
-        $previousMonthConversations = (clone $this->visibleConversations($user))
-            ->whereBetween('created_at', [
-                now()->subMonthNoOverflow()->startOfMonth(),
-                now()->subMonthNoOverflow()->endOfMonth(),
-            ])
-            ->count();
+        $monthConversations = $this->whereConversationActivityBetween(
+            clone $this->visibleConversations($user),
+            now()->startOfMonth(),
+            now()->endOfMonth(),
+        )->count();
+        $previousMonthConversations = $this->whereConversationActivityBetween(
+            clone $this->visibleConversations($user),
+            now()->subMonthNoOverflow()->startOfMonth(),
+            now()->subMonthNoOverflow()->endOfMonth(),
+        )->count();
 
         $weeklySummary = $this->conversationSummary($user, $period);
         $yearTrend = $this->yearTrend($user);
@@ -153,12 +155,16 @@ class GetDashboardViewDataAction
         $yesterdayStart = today()->subDay()->startOfDay();
         $yesterdayEnd = today()->subDay()->endOfDay();
 
-        $todayConversations = (clone $this->visibleConversations($user))
-            ->whereBetween('created_at', [$todayStart, $todayEnd])
-            ->count();
-        $yesterdayConversations = (clone $this->visibleConversations($user))
-            ->whereBetween('created_at', [$yesterdayStart, $yesterdayEnd])
-            ->count();
+        $todayConversations = $this->whereConversationActivityBetween(
+            clone $this->visibleConversations($user),
+            $todayStart,
+            $todayEnd,
+        )->count();
+        $yesterdayConversations = $this->whereConversationActivityBetween(
+            clone $this->visibleConversations($user),
+            $yesterdayStart,
+            $yesterdayEnd,
+        )->count();
         $activeConversations = (clone $this->visibleConversations($user))
             ->where('status', ConversationStatus::IN_PROGRESS)
             ->count();
@@ -263,9 +269,11 @@ class GetDashboardViewDataAction
 
             return [
                 'hour' => sprintf('%02d:00', $hour),
-                'value' => (clone $this->visibleConversations($user))
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count(),
+                'value' => $this->whereConversationActivityBetween(
+                    clone $this->visibleConversations($user),
+                    $start,
+                    $end,
+                )->count(),
             ];
         })->all();
     }
@@ -298,6 +306,21 @@ class GetDashboardViewDataAction
         return $this->visibility->visibleFor($user);
     }
 
+    private function conversationActivityColumn(): \Illuminate\Database\Query\Expression
+    {
+        return DB::raw('COALESCE(last_message_at, created_at)');
+    }
+
+    private function whereConversationActivityBetween(Builder $query, Carbon $start, Carbon $end): Builder
+    {
+        return $query->whereBetween($this->conversationActivityColumn(), [$start, $end]);
+    }
+
+    private function whereConversationActivityDate(Builder $query, Carbon $day): Builder
+    {
+        return $query->whereDate($this->conversationActivityColumn(), $day);
+    }
+
     private function percentageChange(int $current, ?int $previous): int
     {
         if (! $previous) {
@@ -312,7 +335,7 @@ class GetDashboardViewDataAction
         return collect(range($days - 1, 0))->map(function (int $offset) use ($user): int {
             $day = today()->subDays($offset);
 
-            return (clone $this->visibleConversations($user))->whereDate('created_at', $day)->count();
+            return $this->whereConversationActivityDate(clone $this->visibleConversations($user), $day)->count();
         });
     }
 
@@ -347,9 +370,9 @@ class GetDashboardViewDataAction
         $days = collect(range(0, 6))->map(fn (int $offset): Carbon => $start->copy()->addDays($offset));
 
         $bars = $days->map(function (Carbon $day) use ($user): array {
-            $open = (clone $this->visibleConversations($user))->whereDate('created_at', $day)->where('status', ConversationStatus::IN_PROGRESS)->count();
-            $pending = (clone $this->visibleConversations($user))->whereDate('created_at', $day)->where('status', ConversationStatus::WAITING)->count();
-            $closed = (clone $this->visibleConversations($user))->whereDate('created_at', $day)->where('status', ConversationStatus::CLOSED)->count();
+            $open = $this->whereConversationActivityDate(clone $this->visibleConversations($user), $day)->where('status', ConversationStatus::IN_PROGRESS)->count();
+            $pending = $this->whereConversationActivityDate(clone $this->visibleConversations($user), $day)->where('status', ConversationStatus::WAITING)->count();
+            $closed = $this->whereConversationActivityDate(clone $this->visibleConversations($user), $day)->where('status', ConversationStatus::CLOSED)->count();
             $total = max(1, $open + $pending + $closed);
 
             return [
@@ -367,7 +390,7 @@ class GetDashboardViewDataAction
         return [
             'total' => $bars->sum('total'),
             'change' => $this->percentageChange($bars->sum('total'), (int) (clone $this->visibleConversations($user))
-                ->whereBetween('created_at', [today()->subDays(13)->startOfDay(), today()->subDays(7)->endOfDay()])
+                ->whereBetween($this->conversationActivityColumn(), [today()->subDays(13)->startOfDay(), today()->subDays(7)->endOfDay()])
                 ->count()),
             'bars' => $bars,
         ];
@@ -376,9 +399,9 @@ class GetDashboardViewDataAction
     private function bucketedConversationSummary(User $user, Collection $buckets): array
     {
         $bars = $buckets->map(function (array $bucket) use ($user): array {
-            $open = (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', ConversationStatus::IN_PROGRESS)->count();
-            $pending = (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', ConversationStatus::WAITING)->count();
-            $closed = (clone $this->visibleConversations($user))->whereBetween('created_at', [$bucket['start'], $bucket['end']])->where('status', ConversationStatus::CLOSED)->count();
+            $open = $this->whereConversationActivityBetween(clone $this->visibleConversations($user), $bucket['start'], $bucket['end'])->where('status', ConversationStatus::IN_PROGRESS)->count();
+            $pending = $this->whereConversationActivityBetween(clone $this->visibleConversations($user), $bucket['start'], $bucket['end'])->where('status', ConversationStatus::WAITING)->count();
+            $closed = $this->whereConversationActivityBetween(clone $this->visibleConversations($user), $bucket['start'], $bucket['end'])->where('status', ConversationStatus::CLOSED)->count();
             $total = max(1, $open + $pending + $closed);
 
             return [
@@ -400,7 +423,7 @@ class GetDashboardViewDataAction
         return [
             'total' => $bars->sum('total'),
             'change' => $this->percentageChange($bars->sum('total'), (int) (clone $this->visibleConversations($user))
-                ->whereBetween('created_at', [
+                ->whereBetween($this->conversationActivityColumn(), [
                     $firstStart->copy()->subDays($durationDays),
                     $firstStart->copy()->subSecond(),
                 ])
@@ -416,7 +439,7 @@ class GetDashboardViewDataAction
         $weeks = collect(range(0, 3))->map(function (int $weekIndex) use ($start, $user): array {
             return collect(range(0, 6))->map(function (int $dayIndex) use ($start, $weekIndex, $user): array {
                 $day = $start->copy()->addDays(($weekIndex * 7) + $dayIndex);
-                $count = (clone $this->visibleConversations($user))->whereDate('created_at', $day)->count();
+                $count = $this->whereConversationActivityDate(clone $this->visibleConversations($user), $day)->count();
 
                 return [
                     'date' => $day->toDateString(),
@@ -438,7 +461,11 @@ class GetDashboardViewDataAction
 
         return [
             'labels' => $years,
-            'values' => $years->map(fn (int $year): int => (clone $this->visibleConversations($user))->whereYear('created_at', $year)->count()),
+            'values' => $years->map(fn (int $year): int => $this->whereConversationActivityBetween(
+                clone $this->visibleConversations($user),
+                Carbon::create($year)->startOfYear(),
+                Carbon::create($year)->endOfYear(),
+            )->count()),
         ];
     }
 
@@ -764,7 +791,7 @@ class GetDashboardViewDataAction
         $daily = collect(range(9, 0))->map(function (int $offset) use ($conversationQuery): int {
             $day = today()->subDays($offset);
 
-            return (clone $conversationQuery)->whereDate('created_at', $day)->count();
+            return $this->whereConversationActivityDate(clone $conversationQuery, $day)->count();
         });
         $max = max(1, (int) $daily->max());
 
