@@ -454,3 +454,59 @@ body.messenger-page .team-switcher > .material-symbols-outlined {
         min-width: 0 !important;
     }
 }
+
+@media (max-width: 1100px) {
+    body.messenger-page .messenger-crm-shell,
+    body.messenger-page .crm-shell {
+        grid-template-columns: 246px minmax(0, 1fr) !important;
+    }
+
+    body.messenger-page .crm-sidebar {
+        display: flex !important;
+        width: 246px !important;
+        min-width: 246px !important;
+    }
+
+    body.messenger-page .crm-logo {
+        width: 246px !important;
+        justify-content: flex-start !important;
+        padding: 0 12px !important;
+        font-size: 18px !important;
+    }
+
+    body.messenger-page .crm-logo::first-letter {
+        font-size: inherit !important;
+    }
+
+    body.messenger-page .side-nav a {
+        grid-template-columns: 24px minmax(0, 1fr) !important;
+        justify-items: stretch !important;
+        padding: 0 12px 0 8px !important;
+        font-size: 13px !important;
+    }
+
+    body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
+        display: block !important;
+        font-size: 13px !important;
+    }
+
+    body.messenger-page .team-switcher {
+        display: grid !important;
+    }
+
+    body.messenger-page .messenger-channel-tabs {
+        left: 246px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    body.messenger-page .messenger-crm-shell,
+    body.messenger-page .crm-shell {
+        grid-template-columns: 1fr !important;
+    }
+
+    body.messenger-page .crm-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
