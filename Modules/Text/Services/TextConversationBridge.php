@@ -7,16 +7,22 @@ use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
+use Modules\Facebook\Services\FacebookThreadControlService;
 use Modules\Text\Models\TextConversationLink;
 
 class TextConversationBridge
 {
-    public function __construct(private readonly TextAgentChatService $text)
+    public function __construct(
+        private readonly TextAgentChatService $text,
+        private readonly FacebookThreadControlService $threadControl,
+    )
     {
     }
 
     public function pauseBotForConversation(Conversation $conversation): void
     {
+        $this->threadControl->takeThreadControl($conversation);
+
         $link = TextConversationLink::query()
             ->where('conversation_id', $conversation->id)
             ->first();
