@@ -21,4 +21,11 @@ return [
         'app_secret' => env('FACEBOOK_APP_SECRET'),
     ],
     'zalo' => ['access_token' => env('ZALO_ACCESS_TOKEN')],
+    'text' => [
+        'base_url' => env('TEXT_API_BASE_URL', 'https://api.livechatinc.com/v3.6'),
+        'agent_email' => env('TEXT_AGENT_EMAIL'),
+        'api_token' => env('TEXT_API_TOKEN'),
+        'human_group_id' => env('TEXT_HUMAN_GROUP_ID'),
+        'webhook_secret' => env('TEXT_WEBHOOK_SECRET'),
+    ],
 ];

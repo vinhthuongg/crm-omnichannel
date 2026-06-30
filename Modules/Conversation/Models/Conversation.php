@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\Customer\Models\Customer;
 use Modules\Message\Models\Message;
+use Modules\Text\Models\TextConversationLink;
 
 class Conversation extends Model
 {
@@ -79,6 +81,11 @@ class Conversation extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    public function textConversationLink(): HasOne
+    {
+        return $this->hasOne(TextConversationLink::class);
     }
 
     public function tags(): BelongsToMany
