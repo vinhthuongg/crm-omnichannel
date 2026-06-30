@@ -518,3 +518,87 @@
         justify-self: start !important;
     }
 }
+
+@media (min-width: 921px) {
+    .crm-shell:not(.sidebar-collapsed),
+    body.messenger-page .messenger-crm-shell:not(.sidebar-collapsed),
+    body.messenger-page .crm-shell:not(.sidebar-collapsed) {
+        grid-template-columns: 260px minmax(0, 1fr) !important;
+    }
+
+    .crm-sidebar,
+    body.messenger-page .crm-sidebar {
+        width: 260px !important;
+        min-width: 260px !important;
+        display: flex !important;
+        overflow: visible !important;
+    }
+
+    .crm-logo,
+    body.messenger-page .crm-logo {
+        width: 260px !important;
+        min-width: 260px !important;
+        justify-content: flex-start !important;
+        padding: 0 18px !important;
+        font-size: 18px !important;
+        white-space: nowrap !important;
+    }
+
+    body.messenger-page .crm-logo::first-letter {
+        font-size: inherit !important;
+    }
+
+    .side-nav,
+    body.messenger-page .side-nav {
+        display: grid !important;
+        width: 100% !important;
+        gap: 4px !important;
+        padding: 12px !important;
+        overflow: visible !important;
+    }
+
+    .side-nav a,
+    body.messenger-page .side-nav a {
+        min-height: 42px !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 24px minmax(0, 1fr) !important;
+        justify-items: stretch !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+        line-height: 1.25 !important;
+        white-space: normal !important;
+    }
+
+    .side-nav a > span:not(.material-symbols-outlined),
+    body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
+        display: block !important;
+        width: auto !important;
+        min-width: 0 !important;
+        overflow: visible !important;
+        text-align: left !important;
+        text-overflow: clip !important;
+        white-space: normal !important;
+    }
+
+    .side-nav a .nav-material-icon,
+    body.messenger-page .side-nav a .nav-material-icon {
+        width: 24px !important;
+        min-width: 24px !important;
+        font-size: 20px !important;
+    }
+
+    .team-switcher,
+    body.messenger-page .team-switcher {
+        width: auto !important;
+        display: grid !important;
+        grid-template-columns: 36px minmax(0, 1fr) 30px !important;
+        margin: auto 12px 12px !important;
+    }
+
+    body.messenger-page .messenger-channel-tabs {
+        left: 260px !important;
+    }
+}
