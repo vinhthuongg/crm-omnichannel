@@ -134,11 +134,28 @@ class FacebookOAuthService
             ->timeout(15)
             ->asForm()
             ->post($this->graphUrl("/{$pageId}/subscribed_apps"), [
-                'subscribed_fields' => 'messages,messaging_postbacks,message_deliveries,message_reads',
+                'subscribed_fields' => 'messages,message_echoes,messaging_postbacks,message_deliveries,message_reads',
                 'access_token' => $pageAccessToken,
             ]);
 
-        $response->throw();
+        try {
+            $response->throw();
+        } catch (\Throwable $exception) {
+            if (! str_contains($exception->getMessage(), 'message_echoes')) {
+                throw $exception;
+            }
+
+            $response = $this->http
+                ->connectTimeout(5)
+                ->timeout(15)
+                ->asForm()
+                ->post($this->graphUrl("/{$pageId}/subscribed_apps"), [
+                    'subscribed_fields' => 'messages,messaging_postbacks,message_deliveries,message_reads',
+                    'access_token' => $pageAccessToken,
+                ]);
+
+            $response->throw();
+        }
     }
 
     private function exchangeCode(string $code): array

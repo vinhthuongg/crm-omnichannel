@@ -9,6 +9,7 @@ use RuntimeException;
 class FacebookWebhookSubscriptionService
 {
     private const PAGE_FIELDS = 'messages,messaging_postbacks,message_deliveries,message_reads';
+    private const PAGE_FIELDS_WITH_ECHOES = 'messages,message_echoes,messaging_postbacks,message_deliveries,message_reads';
 
     public function __construct(private readonly Http $http)
     {
@@ -34,12 +35,33 @@ class FacebookWebhookSubscriptionService
                 'object' => 'page',
                 'callback_url' => $this->callbackUrl(),
                 'verify_token' => $this->verifyToken(),
-                'fields' => self::PAGE_FIELDS,
+                'fields' => self::PAGE_FIELDS_WITH_ECHOES,
                 'include_values' => 'true',
                 'access_token' => $this->appAccessToken(),
             ]);
 
-        $response->throw();
+        try {
+            $response->throw();
+        } catch (\Throwable $exception) {
+            if (! str_contains($exception->getMessage(), 'message_echoes')) {
+                throw $exception;
+            }
+
+            $response = $this->http
+                ->connectTimeout(5)
+                ->timeout(15)
+                ->asForm()
+                ->post($this->graphUrl('/'.$this->appId().'/subscriptions'), [
+                    'object' => 'page',
+                    'callback_url' => $this->callbackUrl(),
+                    'verify_token' => $this->verifyToken(),
+                    'fields' => self::PAGE_FIELDS,
+                    'include_values' => 'true',
+                    'access_token' => $this->appAccessToken(),
+                ]);
+
+            $response->throw();
+        }
 
         return $response->json();
     }
@@ -88,14 +110,14 @@ class FacebookWebhookSubscriptionService
 
     public function subscribedFields(): string
     {
-        return self::PAGE_FIELDS;
+        return self::PAGE_FIELDS_WITH_ECHOES;
     }
 
     private function hasRequiredFields(array $fields): bool
     {
         $fieldLookup = array_flip($fields);
 
-        foreach (explode(',', self::PAGE_FIELDS) as $field) {
+        foreach (explode(',', self::PAGE_FIELDS_WITH_ECHOES) as $field) {
             if (! array_key_exists($field, $fieldLookup)) {
                 return false;
             }

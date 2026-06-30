@@ -38,7 +38,7 @@ class Message extends Model
     public function senderName(): string
     {
         if ($this->sender_type === 'system') {
-            return 'System';
+            return 'Bot';
         }
 
         return (string) ($this->sender?->name ?? 'Unknown');

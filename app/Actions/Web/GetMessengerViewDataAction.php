@@ -344,7 +344,7 @@ class GetMessengerViewDataAction
             $senderName = match ($message->sender_type) {
                 'customer' => $conversation->customer?->name ?? 'Customer',
                 'user' => $users[$message->sender_id]?->name ?? 'Agent',
-                default => 'System',
+                default => 'Bot',
             };
 
             return [
@@ -352,7 +352,8 @@ class GetMessengerViewDataAction
                 'sender_type' => $message->sender_type,
                 'sender_name' => $senderName,
                 'sender_avatar' => $message->sender_type === 'customer' ? $conversation->customer?->avatar : null,
-                'is_mine' => $message->sender_type === 'user' && (int) $message->sender_id === (int) $currentUser->id,
+                'is_mine' => $message->sender_type === 'system'
+                    || ($message->sender_type === 'user' && (int) $message->sender_id === (int) $currentUser->id),
                 'channel' => $message->channel,
                 'content' => $message->recalled_at ? null : $message->content,
                 'message_type' => $message->message_type,

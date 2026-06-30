@@ -2,6 +2,7 @@
 
 namespace Modules\Message\Services;
 
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
@@ -80,6 +81,86 @@ class MessageService
         return $message;
     }
 
+    public function storeFacebookEcho(array $event): ?Message
+    {
+        $message = (array) data_get($event, 'message', []);
+        $externalMessageId = (string) data_get($message, 'mid', '');
+
+        if ($externalMessageId !== '') {
+            $existing = Message::query()
+                ->where('channel', 'facebook')
+                ->where('external_message_id', $externalMessageId)
+                ->with(['conversation.customer.channels', 'sender'])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        $pageId = (string) data_get($event, 'sender.id');
+        $customerExternalId = (string) data_get($event, 'recipient.id');
+
+        if ($pageId === '' || $customerExternalId === '') {
+            return null;
+        }
+
+        $customer = CustomerChannel::query()
+            ->where('channel', 'facebook')
+            ->where('external_id', $customerExternalId)
+            ->value('customer_id');
+
+        if (! $customer) {
+            return null;
+        }
+
+        $conversation = Conversation::query()
+            ->where('customer_id', $customer)
+            ->where('facebook_page_id', $pageId)
+            ->whereIn('status', ConversationStatus::ACTIVE)
+            ->latest('last_message_at')
+            ->first();
+
+        if (! $conversation) {
+            return null;
+        }
+
+        $attachments = $this->normalizeFacebookEchoAttachments((array) data_get($message, 'attachments', []));
+        $metadataAttachment = [
+            'type' => 'metadata',
+            'name' => 'facebook_echo',
+            'payload' => [
+                'is_echo' => true,
+                'app_id' => data_get($message, 'app_id'),
+                'raw' => $event,
+            ],
+        ];
+
+        $stored = DB::transaction(function () use ($conversation, $message, $externalMessageId, $attachments, $metadataAttachment): Message {
+            $stored = $this->repository->create([
+                'conversation_id' => $conversation->id,
+                'sender_type' => 'system',
+                'sender_id' => null,
+                'channel' => 'facebook',
+                'content' => data_get($message, 'text'),
+                'message_type' => $attachments ? 'attachment' : 'text',
+                'attachments' => [...$attachments, $metadataAttachment],
+                'external_message_id' => $externalMessageId !== '' ? $externalMessageId : null,
+                'outbound_status' => 'sent',
+                'sent_at' => now(),
+            ]);
+
+            $conversation->forceFill(['last_message_at' => $stored->created_at])->save();
+
+            return $stored;
+        });
+
+        $this->broadcastNewMessage($stored);
+        $this->queueCustomerVectorRefresh($conversation->customer);
+
+        return $stored;
+    }
+
     private function refreshCustomerProfile(Customer $customer, InboundMessageData $data): void
     {
         $updates = [];
@@ -99,6 +180,28 @@ class MessageService
         if ($updates) {
             $customer->forceFill($updates)->save();
         }
+    }
+
+    private function normalizeFacebookEchoAttachments(array $attachments): array
+    {
+        return collect($attachments)
+            ->map(function (array $attachment): array {
+                $type = (string) data_get($attachment, 'type', 'file');
+                $url = (string) (data_get($attachment, 'payload.url') ?: data_get($attachment, 'url', ''));
+                $name = $url ? basename((string) parse_url($url, PHP_URL_PATH)) : ucfirst($type);
+
+                return [
+                    'name' => $name ?: ucfirst($type),
+                    'url' => $url,
+                    'type' => $type,
+                    'mime_type' => (string) data_get($attachment, 'mime_type', ''),
+                    'payload' => data_get($attachment, 'payload', []),
+                ];
+            })
+            ->filter(fn (array $attachment): bool => $attachment['url'] !== '')
+            ->unique('url')
+            ->values()
+            ->all();
     }
 
     private function extractPhoneNumber(string $content): ?string

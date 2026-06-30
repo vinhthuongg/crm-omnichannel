@@ -36,13 +36,20 @@ class HandleFacebookWebhookAction
                 continue;
             }
 
-            if ((bool) data_get($event, 'message.is_echo')) {
-                $skipped++;
-                continue;
-            }
-
             $senderId = (string) data_get($event, 'sender.id');
             $pageId = (string) data_get($event, 'recipient.id');
+
+            if ((bool) data_get($event, 'message.is_echo')) {
+                $lastMessage = $this->messages->storeFacebookEcho($event);
+
+                if ($lastMessage) {
+                    $stored++;
+                } else {
+                    $skipped++;
+                }
+
+                continue;
+            }
 
             if ($senderId === '') {
                 $skipped++;

@@ -291,6 +291,11 @@
         }).format(new Date(message.created_at));
     }
 
+    function isOutboundMessage(message, currentUserId) {
+        return message?.sender_type === 'system'
+            || (message?.sender_type === 'user' && Number(message?.sender_id) === Number(currentUserId));
+    }
+
     function appendMessage(message) {
         if (!timeline || !message?.id || !hasRenderableMessage(message)) {
             return;
@@ -304,7 +309,7 @@
         }
 
         const currentUserId = Number(timeline.dataset.currentUserId);
-        const isMine = message.sender_type === 'user' && Number(message.sender_id) === currentUserId;
+        const isMine = isOutboundMessage(message, currentUserId);
         const pending = isMine ? matchingPendingMessage(message) : null;
 
         if (pending) {
@@ -340,7 +345,7 @@
         }
 
         const currentUserId = Number(timeline.dataset.currentUserId);
-        const isMine = message.sender_type === 'user' && Number(message.sender_id) === currentUserId;
+        const isMine = isOutboundMessage(message, currentUserId);
         const row = document.createElement('article');
         row.className = `message-row ${isMine ? 'mine' : 'theirs'}`;
         row.dataset.messageId = message.id;
@@ -396,7 +401,7 @@
         }
 
         const currentUserId = Number(timeline.dataset.currentUserId);
-        const isMine = message.sender_type === 'user' && Number(message.sender_id) === currentUserId;
+        const isMine = isOutboundMessage(message, currentUserId);
 
         row.className = `message-row ${isMine ? 'mine' : 'theirs'}`;
         row.classList.remove('is-pending');
@@ -849,7 +854,7 @@
             }
 
             const currentUserId = Number(timeline.dataset.currentUserId);
-            const isMine = message.sender_type === 'user' && Number(message.sender_id) === currentUserId;
+            const isMine = isOutboundMessage(message, currentUserId);
             const row = document.createElement('article');
             row.className = `message-row ${isMine ? 'mine' : 'theirs'}`;
             row.dataset.messageId = message.id;
@@ -1699,7 +1704,7 @@
 
         if (message.sender_type === 'customer') {
             updateThreadUnread(thread, Number(thread.dataset.threadUnreadCount || 0) + 1);
-        } else if (message.sender_type === 'user') {
+        } else if (message.sender_type === 'user' || message.sender_type === 'system') {
             updateThreadUnread(thread, 0);
         }
     }
