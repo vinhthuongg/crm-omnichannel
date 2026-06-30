@@ -61,8 +61,11 @@ body.work-shifts-page {
 }
 
 .work-shifts-hero a,
+.work-shifts-hero button,
 .work-shift-form button,
-.work-shifts-delete button {
+.work-shifts-delete button,
+.work-shifts-row-actions button,
+.work-shifts-section-head button {
     min-height: 38px;
     display: inline-flex;
     align-items: center;
@@ -396,26 +399,15 @@ body.work-shifts-page {
     color: #b45309;
 }
 
-.work-shifts-management {
-    display: grid;
-    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
-}
-
 .work-shifts-card {
     padding: 16px;
-}
-
-.work-shifts-create {
-    position: sticky;
-    top: 16px;
 }
 
 .work-shifts-section-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 14px;
     margin-bottom: 10px;
 }
 
@@ -423,30 +415,68 @@ body.work-shifts-page {
     min-width: 0;
 }
 
+.work-shifts-table {
+    display: grid;
+    gap: 10px;
+}
+
 .work-shifts-row {
     display: grid;
+    grid-template-columns: minmax(260px, 1.2fr) minmax(220px, 1fr) auto auto;
+    align-items: center;
     gap: 14px;
 }
 
-.work-shifts-row + .work-shifts-row,
 .work-shifts-empty {
     margin-top: 12px;
 }
 
-.work-shifts-row-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+.work-shifts-row-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    align-items: center;
     gap: 12px;
 }
 
-.work-shifts-row-head span {
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: #f3f4f6;
-    color: #374151;
-    padding: 6px 10px;
+.work-shifts-row-main h3,
+.work-shifts-row-main p,
+.work-shifts-row-agents span,
+.work-shifts-row-agents small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.work-shifts-row-main h3,
+.work-shifts-row-agents span {
+    margin: 0;
+    color: #111827;
+    font-size: 14px;
+}
+
+.work-shifts-row-main p,
+.work-shifts-row-agents small {
+    display: block;
+    margin: 3px 0 0;
+    color: #6b7280;
     font-size: 12px;
+}
+
+.work-shifts-row-agents {
+    min-width: 0;
+}
+
+.work-shifts-row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.work-shifts-row-actions > button {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #1f2937;
 }
 
 .work-shift-form {
@@ -523,14 +553,77 @@ body.work-shifts-page {
 }
 
 .work-shifts-delete {
-    display: flex;
-    justify-content: flex-end;
+    display: contents;
 }
 
 .work-shifts-delete button {
     border: 1px solid #fecaca;
     background: #fff;
     color: #b42318;
+}
+
+.work-shift-dialog {
+    width: min(640px, calc(100vw - 28px));
+    max-height: min(760px, calc(100vh - 28px));
+    border: 0;
+    border-radius: 10px;
+    padding: 0;
+    background: transparent;
+    color: #1f2937;
+}
+
+.work-shift-dialog::backdrop {
+    background: rgba(15, 23, 42, .42);
+}
+
+.work-shift-dialog-card {
+    max-height: inherit;
+    overflow-y: auto;
+    display: grid;
+    gap: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    padding: 18px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, .18);
+}
+
+.work-shift-dialog-card > header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    border-bottom: 1px solid #eef2f7;
+    padding-bottom: 12px;
+}
+
+.work-shift-dialog-card > header p,
+.work-shift-dialog-card > header h2 {
+    margin: 0;
+}
+
+.work-shift-dialog-card > header p {
+    color: #c8102e;
+    font-size: 12px;
+}
+
+.work-shift-dialog-card > header h2 {
+    margin-top: 3px;
+    color: #111827;
+    font-size: 18px;
+}
+
+.work-shift-dialog-close {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
 }
 
 .work-shifts-empty {
@@ -553,12 +646,8 @@ body.work-shifts-page {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .work-shifts-management {
-        grid-template-columns: 1fr;
-    }
-
-    .work-shifts-create {
-        position: static;
+    .work-shifts-row {
+        grid-template-columns: minmax(260px, 1fr) minmax(220px, 1fr);
     }
 }
 
@@ -569,7 +658,7 @@ body.work-shifts-page {
 
     .work-shifts-hero,
     .shift-staff-panel > header,
-    .work-shifts-row-head,
+    .work-shifts-section-head,
     .work-shift-form footer {
         align-items: stretch;
         flex-direction: column;
@@ -592,8 +681,18 @@ body.work-shifts-page {
     }
 
     .shift-load,
-    .shift-status-pill {
+    .shift-status-pill,
+    .work-shifts-row-actions {
         grid-column: 1 / -1;
+    }
+
+    .work-shifts-row {
+        grid-template-columns: 1fr;
+    }
+
+    .work-shifts-row-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
     }
 }
 
@@ -637,8 +736,13 @@ body.work-shifts-page {
     }
 
     .work-shift-form button,
-    .work-shifts-delete button {
+    .work-shifts-delete button,
+    .work-shifts-row-actions > button {
         width: 100%;
+    }
+
+    .work-shifts-row-actions {
+        grid-template-columns: 1fr;
     }
 }
 

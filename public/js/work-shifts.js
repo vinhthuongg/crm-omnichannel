@@ -64,6 +64,32 @@
         });
     });
 
+    document.addEventListener('click', function (event) {
+        const openButton = event.target.closest('[data-open-shift-dialog]');
+        const closeButton = event.target.closest('[data-close-shift-dialog]');
+
+        if (openButton) {
+            const dialog = document.getElementById(openButton.dataset.openShiftDialog || '');
+
+            if (dialog?.showModal) {
+                dialog.showModal();
+                dialog.querySelector('input[name="name"]')?.focus();
+            }
+        }
+
+        if (closeButton) {
+            closeButton.closest('dialog')?.close();
+        }
+    });
+
+    document.querySelectorAll('[data-shift-dialog]').forEach(function (dialog) {
+        dialog.addEventListener('click', function (event) {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
+    });
+
     document.querySelectorAll('[data-delete-shift]').forEach(function (form) {
         form.addEventListener('submit', function (event) {
             if (!window.confirm('Xoa ca truc nay?')) {
