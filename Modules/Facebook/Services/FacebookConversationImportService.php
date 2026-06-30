@@ -88,6 +88,8 @@ class FacebookConversationImportService
         }
 
         if (! $url) {
+            $this->refreshConversationTimestamp($remoteConversationId);
+
             return $imported;
         }
 
@@ -134,6 +136,8 @@ class FacebookConversationImportService
             $url = Arr::get($payload, 'paging.next');
             $params = [];
         } while ($url);
+
+        $this->refreshConversationTimestamp($remoteConversationId);
 
         return $imported;
     }
@@ -222,29 +226,49 @@ class FacebookConversationImportService
             };
             $attachments = $this->attachments($remoteMessage);
 
-            $message = Message::withTrashed()->updateOrCreate(
-                ['channel' => 'facebook', 'external_message_id' => $messageId],
-                [
-                    'conversation_id' => $conversation->id,
-                    'sender_type' => $senderType,
-                    'sender_id' => $senderId,
-                    'content' => $content,
-                    'message_type' => $attachments ? 'attachment' : 'text',
-                    'attachments' => $attachments,
-                    'outbound_status' => $isFromPage ? 'sent' : null,
-                    'sent_at' => $isFromPage ? $this->createdAt($remoteMessage) : null,
-                    'created_at' => $this->createdAt($remoteMessage),
-                    'updated_at' => now(),
-                    'deleted_at' => null,
-                ],
-            );
-
-            if (! $conversation->last_message_at || $message->created_at->gt($conversation->last_message_at)) {
-                $conversation->forceFill(['last_message_at' => $message->created_at])->save();
-            }
+            $remoteCreatedAt = $this->createdAt($remoteMessage);
+            $message = Message::withTrashed()->firstOrNew([
+                'channel' => 'facebook',
+                'external_message_id' => $messageId,
+            ]);
+            $message->forceFill([
+                'conversation_id' => $conversation->id,
+                'sender_type' => $senderType,
+                'sender_id' => $senderId,
+                'content' => $content,
+                'message_type' => $attachments ? 'attachment' : 'text',
+                'attachments' => $attachments,
+                'outbound_status' => $isFromPage ? 'sent' : null,
+                'sent_at' => $isFromPage ? $remoteCreatedAt : null,
+                'created_at' => $remoteCreatedAt,
+                'updated_at' => now(),
+                'deleted_at' => null,
+            ]);
+            $message->saveQuietly();
 
             return true;
         });
+    }
+
+    private function refreshConversationTimestamp(string $remoteConversationId): void
+    {
+        if ($remoteConversationId === '') {
+            return;
+        }
+
+        $conversation = Conversation::query()
+            ->where('external_conversation_id', $remoteConversationId)
+            ->first();
+
+        if (! $conversation) {
+            return;
+        }
+
+        $lastMessageAt = $conversation->messages()->max('created_at');
+
+        if ($lastMessageAt) {
+            $conversation->forceFill(['last_message_at' => Carbon::parse($lastMessageAt)])->save();
+        }
     }
 
     private function customerParticipant(FacebookPage $page, array $message, array $remoteConversation = []): array
@@ -319,7 +343,13 @@ class FacebookConversationImportService
 
     private function createdAt(array $message): Carbon
     {
-        return Carbon::parse((string) Arr::get($message, 'created_time', now()->toISOString()));
+        $createdTime = (string) Arr::get($message, 'created_time', '');
+
+        if ($createdTime === '') {
+            return now();
+        }
+
+        return Carbon::parse($createdTime)->timezone(config('app.timezone'));
     }
 
     private function graphGet(string $url, array $params, ?string $accessToken = null): array
