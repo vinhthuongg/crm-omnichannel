@@ -42,7 +42,11 @@
             data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
             data-customer-tag-options-json="{{ e($customerTagOptionsJson) }}"
         >
-<aside class="messenger-list">
+            <button type="button" class="messenger-drawer-backdrop" data-messenger-drawer-close aria-label="Dong bang dieu khien"></button>
+<aside class="messenger-list" data-messenger-list-panel>
+                <button type="button" class="messenger-panel-close" data-messenger-drawer-close aria-label="Dong danh sach hoi thoai">
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                </button>
                 <div class="messenger-list-head">
                     <div>
                         <h1>Hội Thoại</h1>
@@ -160,6 +164,9 @@
             @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userBelongsToShift($currentUser, $activeConversation->queue_shift_id))
             @php($canAssign = ($currentUser->can('conversation.assign') || $currentUser->can('conversation.transfer')) && $assignableAgents->isNotEmpty())
             <header class="messenger-chat-head">
+                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="list" aria-label="Mo danh sach hoi thoai">
+                    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+                </button>
                 <div class="chat-contact">
                     <span class="thread-avatar large" data-chat-avatar>
                         @if($activeConversation->customer?->avatar)
@@ -189,6 +196,9 @@
                         <small data-assign-status></small>
                     </form>
                 @endif
+                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="profile" aria-label="Mo thong tin khach hang">
+                    <span class="material-symbols-outlined" aria-hidden="true">contacts</span>
+                </button>
             </header>
             <div class="conversation-claim-bar {{ $canClaim || ! $canReply ? '' : 'is-hidden' }}" data-claim-bar>
                 <span data-claim-status>{{ $canClaim ? 'Hoi thoai moi trong ca truc cua ban.' : 'Ban can nhan xu ly truoc khi tra loi.' }}</span>
@@ -334,12 +344,18 @@
             @enderror
         @else
             <section class="messenger-no-chat">
+                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="list" aria-label="Mo danh sach hoi thoai">
+                    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+                </button>
                 <h2>Chọn Hội Thoại</h2>
                 <p>Chọn Hội Thoại Bên Trái Xử Lí</p>
             </section>
         @endif
     </section>
-    <aside class="messenger-profile-panel" data-profile-panel>
+    <aside class="messenger-profile-panel" data-profile-panel data-messenger-profile-panel>
+        <button type="button" class="messenger-panel-close" data-messenger-drawer-close aria-label="Dong thong tin khach hang">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
         @if($activeConversation)
             <section class="profile-contact-full" data-contact-full hidden>
                 <header>

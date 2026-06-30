@@ -2,6 +2,49 @@
         document.querySelector('[data-crm-shell]')?.classList.toggle('sidebar-collapsed');
     });
 
+    const messengerShell = document.querySelector('[data-messenger-realtime]');
+
+    function closeMessengerDrawers() {
+        messengerShell?.classList.remove('is-list-open', 'is-profile-open');
+    }
+
+    function openMessengerDrawer(panel) {
+        if (!messengerShell) {
+            return;
+        }
+
+        closeMessengerDrawers();
+
+        if (panel === 'list') {
+            messengerShell.classList.add('is-list-open');
+        }
+
+        if (panel === 'profile') {
+            messengerShell.classList.add('is-profile-open');
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        const toggle = event.target.closest('[data-messenger-drawer-toggle]');
+        const close = event.target.closest('[data-messenger-drawer-close]');
+
+        if (toggle) {
+            event.preventDefault();
+            openMessengerDrawer(toggle.dataset.messengerDrawerToggle || '');
+        }
+
+        if (close) {
+            event.preventDefault();
+            closeMessengerDrawers();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closeMessengerDrawers();
+        }
+    });
+
     document.querySelector('.messenger-thread-list')?.addEventListener('click', function (event) {
         const thread = event.target.closest('.messenger-thread');
 
@@ -10,6 +53,7 @@
         }
 
         event.preventDefault();
+        closeMessengerDrawers();
         loadConversation(thread.dataset.conversationUrl || thread.href);
     });
 
@@ -148,7 +192,7 @@
 
     let timeline = document.querySelector('[data-messenger-timeline]');
     let composer = document.querySelector('[data-messenger-composer]');
-    const realtimeRoot = document.querySelector('[data-messenger-realtime]');
+    const realtimeRoot = messengerShell;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     let customerTagOptions = readJsonDataset(realtimeRoot?.dataset.customerTagOptionsJson, []);
     let attachmentUpload = {

@@ -1257,3 +1257,36 @@
     color: #111;
 }
 
+.messenger-shell {
+    position: relative;
+}
+
+.messenger-list {
+    position: relative;
+}
+
+.messenger-drawer-backdrop,
+.messenger-mobile-toggle,
+.messenger-panel-close {
+    display: none;
+}
+
+.messenger-mobile-toggle,
+.messenger-panel-close {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    place-items: center;
+    border: 1px solid #dbe2ea;
+    border-radius: 999px;
+    background: #fff;
+    color: #111827;
+    padding: 0;
+    cursor: pointer;
+}
+
+.messenger-mobile-toggle .material-symbols-outlined,
+.messenger-panel-close .material-symbols-outlined {
+    font-size: 20px;
+}
+
