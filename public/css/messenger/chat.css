@@ -1141,8 +1141,38 @@ body.messenger-page .composer-bottom-row {
     min-height: 36px;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 12px;
+}
+
+body.messenger-page .chatbot-toggle {
+    min-width: 96px;
+    height: 34px;
+    border: 1px solid var(--chat-line);
+    border-radius: 999px;
+    background: #fff;
+    color: #475467;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 0 14px;
+    cursor: pointer;
+}
+
+body.messenger-page .chatbot-toggle.is-enabled {
+    border-color: rgba(22, 163, 74, .28);
+    background: #ecfdf3;
+    color: #067647;
+}
+
+body.messenger-page .chatbot-toggle.is-disabled {
+    border-color: rgba(220, 38, 38, .24);
+    background: #fff1f3;
+    color: #c01048;
+}
+
+body.messenger-page .chatbot-toggle:disabled {
+    cursor: wait;
+    opacity: .7;
 }
 
 body.messenger-page .composer-actions {

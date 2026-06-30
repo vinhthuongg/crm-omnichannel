@@ -9,6 +9,8 @@ return [
         'api_key' => env('NVIDIA_NIM_API_KEY'),
         'chat_model' => env('NVIDIA_NIM_CHAT_MODEL', 'meta/llama-3.1-70b-instruct'),
         'embedding_model' => env('NVIDIA_NIM_EMBEDDING_MODEL', 'nvidia/nv-embedqa-e5-v5'),
+        'natural_data_answer' => env('CHATBOT_NIM_NATURAL_DATA', true),
+        'conversation_answer' => env('CHATBOT_NIM_CONVERSATION', true),
     ],
     'vector' => [
         'index_path' => storage_path('app/chatbot/vector-index.json'),

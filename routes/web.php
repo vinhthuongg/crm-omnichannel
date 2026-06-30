@@ -39,6 +39,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('conversations/{conversation}/attachments', [MessengerController::class, 'uploadAttachments'])->name('crm.conversations.attachments.store');
         Route::post('conversations/{conversation}/claim', [MessengerController::class, 'claim'])->name('crm.conversations.claim');
         Route::post('conversations/{conversation}/assign', [MessengerController::class, 'assign'])->name('crm.conversations.assign');
+        Route::patch('conversations/{conversation}/chatbot', [MessengerController::class, 'toggleChatbot'])->name('crm.conversations.chatbot.toggle');
         Route::post('conversations/{conversation}/tags', [MessengerController::class, 'tags'])->name('crm.conversations.tags.store');
         Route::get('conversation-tags', [MessengerController::class, 'conversationTags'])->name('crm.conversation-tags.index');
         Route::post('conversation-tags', [MessengerController::class, 'storeConversationTag'])->name('crm.conversation-tags.store');

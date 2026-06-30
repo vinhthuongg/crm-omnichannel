@@ -158,6 +158,17 @@
     };
     let olderMessagesLoading = false;
 
+    document.addEventListener('click', async function (event) {
+        const button = event.target.closest('[data-chatbot-toggle]');
+
+        if (!button) {
+            return;
+        }
+
+        event.preventDefault();
+        await toggleConversationChatbot(button);
+    });
+
     function readJsonDataset(value, fallback) {
         try {
             return value ? JSON.parse(value) : fallback;
@@ -165,6 +176,53 @@
             console.warn('CRM messenger dataset JSON parse failed:', error);
             return fallback;
         }
+    }
+
+    async function toggleConversationChatbot(button) {
+        const url = button.dataset.chatbotUrl || '';
+        const nextEnabled = button.dataset.enabled !== '1';
+
+        if (!url || button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+                body: JSON.stringify({enabled: nextEnabled}),
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(function () {
+                    return {};
+                });
+
+                throw new Error(payload.message || 'Khong cap nhat duoc chatbot.');
+            }
+
+            const payload = await response.json();
+            updateChatbotToggle(button, Boolean(payload.data?.chatbot_enabled));
+        } catch (error) {
+            alert(error.message || 'Khong cap nhat duoc chatbot.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function updateChatbotToggle(button, enabled) {
+        button.dataset.enabled = enabled ? '1' : '0';
+        button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        button.classList.toggle('is-enabled', enabled);
+        button.classList.toggle('is-disabled', !enabled);
+        button.textContent = enabled ? 'Chatbot bat' : 'Chatbot tat';
     }
 
     function syncSearchInputs(value) {

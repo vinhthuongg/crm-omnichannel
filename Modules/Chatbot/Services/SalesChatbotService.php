@@ -80,6 +80,13 @@ class SalesChatbotService
         }
 
         if ($this->isGreeting($content)) {
+            if ($this->hasGreeted($conversation, $state)) {
+                return new ChatbotReply(
+                    content: $this->conversationalAnswer($conversation, $this->resetStaleFlowForChat($conversation, $state), $content),
+                    clientMessageKey: $this->replyKey($conversation, $source, 'greeting-chat'),
+                );
+            }
+
             return $this->greetingReply($conversation, $state, $source);
         }
 
@@ -245,7 +252,7 @@ class SalesChatbotService
             }
 
             if ($this->isCommercialDataIntent($detail) || $this->isCommercialTopic($topic)) {
-                return $this->noVerifiedCommercialDataAnswer($state, $detail, $topic, $model);
+                return $this->noVerifiedCommercialDataAnswer($conversation, $state, $detail, $topic, $model);
             }
 
             return $this->conversationalAnswer($conversation, $state, $detail);
@@ -289,10 +296,27 @@ class SalesChatbotService
             ? "Dạ em nghe Anh/Chị ạ. Với mẫu {$model}, em có thể hỗ trợ mình xem giá lăn bánh, ưu đãi, trả góp hoặc tư vấn phiên bản phù hợp.\n\nAnh/Chị muốn em kiểm tra phần nào trước ạ?"
             : "Dạ em nghe Anh/Chị ạ. Em rất sẵn lòng hỗ trợ mình.\n\nNếu Anh/Chị đang xem xe Toyota, Anh/Chị có thể nhắn nhu cầu như đi gia đình, đi làm, cần xe tiết kiệm, muốn trả góp hoặc mẫu xe đang quan tâm. Em sẽ tư vấn từng bước cho mình ạ.";
 
+        if (! (bool) config('chatbot.nim.conversation_answer', true)) {
+            return $fallback;
+        }
+
         try {
             $answer = $this->nim->chat(
                 $this->conversationalPrompt(),
-                "KHACH_NHAN: ".trim($content)."\nMAU_XE_DANG_QUAN_TAM: ".($model !== '' ? $model : 'chua co')."\nNGU_CANH_TRUOC: ".json_encode($state, JSON_UNESCAPED_UNICODE),
+                implode("\n\n", [
+                    'TIN_NHAN_MOI_NHAT_CUA_KHACH:',
+                    trim($content),
+                    'LICH_SU_CHAT_GAN_DAY:',
+                    $this->recentChatTranscript($conversation),
+                    'MAU_XE_DANG_QUAN_TAM:',
+                    $model !== '' ? $model : 'chua co',
+                    'Y_DINH_HE_THONG_NHAN_DIEN:',
+                    (string) ($state['detected_intent'] ?? 'casual'),
+                    'SO_LIEU_DA_XAC_THUC_TU_DATABASE:',
+                    'Khong co. Neu khach hoi gia, uu dai, tra gop, lai suat, ton kho, mau xe con hang hoac thoi gian giao xe thi khong duoc tu dua so lieu. Hay xin phep kiem tra hoac hoi them thong tin can thiet.',
+                    'NGU_CANH_HE_THONG:',
+                    json_encode($state, JSON_UNESCAPED_UNICODE),
+                ]),
             );
         } catch (\Throwable) {
             $answer = null;
@@ -305,15 +329,21 @@ class SalesChatbotService
             : $fallback;
     }
 
-    private function noVerifiedCommercialDataAnswer(array $state, string $detail, string $topic, string $model): string
+    private function noVerifiedCommercialDataAnswer(Conversation $conversation, array $state, string $detail, string $topic, string $model): string
     {
         if ($model === '' && $this->needsSpecificVehicle($topic, $detail)) {
             return $this->askForVehicleModel($state);
         }
 
-        $target = $model !== '' ? "cho mẫu {$model}" : 'theo nhu cầu này';
+        $aiTarget = $model !== '' ? 'cho mau '.$model : 'theo nhu cau nay';
 
-        return "Dạ em đã nhận thông tin của Anh/Chị.\n\nRiêng phần giá xe, khuyến mãi và trả góp {$target}, hiện em chưa thấy dữ liệu xác thực phù hợp trong hệ thống nên em không tự báo số để tránh sai thông tin.\n\nAnh/Chị vui lòng để lại số điện thoại hoặc Zalo, Toyota Kiên Giang sẽ kiểm tra trực tiếp và phản hồi thông tin chính xác cho mình ạ.";
+        return $this->conversationalAnswer($conversation, [
+            ...$state,
+            'detected_intent' => 'commercial_data_without_verified_context',
+            'commercial_topic' => $topic,
+            'commercial_target' => $aiTarget,
+            'commercial_guardrail' => 'Khach dang hoi so lieu thuong mai nhung database khong co du lieu xac thuc phu hop. Tra loi tu nhien, khong dua so gia/uu dai/lai suat, va xin thong tin de nhan vien kiem tra lai.',
+        ], $detail);
     }
 
     private function guardCommercialClaims(string $answer, string $fallback): string
@@ -390,6 +420,16 @@ class SalesChatbotService
             ];
         }
 
+        if (($state['step'] ?? '') === 'awaiting_detail'
+            && $this->isCommercialTopic((string) ($state['topic'] ?? ''))
+            && ($model !== '' || $this->isCommercialDataIntent($content))) {
+            return [
+                'intent' => 'commercial_data',
+                'model' => $model,
+                'needs_data' => true,
+            ];
+        }
+
         if ($this->isCommercialDataIntent($content) || $this->wantsInstallment($content) || $this->wantsCash($content)) {
             return [
                 'intent' => 'commercial_data',
@@ -398,49 +438,20 @@ class SalesChatbotService
             ];
         }
 
-        try {
-            $answer = $this->nim->chat(
-                $this->intentClassifierPrompt(),
-                "TIN_NHAN_KHACH: {$content}\nMAU_XE_TRONG_NGU_CANH: ".($model !== '' ? $model : 'chua co')."\nSTATE: ".json_encode($state, JSON_UNESCAPED_UNICODE),
-            );
-            $json = json_decode(trim((string) $answer), true, flags: JSON_THROW_ON_ERROR);
-        } catch (\Throwable) {
-            $json = [];
-        }
-
-        $intent = (string) ($json['intent'] ?? 'casual');
-        $needsData = (bool) ($json['needs_data'] ?? false);
-
-        if (! in_array($intent, ['casual', 'permission_question', 'test_drive', 'used_car', 'commercial_data', 'product_consulting'], true)) {
-            $intent = 'casual';
-            $needsData = false;
-        }
-
-        if (in_array($intent, ['test_drive', 'used_car', 'permission_question', 'casual'], true)) {
-            $needsData = false;
-        }
-
         return [
-            'intent' => $intent,
-            'model' => (string) ($json['model'] ?? $model),
-            'needs_data' => $needsData,
+            'intent' => $model !== '' ? 'product_consulting' : 'casual',
+            'model' => $model,
+            'needs_data' => false,
         ];
     }
 
     private function intentConversationAnswer(Conversation $conversation, array $state, string $content, array $intent): string
     {
-        $model = (string) ($intent['model'] ?? $this->conversationModel($state, $content));
-
-        return match ((string) ($intent['intent'] ?? 'casual')) {
-            'permission_question' => "Dạ được anh ạ, anh cứ hỏi thoải mái giúp em.\n\nAnh đang muốn hỏi về mẫu xe, lái thử, giá lăn bánh, trả góp hay ưu đãi hiện tại ạ?",
-            'test_drive' => $model !== ''
-                ? "Dạ được anh ạ. Với mẫu {$model}, bên em có thể hỗ trợ đăng ký lái thử theo lịch phù hợp.\n\nAnh cho em xin số điện thoại/Zalo và thời gian anh tiện, Toyota Kiên Giang sẽ kiểm tra lịch xe lái thử rồi xác nhận lại cho anh ạ."
-                : "Dạ được anh ạ. Bên em có hỗ trợ đăng ký lái thử theo lịch phù hợp.\n\nAnh cho em biết mẫu xe anh muốn lái thử và để lại số điện thoại/Zalo, Toyota Kiên Giang sẽ kiểm tra lịch rồi xác nhận lại cho anh ạ.",
-            'used_car' => $model !== ''
-                ? "Dạ em hiểu anh đang hỏi {$model} đời cũ ạ.\n\nPhần xe đời cũ/xe đã qua sử dụng cần kiểm tra tồn thực tế riêng, nên em không tự xác nhận khi chưa có dữ liệu trong hệ thống. Anh cho em xin số điện thoại/Zalo, bên em sẽ kiểm tra lại và báo anh chính xác ạ."
-                : "Dạ xe đời cũ/xe đã qua sử dụng cần kiểm tra tồn thực tế riêng anh ạ.\n\nAnh cho em biết mẫu xe mình đang tìm và để lại số điện thoại/Zalo, bên em sẽ kiểm tra rồi phản hồi chính xác cho anh ạ.",
-            default => $this->conversationalAnswer($conversation, $state, $content),
-        };
+        return $this->conversationalAnswer($conversation, [
+            ...$state,
+            'detected_intent' => (string) ($intent['intent'] ?? 'casual'),
+            'detected_model' => (string) ($intent['model'] ?? $this->conversationModel($state, $content)),
+        ], $content);
     }
 
     private function shouldChatNormally(string $content, array $state): bool
@@ -536,6 +547,10 @@ class SalesChatbotService
         }
 
         $fallback = $this->structuredVehicleAnswer($conversation, $state, $detail, $matches);
+
+        if (! (bool) config('chatbot.nim.natural_data_answer', true)) {
+            return $fallback;
+        }
 
         try {
             $answer = $this->nim->chat(
@@ -1477,6 +1492,7 @@ Nhiệm vụ:
 - Trả lời tiếng Việt, ngắn gọn, dễ đọc, chuyên nghiệp.
 
 Không dùng format cứng. Hãy trò chuyện tự nhiên như một tư vấn viên đang trực chat.
+Neu NGU_CANH_HE_THONG co commercial_guardrail, bat buoc tuan thu guardrail do. Khi SO_LIEU_DA_XAC_THUC_TU_DATABASE la "Khong co", khong duoc tu dua bat ky so lieu thuong mai nao.
 PROMPT;
     }
 
