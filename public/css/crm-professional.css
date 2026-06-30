@@ -373,3 +373,84 @@ svg text {
         grid-template-columns: 1fr !important;
     }
 }
+
+.crm-shell {
+    grid-template-columns: 246px minmax(0, 1fr) !important;
+}
+
+.crm-sidebar,
+body.messenger-page .crm-sidebar {
+    width: 246px !important;
+    min-width: 246px !important;
+    overflow: hidden !important;
+}
+
+.side-nav a,
+body.messenger-page .side-nav a {
+    display: grid !important;
+    grid-template-columns: 24px minmax(0, 1fr) !important;
+    align-items: center !important;
+    column-gap: 10px !important;
+    width: 100% !important;
+    padding: 0 12px 0 8px !important;
+    white-space: nowrap !important;
+}
+
+.side-nav a > span:not(.material-symbols-outlined),
+body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+.team-switcher,
+body.messenger-page .team-switcher {
+    display: grid !important;
+    grid-template-columns: 36px minmax(0, 1fr) 30px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-height: 54px !important;
+    margin: 22px 12px 0 !important;
+    padding: 10px !important;
+}
+
+.team-switcher > span:nth-child(1),
+body.messenger-page .team-switcher > span:nth-child(1) {
+    width: 34px !important;
+    height: 34px !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 7px !important;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+.team-switcher > span:nth-child(2),
+body.messenger-page .team-switcher > span:nth-child(2) {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+.team-switcher > .material-symbols-outlined,
+body.messenger-page .team-switcher > .material-symbols-outlined {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 6px !important;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+@media (max-width: 900px) {
+    .crm-shell {
+        grid-template-columns: 1fr !important;
+    }
+
+    .crm-sidebar,
+    body.messenger-page .crm-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
