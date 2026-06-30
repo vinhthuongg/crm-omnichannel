@@ -76,7 +76,7 @@ class FacebookConversationImportService
         $remoteConversationId = (string) Arr::get($remoteConversation, 'id');
 
         foreach ($embeddedMessages as $message) {
-            if ($this->storeMessage($page, $message, $remoteConversationId)) {
+            if ($this->storeMessage($page, $message, $remoteConversation)) {
                 $imported++;
             }
         }
@@ -126,7 +126,7 @@ class FacebookConversationImportService
             $payload = $this->graphGet($url, $params, $page->page_access_token);
 
             foreach ((array) Arr::get($payload, 'data', []) as $message) {
-                if ($this->storeMessage($page, $message, $remoteConversationId)) {
+                if ($this->storeMessage($page, $message, $remoteConversation)) {
                     $imported++;
                 }
             }
@@ -138,18 +138,19 @@ class FacebookConversationImportService
         return $imported;
     }
 
-    private function storeMessage(FacebookPage $page, array $remoteMessage, ?string $remoteConversationId = null): bool
+    private function storeMessage(FacebookPage $page, array $remoteMessage, array $remoteConversation): bool
     {
         $messageId = (string) Arr::get($remoteMessage, 'id');
+        $remoteConversationId = (string) Arr::get($remoteConversation, 'id');
 
         if ($messageId === '') {
             return false;
         }
 
-        return DB::transaction(function () use ($page, $remoteMessage, $messageId, $remoteConversationId): bool {
+        return DB::transaction(function () use ($page, $remoteMessage, $messageId, $remoteConversationId, $remoteConversation): bool {
             $fromId = (string) Arr::get($remoteMessage, 'from.id');
             $fromName = (string) Arr::get($remoteMessage, 'from.name', 'Customer');
-            $participant = $this->customerParticipant($page, $remoteMessage);
+            $participant = $this->customerParticipant($page, $remoteMessage, $remoteConversation);
             $customerExternalId = (string) Arr::get($participant, 'id', $fromId);
             $customerName = (string) Arr::get($participant, 'name', $fromName ?: $customerExternalId);
 
@@ -175,7 +176,13 @@ class FacebookConversationImportService
             );
 
             $currentShift = $this->shifts->currentShift();
-            $conversation = Conversation::query()
+            $conversation = $remoteConversationId !== ''
+                ? Conversation::query()
+                    ->where('external_conversation_id', $remoteConversationId)
+                    ->first()
+                : null;
+
+            $conversation ??= Conversation::query()
                 ->where('customer_id', $customer->id)
                 ->where('facebook_page_id', $page->page_id)
                 ->whereIn('status', ConversationStatus::ACTIVE)
@@ -201,8 +208,18 @@ class FacebookConversationImportService
                 ])->save();
             }
 
-            $senderType = $fromId === $page->page_id ? 'user' : 'customer';
-            $senderId = $senderType === 'user' ? $page->user_id : $customer->id;
+            $existingMessage = Message::withTrashed()
+                ->where('channel', 'facebook')
+                ->where('external_message_id', $messageId)
+                ->first();
+            $isFromPage = $fromId === $page->page_id;
+            $isCrmOutbound = $existingMessage?->sender_type === 'user' && filled($existingMessage?->client_message_id);
+            $senderType = $isFromPage ? ($isCrmOutbound ? 'user' : 'system') : 'customer';
+            $senderId = match ($senderType) {
+                'user' => $existingMessage?->sender_id ?: $page->user_id,
+                'customer' => $customer->id,
+                default => null,
+            };
             $attachments = $this->attachments($remoteMessage);
 
             $message = Message::withTrashed()->updateOrCreate(
@@ -214,6 +231,8 @@ class FacebookConversationImportService
                     'content' => $content,
                     'message_type' => $attachments ? 'attachment' : 'text',
                     'attachments' => $attachments,
+                    'outbound_status' => $isFromPage ? 'sent' : null,
+                    'sent_at' => $isFromPage ? $this->createdAt($remoteMessage) : null,
                     'created_at' => $this->createdAt($remoteMessage),
                     'updated_at' => now(),
                     'deleted_at' => null,
@@ -228,8 +247,14 @@ class FacebookConversationImportService
         });
     }
 
-    private function customerParticipant(FacebookPage $page, array $message): array
+    private function customerParticipant(FacebookPage $page, array $message, array $remoteConversation = []): array
     {
+        foreach ((array) Arr::get($remoteConversation, 'participants.data', []) as $participant) {
+            if ((string) Arr::get($participant, 'id') !== $page->page_id) {
+                return $participant;
+            }
+        }
+
         foreach ((array) Arr::get($message, 'to.data', []) as $participant) {
             if ((string) Arr::get($participant, 'id') !== $page->page_id) {
                 return $participant;
