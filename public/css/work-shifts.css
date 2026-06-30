@@ -617,6 +617,72 @@ body.work-shifts-page {
     }
 }
 
+@media (max-width: 640px) {
+    .work-shifts-shell {
+        padding: 12px;
+    }
+
+    .work-shifts-hero {
+        gap: 14px;
+    }
+
+    .work-shifts-hero h1 {
+        font-size: 24px;
+        line-height: 1.2;
+    }
+
+    .work-shifts-tabs {
+        margin: 0 -12px;
+        padding: 0 12px 8px;
+        gap: 14px;
+    }
+
+    .shift-overview-card,
+    .shift-staff-panel,
+    .work-shifts-card {
+        border-radius: 8px;
+        padding: 14px;
+    }
+
+    .shift-overview-card header {
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .shift-overview-card header time {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .shift-staff-panel {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .shift-staff-panel > header,
+    .shift-staff-list {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .shift-staff-row {
+        padding: 14px 0;
+    }
+
+    .work-shift-form,
+    .work-shift-form footer,
+    .work-shifts-delete {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .work-shift-form button,
+    .work-shifts-delete button {
+        width: 100%;
+    }
+}
+
 :where(.work-shifts-page) :is(h1, h2, h3, h4, h5, h6, strong, b, th, button, a, label) {
     font-weight: 500 !important;
 }

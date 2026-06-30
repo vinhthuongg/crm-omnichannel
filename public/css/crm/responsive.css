@@ -30,6 +30,15 @@
     .customers-filter-card form {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
+
+    body.messenger-page .messenger-shell {
+        grid-template-columns: 330px minmax(0, 1fr) !important;
+    }
+
+    body.messenger-page .messenger-profile,
+    body.messenger-page .messenger-profile-panel {
+        display: none !important;
+    }
 }
 
 @media (max-width: 920px) {
@@ -123,7 +132,9 @@
 
     .crm-main,
     body.messenger-page .messenger-crm-main {
+        width: 100% !important;
         min-width: 0 !important;
+        overflow-x: hidden !important;
         grid-template-rows: auto minmax(0, 1fr) !important;
     }
 
@@ -165,15 +176,22 @@
     .agent-page-header,
     .connection-header,
     .settings-page-header,
-    .customers-hero {
+    .customers-hero,
+    .customers-board-header,
+    .agent-table-panel header,
+    .activity-page-header,
+    .facebook-pages-header {
         flex-direction: column !important;
         align-items: stretch !important;
+        gap: 12px !important;
     }
 
     .today-kpi-grid,
     .today-intent-grid,
     .agent-kpi-grid,
-    .customers-filter-card form {
+    .customers-filter-card form,
+    .activity-filter-panel,
+    .facebook-pages-grid {
         grid-template-columns: 1fr !important;
     }
 
@@ -181,8 +199,46 @@
         grid-column: auto !important;
     }
 
+    .customers-hero-metrics,
+    .customers-board-actions,
+    .customers-filter-actions,
+    .connection-card footer,
+    .settings-actions,
+    .facebook-page-actions {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .customers-filter-actions :is(a, button),
+    .customers-board-actions :is(a, button),
+    .connection-card footer :is(a, button, form),
+    .settings-actions :is(a, button),
+    .facebook-page-actions :is(a, button, form) {
+        width: 100% !important;
+    }
+
+    .activity-timeline,
+    .settings-form-grid,
+    .settings-grid,
+    .connection-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .activity-card {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    .activity-card time {
+        justify-self: start !important;
+        text-align: left !important;
+    }
+
     .customers-table,
-    .agent-performance-table {
+    .agent-performance-table,
+    .activity-table {
         min-width: 760px !important;
     }
 }
@@ -193,13 +249,11 @@
         min-height: calc(100vh - 96px) !important;
         display: grid !important;
         grid-template-columns: 1fr !important;
-        grid-template-rows: auto minmax(60vh, auto) auto !important;
+        grid-template-rows: auto minmax(64vh, auto) !important;
     }
 
     body.messenger-page .messenger-list,
-    body.messenger-page .messenger-chat,
-    body.messenger-page .messenger-profile,
-    body.messenger-page .messenger-profile-panel {
+    body.messenger-page .messenger-chat {
         width: 100% !important;
         min-width: 0 !important;
         max-width: none !important;
@@ -207,13 +261,11 @@
 
     body.messenger-page .messenger-profile,
     body.messenger-page .messenger-profile-panel {
-        display: block !important;
-        border-left: 0 !important;
-        border-top: 1px solid var(--crm-line, #e5e7eb) !important;
+        display: none !important;
     }
 
     body.messenger-page .messenger-thread-list {
-        max-height: 38vh !important;
+        max-height: 42vh !important;
         overflow-y: auto !important;
     }
 
@@ -223,6 +275,16 @@
         padding-right: 10px !important;
     }
 
+    body.messenger-page .messenger-chat-head {
+        align-items: stretch !important;
+        gap: 10px !important;
+        flex-wrap: wrap !important;
+    }
+
+    body.messenger-page .chat-contact {
+        min-width: 100% !important;
+    }
+
     body.messenger-page .conversation-assign-form {
         width: 100% !important;
     }
@@ -230,6 +292,58 @@
     body.messenger-page .conversation-assign-form select,
     body.messenger-page .conversation-assign-form button {
         width: 100% !important;
+    }
+
+    body.messenger-page .chat-timeline {
+        min-height: 56vh !important;
+        max-height: none !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    body.messenger-page .message-bubble {
+        max-width: 86vw !important;
+    }
+
+    body.messenger-page .message-attachment img,
+    body.messenger-page .message-attachment video {
+        max-width: 82vw !important;
+        height: auto !important;
+    }
+
+    body.messenger-page .composer-row,
+    body.messenger-page .composer-actions {
+        grid-template-columns: 1fr !important;
+    }
+
+    body.messenger-page .composer-actions {
+        justify-items: stretch !important;
+    }
+
+    body.messenger-page .composer-actions :is(button, label) {
+        width: 100% !important;
+    }
+
+    .today-dashboard-page,
+    .agent-report-page,
+    .connection-page,
+    .activity-log-page,
+    .settings-page,
+    .customers-page,
+    .facebook-pages-shell {
+        padding-top: 14px !important;
+        padding-bottom: 20px !important;
+    }
+
+    .today-dashboard-actions,
+    .agent-filter-panel,
+    .activity-filter-bar,
+    .customers-pagination,
+    .customers-board-footer {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        align-items: stretch !important;
     }
 }
 
@@ -265,5 +379,63 @@
 
     .login-visual {
         display: none !important;
+    }
+}
+
+@media (max-width: 520px) {
+    .crm-sidebar,
+    body.messenger-page .crm-sidebar {
+        grid-template-columns: 1fr !important;
+    }
+
+    .crm-logo,
+    body.messenger-page .crm-logo {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+
+    .side-nav,
+    body.messenger-page .side-nav {
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
+
+    .crm-topbar,
+    body.messenger-page .crm-topbar {
+        padding: 8px 10px !important;
+    }
+
+    .topbar-brand span {
+        display: none !important;
+    }
+
+    .today-kpi-card h2,
+    .agent-kpi-card h2 {
+        font-size: 30px !important;
+    }
+
+    .today-chart-card,
+    .agent-chart-card,
+    .customers-board,
+    .customers-filter-card,
+    .connection-card,
+    .settings-card,
+    .activity-log-card {
+        padding: 14px !important;
+    }
+
+    .messenger-list-head,
+    body.messenger-page .messenger-list-head {
+        padding: 12px 10px !important;
+    }
+
+    body.messenger-page .thread-item {
+        grid-template-columns: 44px minmax(0, 1fr) !important;
+        gap: 9px !important;
+    }
+
+    body.messenger-page .thread-meta {
+        grid-column: 2 !important;
+        justify-self: start !important;
     }
 }

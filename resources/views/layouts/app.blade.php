@@ -11,9 +11,11 @@
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap">
         <link rel="stylesheet" href="{{ asset('css/crm/base.css') }}?v={{ filemtime(public_path('css/crm/base.css')) }}">
         <link rel="stylesheet" href="{{ asset('css/crm-professional.css') }}?v={{ filemtime(public_path('css/crm-professional.css')) }}">
-        <link rel="stylesheet" href="{{ asset('css/crm/responsive.css') }}?v={{ filemtime(public_path('css/crm/responsive.css')) }}">
     @endif
     @stack('styles')
+    @if($useUi ?? true)
+        <link rel="stylesheet" href="{{ asset('css/crm/responsive.css') }}?v={{ filemtime(public_path('css/crm/responsive.css')) }}">
+    @endif
 </head>
 <body class="{{ $bodyClass ?? '' }}">
     @yield('content')
