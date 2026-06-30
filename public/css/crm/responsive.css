@@ -1,0 +1,269 @@
+@media (max-width: 1180px) {
+    .crm-shell,
+    body.messenger-page .messenger-crm-shell {
+        grid-template-columns: 220px minmax(0, 1fr) !important;
+    }
+
+    .crm-sidebar,
+    body.messenger-page .crm-sidebar,
+    body.messenger-page .crm-logo {
+        width: 220px !important;
+        min-width: 220px !important;
+    }
+
+    .topbar-global-search {
+        width: min(460px, 50vw) !important;
+    }
+
+    .today-kpi-grid,
+    .agent-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .today-chart-grid,
+    .agent-chart-grid,
+    .settings-grid,
+    .connection-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .customers-filter-card form {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 920px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    .crm-shell,
+    body.messenger-page .messenger-crm-shell {
+        min-height: 100vh !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    .crm-sidebar,
+    body.messenger-page .crm-sidebar {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 30 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 8px 10px !important;
+        border-right: 0 !important;
+        border-bottom: 1px solid var(--crm-line, #e5e7eb) !important;
+        overflow-x: auto !important;
+    }
+
+    .crm-logo,
+    body.messenger-page .crm-logo {
+        position: static !important;
+        width: auto !important;
+        min-width: max-content !important;
+        height: 38px !important;
+        border: 0 !important;
+        padding: 0 8px !important;
+        font-size: 16px !important;
+        white-space: nowrap !important;
+    }
+
+    .side-nav,
+    body.messenger-page .side-nav {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        scrollbar-width: none;
+    }
+
+    .side-nav::-webkit-scrollbar,
+    body.messenger-page .side-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .side-nav a,
+    body.messenger-page .side-nav a {
+        min-width: max-content !important;
+        min-height: 36px !important;
+        display: inline-flex !important;
+        grid-template-columns: none !important;
+        gap: 7px !important;
+        border-left: 0 !important;
+        border-bottom: 2px solid transparent !important;
+        padding: 0 10px !important;
+        white-space: nowrap !important;
+    }
+
+    .side-nav a.active,
+    body.messenger-page .side-nav a.active {
+        border-bottom-color: var(--crm-primary, #c8102e) !important;
+    }
+
+    .side-nav a > span:not(.material-symbols-outlined),
+    body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
+        display: inline !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    .team-switcher,
+    body.messenger-page .team-switcher {
+        display: none !important;
+    }
+
+    .crm-main,
+    body.messenger-page .messenger-crm-main {
+        min-width: 0 !important;
+        grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    .crm-topbar,
+    body.messenger-page .crm-topbar {
+        position: static !important;
+        min-height: auto !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 10px 12px !important;
+    }
+
+    .topbar-brand {
+        min-width: 0 !important;
+    }
+
+    .topbar-global-search,
+    body.messenger-page .topbar-global-search {
+        width: 100% !important;
+        order: 5 !important;
+        margin: 0 !important;
+    }
+
+    .today-dashboard-page,
+    .agent-report-page,
+    .connection-page,
+    .activity-log-page,
+    .settings-page,
+    .customers-hero,
+    .customers-filter-card,
+    .customers-board,
+    .facebook-pages-shell {
+        margin: 0 !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    .today-dashboard-header,
+    .agent-page-header,
+    .connection-header,
+    .settings-page-header,
+    .customers-hero {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .today-kpi-grid,
+    .today-intent-grid,
+    .agent-kpi-grid,
+    .customers-filter-card form {
+        grid-template-columns: 1fr !important;
+    }
+
+    .customers-search-field {
+        grid-column: auto !important;
+    }
+
+    .customers-table,
+    .agent-performance-table {
+        min-width: 760px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    body.messenger-page .messenger-shell {
+        height: auto !important;
+        min-height: calc(100vh - 96px) !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto minmax(60vh, auto) auto !important;
+    }
+
+    body.messenger-page .messenger-list,
+    body.messenger-page .messenger-chat,
+    body.messenger-page .messenger-profile,
+    body.messenger-page .messenger-profile-panel {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    body.messenger-page .messenger-profile,
+    body.messenger-page .messenger-profile-panel {
+        display: block !important;
+        border-left: 0 !important;
+        border-top: 1px solid var(--crm-line, #e5e7eb) !important;
+    }
+
+    body.messenger-page .messenger-thread-list {
+        max-height: 38vh !important;
+        overflow-y: auto !important;
+    }
+
+    body.messenger-page .messenger-chat-head,
+    body.messenger-page .messenger-composer {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    body.messenger-page .conversation-assign-form {
+        width: 100% !important;
+    }
+
+    body.messenger-page .conversation-assign-form select,
+    body.messenger-page .conversation-assign-form button {
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .crm-logo,
+    body.messenger-page .crm-logo {
+        font-size: 14px !important;
+    }
+
+    .side-nav a,
+    body.messenger-page .side-nav a {
+        font-size: 12px !important;
+    }
+
+    .today-kpi-card,
+    .today-intent-card,
+    .agent-kpi-card,
+    .connection-card,
+    .settings-card,
+    .activity-card,
+    .customers-board,
+    .customers-filter-card {
+        border-radius: 7px !important;
+    }
+
+    .login-shell {
+        grid-template-columns: 1fr !important;
+    }
+
+    .login-panel {
+        padding: 28px 18px !important;
+    }
+
+    .login-visual {
+        display: none !important;
+    }
+}

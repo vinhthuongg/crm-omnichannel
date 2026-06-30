@@ -1,5 +1,9 @@
 @extends('layouts.app', ['title' => 'Ket noi Fanpage - CRM', 'bodyClass' => 'messenger-page'])
 
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/crm/facebook-pages.css') }}?v={{ filemtime(public_path('css/crm/facebook-pages.css')) }}">
+@endpush
+
 @section('content')
 <div class="crm-shell" data-crm-shell>
     @include('partials.crm.chrome')

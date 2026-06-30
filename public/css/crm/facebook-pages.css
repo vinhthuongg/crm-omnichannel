@@ -1,0 +1,148 @@
+﻿.facebook-pages-shell {
+    min-height: 100vh;
+    padding: 32px;
+    background: #f8fafc;
+}
+
+.facebook-pages-panel {
+    max-width: 920px;
+    margin: 0 auto;
+}
+
+.facebook-pages-panel header,
+.facebook-page-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.facebook-pages-panel header {
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.facebook-page-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.facebook-pages-panel header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.facebook-pages-panel header p,
+.facebook-page-card p {
+    margin: 0;
+    color: #6b7280;
+}
+
+.facebook-page-list {
+    display: grid;
+    gap: 10px;
+}
+
+.facebook-page-card {
+    justify-content: space-between;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.facebook-page-card > div {
+    flex: 1;
+}
+
+.facebook-page-card form {
+    display: grid;
+    gap: 8px;
+}
+
+.facebook-page-card input,
+.facebook-page-card select {
+    min-height: 38px;
+    border: 1px solid #d8dde5;
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: #fff;
+}
+
+.facebook-page-card h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+}
+
+.facebook-page-card button,
+.facebook-pages-panel header a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    background: #111;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ghost-button {
+    padding: 0 16px;
+    border: 1px solid #e3e8f0;
+    background: #fff;
+    color: #172033;
+}
+
+.field-error {
+    color: #b42318;
+    margin: -8px 0 0;
+    font-size: 14px;
+}
+
+.login-insight {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 56px;
+    color: #fff;
+    background:
+        linear-gradient(rgba(8, 22, 48, .78), rgba(8, 22, 48, .72)),
+        url("https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=80") center / cover;
+}
+
+.login-insight h2 {
+    max-width: 720px;
+    margin: 0;
+    font-size: clamp(32px, 4vw, 56px);
+    line-height: 1.05;
+    letter-spacing: 0;
+}
+
+.insight-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+}
+
+.insight-grid div {
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+}
+
+.insight-grid dt {
+    font-weight: 500;
+}
+
+.insight-grid dd {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, .78);
+}
+

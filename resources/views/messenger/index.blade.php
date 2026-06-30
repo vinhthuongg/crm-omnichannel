@@ -14,6 +14,7 @@
 @php($tagManager = $tagManager ?? ['index_url' => route('crm.conversation-tags.index'), 'store_url' => route('crm.conversation-tags.store')])
 @php($activeSection = 'conversations')
 @push('styles')
+<link rel="stylesheet" href="{{ asset('css/crm/messenger.css') }}?v={{ filemtime(public_path('css/crm/messenger.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/messenger/chat.css') }}?v={{ filemtime(public_path('css/messenger/chat.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/crm-professional.css') }}?v={{ filemtime(public_path('css/crm-professional.css')) }}">
 @endpush

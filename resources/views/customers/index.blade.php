@@ -1,5 +1,9 @@
 @extends('layouts.app', ['title' => 'Khach hang - CRM'])
 
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/crm/customers.css') }}?v={{ filemtime(public_path('css/crm/customers.css')) }}">
+@endpush
+
 @section('content')
 <div class="crm-shell customers-page" data-crm-shell>
     @php($activeSection = 'customers')

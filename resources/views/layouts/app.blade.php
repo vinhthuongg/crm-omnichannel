@@ -9,8 +9,9 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap">
-        <link rel="stylesheet" href="{{ asset('css/ui.css') }}?v={{ filemtime(public_path('css/ui.css')) }}">
+        <link rel="stylesheet" href="{{ asset('css/crm/base.css') }}?v={{ filemtime(public_path('css/crm/base.css')) }}">
         <link rel="stylesheet" href="{{ asset('css/crm-professional.css') }}?v={{ filemtime(public_path('css/crm-professional.css')) }}">
+        <link rel="stylesheet" href="{{ asset('css/crm/responsive.css') }}?v={{ filemtime(public_path('css/crm/responsive.css')) }}">
     @endif
     @stack('styles')
 </head>

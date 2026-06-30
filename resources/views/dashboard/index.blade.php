@@ -1,5 +1,12 @@
 @extends('layouts.app', ['title' => $sectionTitle . ' - CRM'])
 
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/crm/dashboard.css') }}?v={{ filemtime(public_path('css/crm/dashboard.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/crm/channels.css') }}?v={{ filemtime(public_path('css/crm/channels.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/crm/agents.css') }}?v={{ filemtime(public_path('css/crm/agents.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/crm/activity-settings.css') }}?v={{ filemtime(public_path('css/crm/activity-settings.css')) }}">
+@endpush
+
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css">
 

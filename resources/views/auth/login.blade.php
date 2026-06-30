@@ -1,5 +1,9 @@
 @extends('layouts.app', ['title' => 'Đăng nhập CRM', 'bodyClass' => 'auth-page'])
 
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/crm/auth.css') }}?v={{ filemtime(public_path('css/crm/auth.css')) }}">
+@endpush
+
 @section('content')
 <main class="login-shell">
     <section class="login-panel" aria-labelledby="login-title">
