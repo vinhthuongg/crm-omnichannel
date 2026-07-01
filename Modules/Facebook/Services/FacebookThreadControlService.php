@@ -91,29 +91,33 @@ class FacebookThreadControlService
 
         $targetAppId = $this->resolveBotTargetAppId($page);
 
-        $payload = [
-            'recipient' => ['id' => $psid],
-            'metadata' => $metadata ?: 'CRM inactivity timeout, returning thread to bot',
-            'access_token' => $page->page_access_token,
-        ];
+        if ($targetAppId === '') {
+            Log::warning('Facebook pass_thread_control skipped because no bot receiver app id is configured on the Page', [
+                'conversation_id' => $conversation->id,
+                'facebook_page_id' => $conversation->facebook_page_id,
+                'hint' => 'Enable Messenger Conversation Routing/Handover and connect Text.com as a receiver app.',
+            ]);
 
-        if ($targetAppId !== '') {
-            $payload['target_app_id'] = $targetAppId;
+            return false;
         }
 
         $response = $this->http
             ->connectTimeout(3)
             ->timeout(8)
             ->asJson()
-            ->post($this->graphUrl('/me/pass_thread_control'), $payload);
+            ->post($this->graphUrl('/me/pass_thread_control'), [
+                'recipient' => ['id' => $psid],
+                'target_app_id' => $targetAppId,
+                'metadata' => $metadata ?: 'CRM inactivity timeout, returning thread to bot',
+                'access_token' => $page->page_access_token,
+            ]);
 
         if ($response->successful()) {
             Log::info('Facebook thread control passed back to bot', [
                 'conversation_id' => $conversation->id,
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'psid' => $psid,
-                'target_app_id' => $targetAppId ?: null,
-                'fallback_receiver' => $targetAppId === '' ? 'primary_receiver' : null,
+                'target_app_id' => $targetAppId,
             ]);
 
             return true;
@@ -123,8 +127,7 @@ class FacebookThreadControlService
             'conversation_id' => $conversation->id,
             'facebook_page_id' => $conversation->facebook_page_id,
             'psid' => $psid,
-            'target_app_id' => $targetAppId ?: null,
-            'fallback_receiver' => $targetAppId === '' ? 'primary_receiver' : null,
+            'target_app_id' => $targetAppId,
             'status' => $response->status(),
             'body' => $response->body(),
         ]);
