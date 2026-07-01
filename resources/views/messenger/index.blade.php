@@ -486,6 +486,20 @@
                     @endforeach
                 </div>
             </section>
+            <section class="profile-section profile-conversation-summary">
+                <h4>Tóm Tắt Hội Thoại</h4>
+                <div class="conversation-summary-list" data-conversation-summary-list>
+                    @if(count($profilePanel['summary']) === 0)
+                        <p class="profile-empty">Chưa có nội dung để tóm tắt.</p>
+                    @endif
+                    @foreach($profilePanel['summary'] as $item)
+                        <article class="summary-item is-{{ $item['side'] }}">
+                            <span>{{ $item['label'] }}{{ $item['time'] ? ' - '.$item['time'] : '' }}</span>
+                            <p>{{ $item['content'] }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
             </div>
         @else
             <section class="profile-section is-empty">

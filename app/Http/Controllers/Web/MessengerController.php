@@ -183,6 +183,7 @@ class MessengerController extends Controller
                 'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
                 'customer_notes' => $this->customerNotesPayload($conversation),
                 'customer_tags' => $this->customerTagsPayload($conversation),
+                'conversation_summary' => $this->conversationSummaryPayload($conversation),
                 'all_customer_tags' => $this->tagPayloads(),
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'assignee_name' => $conversation->assignee?->name,
@@ -925,6 +926,40 @@ class MessengerController extends Controller
             ->map(fn (CustomerTag $tag): array => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color])
             ->values()
             ->all() ?? [];
+    }
+
+    private function conversationSummaryPayload(Conversation $conversation): array
+    {
+        return $conversation->messages()
+            ->latest()
+            ->limit(12)
+            ->get()
+            ->reverse()
+            ->map(function (Message $message): ?array {
+                $content = trim((string) $message->content);
+
+                if ($message->recalled_at) {
+                    $content = 'Tin nhắn đã được thu hồi';
+                }
+
+                if ($content === '' && is_array($message->attachments) && count($message->attachments) > 0) {
+                    $content = 'Đã gửi '.count($message->attachments).' tệp đính kèm';
+                }
+
+                if ($content === '') {
+                    return null;
+                }
+
+                return [
+                    'side' => $message->sender_type === 'customer' ? 'customer' : 'staff',
+                    'label' => $message->sender_type === 'customer' ? 'Khách hàng' : ($message->sender_type === 'system' ? 'Bot' : 'Nhân viên'),
+                    'content' => str($content)->squish()->limit(120)->toString(),
+                    'time' => $message->created_at?->format('H:i'),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function refreshConversationLastMessageAt(Conversation $conversation): void

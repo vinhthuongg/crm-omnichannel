@@ -257,6 +257,7 @@ class GetMessengerViewDataAction
                 'details' => [],
                 'notes' => [],
                 'tags' => [],
+                'summary' => [],
             ];
         }
 
@@ -297,7 +298,42 @@ class GetMessengerViewDataAction
                 ])
                 ->values()
                 ->all() ?? [],
+            'summary' => $this->conversationSummary($conversation),
         ];
+    }
+
+    private function conversationSummary(Conversation $conversation): array
+    {
+        return $conversation->messages()
+            ->latest()
+            ->limit(12)
+            ->get()
+            ->reverse()
+            ->map(function ($message): ?array {
+                $content = trim((string) $message->content);
+
+                if ($message->recalled_at) {
+                    $content = 'Tin nhắn đã được thu hồi';
+                }
+
+                if ($content === '' && is_array($message->attachments) && count($message->attachments) > 0) {
+                    $content = 'Đã gửi '.count($message->attachments).' tệp đính kèm';
+                }
+
+                if ($content === '') {
+                    return null;
+                }
+
+                return [
+                    'side' => $message->sender_type === 'customer' ? 'customer' : 'staff',
+                    'label' => $message->sender_type === 'customer' ? 'Khách hàng' : ($message->sender_type === 'system' ? 'Bot' : 'Nhân viên'),
+                    'content' => str($content)->squish()->limit(120)->toString(),
+                    'time' => $message->created_at?->format('H:i'),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function facebookProfileUrl(Conversation $conversation): string

@@ -1523,7 +1523,8 @@ body.messenger-page .profile-section button {
 }
 
 body.messenger-page .profile-notes,
-body.messenger-page .profile-customer-tags {
+body.messenger-page .profile-customer-tags,
+body.messenger-page .profile-conversation-summary {
     background: #fff;
     color: var(--chat-ink);
 }
@@ -1546,6 +1547,40 @@ body.messenger-page .customer-tag-list {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+
+body.messenger-page .conversation-summary-list {
+    display: grid;
+    gap: 8px;
+}
+
+body.messenger-page .summary-item {
+    display: grid;
+    gap: 4px;
+    border: 1px solid #edf0f5;
+    border-radius: 8px;
+    background: #fbfcff;
+    padding: 8px 10px;
+}
+
+body.messenger-page .summary-item.is-customer {
+    border-left: 3px solid #2563eb;
+}
+
+body.messenger-page .summary-item.is-staff {
+    border-left: 3px solid #d70616;
+}
+
+body.messenger-page .summary-item span {
+    color: #667085;
+    font-size: 11px;
+}
+
+body.messenger-page .summary-item p {
+    margin: 0;
+    color: #1f2937;
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 body.messenger-page .customer-tag-list span {

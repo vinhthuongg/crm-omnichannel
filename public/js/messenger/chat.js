@@ -558,6 +558,16 @@
         }).format(new Date(message.created_at));
     }
 
+    function summaryText(value, maxLength = 120) {
+        const text = String(value || '').replace(/\s+/g, ' ').trim();
+
+        if (text.length <= maxLength) {
+            return text;
+        }
+
+        return text.slice(0, maxLength - 1).trimEnd() + '…';
+    }
+
     function relativeThreadTime(timestamp) {
         if (!timestamp) {
             return '';
@@ -638,6 +648,7 @@
         timeline.appendChild(row);
         timeline.dataset.lastMessageId = String(Math.max(Number(timeline.dataset.lastMessageId || 0), Number(message.id)));
         updateThreadPreview(message);
+        appendConversationSummaryMessage(message);
         renderReplySuggestions();
         timeline.scrollTop = timeline.scrollHeight;
     }
@@ -799,6 +810,12 @@
 
         if (Array.isArray(conversation.tags)) {
             renderProfileConversationTags(conversation.tags);
+        }
+
+        if (Array.isArray(conversation.conversation_summary)) {
+            renderConversationSummary(conversation.conversation_summary);
+        } else if (Array.isArray(conversation.messages)) {
+            renderConversationSummary(conversation.messages.map(summaryItemFromMessage).filter(Boolean).slice(-12));
         }
 
         const notes = panel.querySelector('[data-customer-notes]');
@@ -1456,6 +1473,83 @@
             : '<p class="profile-empty">Chua co trang thai.</p>';
     }
 
+    function summaryItemFromMessage(message) {
+        if (!message || message.message_type === 'whisper' || message.channel === 'internal') {
+            return null;
+        }
+
+        let content = String(message.content || '').trim();
+
+        if (message.is_recalled) {
+            content = 'Tin nhan da duoc thu hoi';
+        }
+
+        if (!content && Array.isArray(message.attachments) && message.attachments.length) {
+            content = 'Da gui ' + message.attachments.length + ' tep dinh kem';
+        }
+
+        if (!content) {
+            return null;
+        }
+
+        const side = message.sender_type === 'customer' ? 'customer' : 'staff';
+        const label = message.sender_type === 'customer'
+            ? 'Khach hang'
+            : (message.sender_type === 'system' ? 'Bot' : 'Nhan vien');
+
+        return {
+            side,
+            label,
+            content: summaryText(content),
+            time: messageTime(message),
+        };
+    }
+
+    function renderConversationSummary(items) {
+        const list = document.querySelector('[data-conversation-summary-list]');
+
+        if (!list) {
+            return;
+        }
+
+        const visibleItems = (items || []).filter((item) => item?.content).slice(-12);
+
+        list.innerHTML = visibleItems.length
+            ? visibleItems.map(function (item) {
+                return `
+                    <article class="summary-item is-${escapeHtml(item.side || 'staff')}">
+                        <span>${escapeHtml(item.label || 'Tin nhan')}${item.time ? ' - ' + escapeHtml(item.time) : ''}</span>
+                        <p>${escapeHtml(item.content)}</p>
+                    </article>
+                `;
+            }).join('')
+            : '<p class="profile-empty">Chua co noi dung de tom tat.</p>';
+    }
+
+    function appendConversationSummaryMessage(message) {
+        const list = document.querySelector('[data-conversation-summary-list]');
+        const item = summaryItemFromMessage(message);
+
+        if (!list || !item) {
+            return;
+        }
+
+        const currentItems = Array.from(list.querySelectorAll('.summary-item')).map(function (node) {
+            const label = node.querySelector('span')?.textContent || '';
+            const content = node.querySelector('p')?.textContent || '';
+            const [name, time] = label.split(' - ');
+
+            return {
+                side: node.classList.contains('is-customer') ? 'customer' : 'staff',
+                label: name || 'Tin nhan',
+                time: time || '',
+                content,
+            };
+        });
+
+        renderConversationSummary([...currentItems, item]);
+    }
+
     function tagBadgesHtml(tags) {
         const visibleTags = (tags || []).filter((tag) => tag?.name).slice(0, 1);
 
@@ -1790,6 +1884,7 @@
         pending.innerHTML = messageRowHtml(mergePendingPreview(pending, message), true);
         timeline.dataset.lastMessageId = String(Math.max(Number(timeline.dataset.lastMessageId || 0), Number(message.id)));
         updateThreadPreview(message);
+        appendConversationSummaryMessage(message);
     }
 
     function mergePendingPreview(pending, message) {
