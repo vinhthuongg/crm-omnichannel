@@ -16,7 +16,6 @@
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/crm/messenger.css') }}?v={{ filemtime(public_path('css/crm/messenger.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/messenger/chat.css') }}?v={{ filemtime(public_path('css/messenger/chat.css')) }}">
-<link rel="stylesheet" href="{{ asset('css/crm-professional.css') }}?v={{ filemtime(public_path('css/crm-professional.css')) }}">
 @endpush
 <div class="crm-shell messenger-crm-shell" data-crm-shell>
     @include('partials.crm.chrome')
