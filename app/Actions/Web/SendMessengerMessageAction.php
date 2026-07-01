@@ -15,12 +15,14 @@ use Modules\Message\Models\Message;
 use Modules\Message\Services\MessengerAttachmentStorage;
 use Modules\Message\Services\OutboundMessageService;
 use Modules\Search\Services\VectorSearchService;
+use Modules\Text\Services\TextConversationBridge;
 
 class SendMessengerMessageAction
 {
     public function __construct(
         private readonly MessengerAttachmentStorage $attachmentStorage,
         private readonly ConversationService $conversations,
+        private readonly TextConversationBridge $textBridge,
     ) {
     }
 
@@ -78,6 +80,7 @@ class SendMessengerMessageAction
         }
 
         $this->queueCustomerVectorRefresh($message);
+        $this->textBridge->pauseBotForConversation($conversation);
 
         if ($attachments) {
             SendOutboundMessageJob::dispatch($message->id);

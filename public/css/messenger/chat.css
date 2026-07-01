@@ -705,7 +705,7 @@ body.messenger-page .chat-customer-phone {
 
 body.messenger-page .conversation-assign-form {
     min-width: 190px;
-    grid-template-columns: minmax(110px, 1fr) auto auto;
+    grid-template-columns: minmax(110px, 1fr) auto;
 }
 
 body.messenger-page .conversation-assign-form label,
