@@ -7,50 +7,10 @@ use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
-use Modules\Facebook\Services\FacebookThreadControlService;
 use Modules\Text\Models\TextConversationLink;
 
 class TextConversationBridge
 {
-    public function __construct(
-        private readonly TextAgentChatService $text,
-        private readonly FacebookThreadControlService $threadControl,
-    )
-    {
-    }
-
-    public function pauseBotForConversation(Conversation $conversation): void
-    {
-        $this->threadControl->takeThreadControl($conversation);
-
-        $link = TextConversationLink::query()
-            ->where('conversation_id', $conversation->id)
-            ->first();
-
-        if (! $link?->text_chat_id) {
-            Log::info('Text.com bot pause skipped because conversation is not mapped', [
-                'conversation_id' => $conversation->id,
-            ]);
-
-            return;
-        }
-
-        if ($link->bot_paused_at) {
-            return;
-        }
-
-        if (! $this->text->transferChatToHuman($link->text_chat_id)) {
-            return;
-        }
-
-        $link->forceFill(['bot_paused_at' => now()])->save();
-
-        Log::info('Text.com bot paused by CRM outbound message', [
-            'conversation_id' => $conversation->id,
-            'text_chat_id' => $link->text_chat_id,
-        ]);
-    }
-
     public function upsertFromWebhook(array $payload): ?TextConversationLink
     {
         $chatId = $this->firstString($payload, [
