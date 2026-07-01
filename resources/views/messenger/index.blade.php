@@ -323,6 +323,13 @@
                     @endforeach
                     <button type="button" class="composer-tag-add" data-open-tag-manager aria-label="Custom tag">+</button>
                 </div>
+                <section class="composer-suggestions" data-reply-suggestions aria-label="Goi y cau tra loi">
+                    <div class="composer-suggestion-head">
+                        <span>Goi y cau noi tiep theo</span>
+                        <button type="button" data-refresh-suggestions>Lam moi</button>
+                    </div>
+                    <div class="composer-suggestion-list" data-reply-suggestion-list></div>
+                </section>
                 <textarea name="content" rows="3" placeholder="Nhập Nội Dung Tin Nhắn" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
                     <div class="composer-actions" aria-label="Message tools">

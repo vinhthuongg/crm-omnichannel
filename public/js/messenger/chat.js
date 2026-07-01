@@ -225,6 +225,134 @@
         return textarea.value;
     }
 
+    function normalizeSuggestionText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function latestCustomerMessageText() {
+        const rows = Array.from(timeline?.querySelectorAll('.message-row.theirs') || []);
+        const row = rows.reverse().find(function (item) {
+            return item.querySelector('.message-bubble p');
+        });
+
+        return row?.querySelector('.message-bubble p')?.textContent?.trim() || '';
+    }
+
+    function currentConversationContext() {
+        return {
+            customerName: document.querySelector('[data-chat-customer-name]')?.textContent?.trim() || 'Anh/Chị',
+            lastCustomerMessage: latestCustomerMessageText(),
+            activeTags: Array.from(document.querySelectorAll('[data-conversation-tags] .composer-tag.is-active'))
+                .map((button) => button.dataset.tagName || button.textContent || '')
+                .filter(Boolean),
+        };
+    }
+
+    function replySuggestionsForContext(context) {
+        const text = normalizeSuggestionText(context.lastCustomerMessage);
+        const suggestions = [];
+
+        if (!text) {
+            return [
+                'Em chào Anh/Chị, em có thể hỗ trợ mình thông tin gì về xe Toyota hôm nay ạ?',
+                'Anh/Chị đang quan tâm mẫu xe nào để em tư vấn đúng nhu cầu hơn ạ?',
+                'Nếu thuận tiện, Anh/Chị cho em xin nhu cầu chính: báo giá, trả góp, lái thử hay bảo dưỡng ạ?',
+            ];
+        }
+
+        if (/(gia|bao gia|lan banh|bao nhieu|nhieu tien|khuyen mai|uu dai)/.test(text)) {
+            suggestions.push(
+                'Dạ được ạ. Anh/Chị cho em biết mình đang quan tâm mẫu xe và khu vực đăng ký biển số để em báo giá lăn bánh sát nhất ạ.',
+                'Dạ em kiểm tra giá và ưu đãi hiện hành cho mình. Anh/Chị đang xem phiên bản hoặc màu xe nào chưa ạ?',
+                'Anh/Chị muốn em báo giá theo phương án trả thẳng hay trả góp để em gửi đúng bảng chi phí ạ?'
+            );
+        }
+
+        if (/(tra gop|gop|vay|ngan hang|lai suat|truoc bao nhieu|tra truoc)/.test(text)) {
+            suggestions.push(
+                'Dạ bên em có hỗ trợ trả góp qua ngân hàng liên kết. Anh/Chị dự kiến trả trước khoảng bao nhiêu để em tính phương án phù hợp ạ?',
+                'Anh/Chị muốn vay trong khoảng mấy năm để em ước tính khoản thanh toán hàng tháng dễ chịu nhất ạ?',
+                'Để kiểm tra hồ sơ nhanh hơn, Anh/Chị cho em xin số điện thoại/Zalo, bên em sẽ tư vấn phương án trả góp cụ thể ạ.'
+            );
+        }
+
+        if (/(lai thu|test drive|chay thu|thu xe|dat lich)/.test(text)) {
+            suggestions.push(
+                'Dạ em hỗ trợ đặt lịch lái thử cho mình. Anh/Chị muốn ghé showroom vào ngày nào và khung giờ nào ạ?',
+                'Dạ được ạ. Anh/Chị cho em xin số điện thoại để bên em xác nhận lịch lái thử và chuẩn bị xe trước khi mình ghé ạ.',
+                'Anh/Chị muốn lái thử mẫu xe nào để em kiểm tra xe sẵn lịch cho mình ạ?'
+            );
+        }
+
+        if (/(bao duong|sua chua|dich vu|dat hen|bao hanh)/.test(text)) {
+            suggestions.push(
+                'Dạ em ghi nhận nhu cầu dịch vụ của mình. Anh/Chị cho em xin biển số xe và số điện thoại để bên em kiểm tra lịch trống ạ.',
+                'Anh/Chị muốn đặt lịch bảo dưỡng ngày nào và khung giờ nào để em hỗ trợ giữ lịch trước ạ?',
+                'Dạ trường hợp này em sẽ chuyển bộ phận dịch vụ hỗ trợ kỹ hơn. Anh/Chị cho em xin số điện thoại/Zalo nhé ạ.'
+            );
+        }
+
+        if (/(sdt|so dien thoai|zalo|lien he|goi)/.test(text)) {
+            suggestions.push(
+                'Dạ Anh/Chị để lại số điện thoại/Zalo giúp em, bên em sẽ liên hệ tư vấn chi tiết và nhanh nhất ạ.',
+                'Dạ em nhận thông tin rồi ạ. Anh/Chị cho em xin thêm tên mình để bên em tiện xưng hô và hỗ trợ đúng hồ sơ ạ.',
+                'Dạ sau khi có số điện thoại, em sẽ nhờ tư vấn viên phụ trách liên hệ lại ngay cho mình ạ.'
+            );
+        }
+
+        if (/(cam on|thank|ok|duoc|uh|ừ|vâng|vang)/.test(text)) {
+            suggestions.push(
+                'Dạ em cảm ơn Anh/Chị. Nếu mình cần thêm báo giá, trả góp hoặc lịch lái thử, em hỗ trợ ngay ạ.',
+                'Dạ vâng ạ. Anh/Chị cần em kiểm tra thêm thông tin nào để mình dễ quyết định hơn không ạ?',
+                'Dạ em luôn sẵn sàng hỗ trợ. Anh/Chị cứ nhắn mẫu xe hoặc nhu cầu, em kiểm tra ngay cho mình ạ.'
+            );
+        }
+
+        if (suggestions.length === 0) {
+            suggestions.push(
+                'Dạ em nghe Anh/Chị ạ. Mình cần em hỗ trợ thêm thông tin gì về xe, giá, trả góp hay lịch lái thử ạ?',
+                'Dạ để em tư vấn đúng hơn, Anh/Chị cho em biết mình đang quan tâm mẫu xe hoặc nhu cầu chính hiện tại ạ.',
+                'Dạ em có thể hỗ trợ báo giá, chương trình ưu đãi, trả góp hoặc đặt lịch lái thử cho mình ạ.'
+            );
+        }
+
+        return [...new Set(suggestions)].slice(0, 4);
+    }
+
+    function renderReplySuggestions() {
+        const box = document.querySelector('[data-reply-suggestions]');
+        const list = document.querySelector('[data-reply-suggestion-list]');
+
+        if (!box || !list || !composer || composer.dataset.canReply !== '1') {
+            box?.classList.add('is-empty');
+            return;
+        }
+
+        const suggestions = replySuggestionsForContext(currentConversationContext());
+        box.classList.toggle('is-empty', suggestions.length === 0);
+        list.innerHTML = suggestions.map(function (suggestion) {
+            return `<button type="button" class="composer-suggestion-button" data-reply-suggestion="${escapeHtml(suggestion)}">${escapeHtml(suggestion)}</button>`;
+        }).join('');
+    }
+
+    function applyReplySuggestion(text) {
+        const input = composer?.querySelector('[name="content"]');
+
+        if (!input) {
+            return;
+        }
+
+        input.value = text;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    }
+
     function syncSearchInputs(value) {
         document.querySelectorAll('[data-auto-search-input]').forEach(function (input) {
             if (input.value !== value) {
@@ -429,6 +557,7 @@
         timeline.appendChild(row);
         timeline.dataset.lastMessageId = String(Math.max(Number(timeline.dataset.lastMessageId || 0), Number(message.id)));
         updateThreadPreview(message);
+        renderReplySuggestions();
         timeline.scrollTop = timeline.scrollHeight;
     }
 
@@ -509,6 +638,7 @@
         row.dataset.clientMessageId = message.client_message_id || row.dataset.clientMessageId || '';
         row.innerHTML = messageRowHtml(mergePendingPreview(row, message), isMine);
         updateThreadPreview(message);
+        renderReplySuggestions();
     }
 
     function messageRowHtml(message, isMine) {
@@ -964,6 +1094,7 @@
         });
 
         timeline.scrollTop = timeline.scrollHeight;
+        renderReplySuggestions();
     }
 
     function renderConversation(conversation, url) {
@@ -1030,6 +1161,7 @@
         updateClaimState(conversation);
 
         renderMessages(conversation.messages || []);
+        renderReplySuggestions();
         window.history.pushState({conversationUrl: url}, '', url);
 
         if (realtimeMode !== 'websocket') {
@@ -2593,6 +2725,26 @@
         }
     });
 
+    document.querySelector('[data-refresh-suggestions]')?.addEventListener('click', function (event) {
+        event.preventDefault();
+        renderReplySuggestions();
+    });
+
+    document.querySelector('[data-reply-suggestion-list]')?.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-reply-suggestion]');
+
+        if (!button) {
+            return;
+        }
+
+        event.preventDefault();
+        applyReplySuggestion(button.dataset.replySuggestion || button.textContent || '');
+    });
+
+    composer?.querySelector('[name="content"]')?.addEventListener('focus', function () {
+        renderReplySuggestions();
+    });
+
     composer?.querySelector('[data-composer-files]')?.addEventListener('change', function (event) {
         const fileList = composer.querySelector('[data-composer-file-list]');
         const files = Array.from(event.target.files || []);
@@ -2965,3 +3117,5 @@
 
         return Array.isArray(payload.data) ? payload.data : [];
     }
+
+    renderReplySuggestions();
