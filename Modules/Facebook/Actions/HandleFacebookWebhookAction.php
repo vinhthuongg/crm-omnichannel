@@ -41,6 +41,7 @@ class HandleFacebookWebhookAction
 
             if ((bool) data_get($event, 'message.is_echo')) {
                 $lastMessage = $this->messages->storeFacebookEcho($event);
+                $this->sendTypingOffForEcho($event);
 
                 if ($lastMessage) {
                     $stored++;
@@ -61,6 +62,8 @@ class HandleFacebookWebhookAction
                 : null;
             $pageToken = $page?->page_access_token;
             $profile = $this->cachedCustomerProfile($senderId);
+
+            $this->sendTypingOnForInbound($senderId, $page);
 
             if ($this->shouldFetchProfile($profile) && $page && $pageToken) {
                 try {
@@ -111,6 +114,39 @@ class HandleFacebookWebhookAction
         ]);
 
         return $lastMessage;
+    }
+
+    private function sendTypingOnForInbound(string $senderId, ?FacebookPage $page): void
+    {
+        if (! $page?->page_access_token || $senderId === '') {
+            return;
+        }
+
+        app()->terminating(function () use ($senderId, $page): void {
+            $this->facebook->sendTypingOn($senderId, $page->page_access_token);
+        });
+    }
+
+    private function sendTypingOffForEcho(array $event): void
+    {
+        $customerId = (string) data_get($event, 'recipient.id');
+        $pageId = (string) data_get($event, 'sender.id');
+
+        if ($customerId === '' || $pageId === '') {
+            return;
+        }
+
+        $page = FacebookPage::query()
+            ->where('page_id', $pageId)
+            ->first();
+
+        if (! $page?->page_access_token) {
+            return;
+        }
+
+        app()->terminating(function () use ($customerId, $page): void {
+            $this->facebook->sendTypingOff($customerId, $page->page_access_token);
+        });
     }
 
     private function cachedCustomerProfile(string $senderId): array

@@ -26,6 +26,57 @@ class FacebookMessengerService
         ], $pageAccessToken);
     }
 
+    public function sendTypingOn(string $recipientId, ?string $pageAccessToken = null): bool
+    {
+        return $this->sendSenderAction($recipientId, 'typing_on', $pageAccessToken);
+    }
+
+    public function sendTypingOff(string $recipientId, ?string $pageAccessToken = null): bool
+    {
+        return $this->sendSenderAction($recipientId, 'typing_off', $pageAccessToken);
+    }
+
+    public function sendSenderAction(string $recipientId, string $action, ?string $pageAccessToken = null): bool
+    {
+        if (! in_array($action, ['typing_on', 'typing_off', 'mark_seen'], true)) {
+            throw new RuntimeException("Unsupported Facebook sender action [{$action}].");
+        }
+
+        if ($recipientId === '') {
+            return false;
+        }
+
+        try {
+            $response = $this->http
+                ->connectTimeout(3)
+                ->timeout(5)
+                ->withToken($this->token($pageAccessToken))
+                ->post($this->graphUrl('/me/messages'), [
+                    'recipient' => ['id' => $recipientId],
+                    'sender_action' => $action,
+                ]);
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            Log::warning('Facebook sender action failed', [
+                'recipient_id' => $recipientId,
+                'action' => $action,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Facebook sender action exception', [
+                'recipient_id' => $recipientId,
+                'action' => $action,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        return false;
+    }
+
     private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken = null): array
     {
         $response = $this->http
