@@ -10,11 +10,10 @@
 
 @section('content')
 @php
-    $overviewShifts = $shifts->take(8)->values();
+    $overviewShifts = $shifts->take(3)->values();
     $staffShift = $selectedShift;
     $onlineCount = $staffMembers->where('is_active', true)->count();
     $busyCount = max(0, $staffMembers->count() - $onlineCount);
-    $activeShiftCount = $shifts->where('is_active', true)->count();
     $maxLoad = max(10, (int) $staffMembers->max('active_conversations_count'));
 @endphp
 
@@ -27,12 +26,18 @@
         <section class="work-shifts-shell" data-work-shifts-page>
             <header class="work-shifts-hero">
                 <div>
-                    <p class="work-shifts-eyebrow">Ca truc</p>
-                    <h1>Phan cong CSKH</h1>
-                    <p>Chon ca, xem nhan su dang truc va chinh sua lich truc trong mot man hinh.</p>
+                    <h1>Quan ly ca truc va Phan cong</h1>
+                    <p>Theo doi lich truc va cau hinh quy tac phan bo hoi thoai tu dong cho nhom CSKH.</p>
                 </div>
                 <nav aria-label="Thao tac ca truc">
-                    <button class="work-shifts-primary-action" type="button" data-open-shift-dialog="create-shift-dialog">Tao ca truc</button>
+                    <a class="work-shifts-secondary-action" href="#assignment-rules">
+                        <span class="material-symbols-outlined" aria-hidden="true">manufacturing</span>
+                        Thiet lap phan cong
+                    </a>
+                    <button class="work-shifts-primary-action" type="button" data-open-shift-dialog="create-shift-dialog">
+                        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                        Tao lich truc moi
+                    </button>
                 </nav>
             </header>
 
@@ -44,17 +49,12 @@
                 <p class="work-shifts-alert is-error">{{ $errors->first() }}</p>
             @endif
 
-            <section class="work-shifts-summary" aria-label="Tong quan ca truc">
-                <article><span>Dang bat</span><b>{{ $activeShiftCount }}</b><small>{{ $shifts->count() }} ca da tao</small></article>
-                <article><span>Dang dien ra</span><b>{{ $currentShift?->name ?: 'Chua co' }}</b><small>{{ $currentShift ? $currentShift->starts_at?->format('H:i').' - '.$currentShift->ends_at?->format('H:i') : 'Ngoai khung truc' }}</small></article>
-                <article><span>Sap toi</span><b>{{ $nextShift?->name ?: 'Chua co' }}</b><small>{{ $nextShift ? $nextShift->starts_at?->format('H:i') : 'Chua len lich' }}</small></article>
-                <article><span>Nhan vien</span><b>{{ $agents->count() }}</b><small>{{ $onlineCount }} trong ca dang xem</small></article>
-            </section>
-
-            <header class="work-shifts-section-head">
-                <div><p>Lich truc</p><h2>Chon ca de xem nhan su</h2></div>
-                <a class="work-shifts-secondary-action" href="#shift-list">Quan ly ca</a>
-            </header>
+            <nav class="work-shifts-tabs" aria-label="Dieu huong ca truc">
+                <a class="active" href="#weekly-schedule">Lich truc tuan nay</a>
+                <a href="#staff-on-shift">Danh sach nhan vien</a>
+                <a href="#assignment-rules">Quy tac phan cong</a>
+                <a href="#shift-list">Lich su ca truc</a>
+            </nav>
 
             <section class="shift-overview-grid" id="weekly-schedule">
                 @forelse($overviewShifts as $shift)
@@ -69,14 +69,13 @@
                             <span class="material-symbols-outlined" aria-hidden="true">{{ $icon }}</span>
                             <div>
                                 <h2>{{ $shift->name ?: 'Ca truc #'.$shift->id }}</h2>
-                                <p>{{ $isCurrent ? 'Dang dien ra' : ($isNext ? 'Sap toi' : ($shift->is_active ? 'Dang bat' : 'Tam tat')) }}</p>
+                                <p>{{ $isCurrent ? 'Dang truc:' : ($isNext ? 'Sap toi:' : ($shift->is_active ? 'Dang truc:' : 'Tam tat:')) }}</p>
                             </div>
                             <time>{{ $shift->starts_at?->format('H:i') }} - {{ $shift->ends_at?->format('H:i') }}</time>
                         </header>
                         <footer>
-                            <span>{{ $shift->starts_at?->format('d/m/Y') }}</span>
+                            <span>{{ $isCurrent ? 'Dang dien ra' : ($isNext ? 'Sap toi' : ($shift->is_active ? 'Dang bat' : 'Tam tat')) }}</span>
                             <span>{{ $shift->agents_count ?? $shift->agents->count() }} nhan vien</span>
-                            <span>{{ (int) $shift->waiting_conversations_count }} cho</span>
                         </footer>
                     </a>
                 @empty
@@ -88,32 +87,16 @@
 
             <section class="shift-staff-panel" id="staff-on-shift">
                 <header>
-                    <div><p>Nhan su trong ca</p><h2>{{ $staffShift ? $staffShift->name : 'Chua co ca dang hien thi' }}</h2></div>
-                    <form class="shift-inline-form" method="GET" action="{{ route('work-shifts.index') }}">
-                        <input type="hidden" name="status" value="{{ $manageStatus }}">
-                        <label>
-                            <span>Chon ca</span>
-                            <select name="shift_id" onchange="this.form.submit()">
-                                @foreach($shifts as $shift)
-                                    <option value="{{ $shift->id }}" @selected($staffShift?->is($shift))>
-                                        {{ $shift->name ?: 'Ca truc #'.$shift->id }} - {{ $shift->starts_at?->format('H:i') }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </label>
-                    </form>
+                    <div><h2>Nhan su ca hien tai {{ $staffShift ? '('.$staffShift->name.')' : '' }}</h2></div>
+                    <div class="shift-staff-stats">
+                        <span><i class="online"></i>Online ({{ $onlineCount }})</span>
+                        <span><i class="break"></i>Ban ({{ $busyCount }})</span>
+                    </div>
                 </header>
-                <div class="shift-metric-strip" aria-label="Thong ke ca dang xem">
-                    <article><span>Khach dang cho</span><strong>{{ $staffMetrics['waiting'] }}</strong></article>
-                    <article><span>Dang xu ly</span><strong>{{ $staffMetrics['handling'] }}</strong></article>
-                    <article><span>Da hoan tat</span><strong>{{ $staffMetrics['finished'] }}</strong></article>
-                    <article><span>Nhan su</span><strong>{{ $onlineCount }}/{{ $staffMembers->count() }}</strong></article>
-                </div>
                 <div class="shift-staff-list">
                     @forelse($staffMembers as $agent)
                         @php
                             $load = (int) ($agent->active_conversations_count ?? 0);
-                            $finishedLoad = (int) ($agent->finished_conversations_count ?? 0);
                             $percent = min(100, ($load / $maxLoad) * 100);
                             $isBusy = $load >= 8;
                         @endphp
@@ -121,11 +104,56 @@
                             <span class="shift-agent-avatar">{{ strtoupper(substr($agent->name, 0, 1)) }}<i class="{{ $isBusy ? 'break' : 'online' }}"></i></span>
                             <div class="shift-agent-info"><h3>{{ $agent->name }}</h3><p>{{ $agent->email }}</p></div>
                             <div class="shift-load"><div><span>Tai hoi thoai</span><small class="{{ $isBusy ? 'danger' : '' }}">{{ $load }}/10</small></div><b><i style="width: {{ $percent }}%"></i></b></div>
-                            <span class="shift-status-pill {{ $isBusy ? 'is-busy' : '' }}">{{ $isBusy ? 'Can giam tai' : 'San sang' }} - {{ $finishedLoad }} xong</span>
+                            <button class="shift-pause-button" type="button" disabled>{{ $isBusy ? 'Can giam tai' : 'Tam dung nhan' }}</button>
                         </article>
                     @empty
                         <article class="work-shifts-empty"><h3>Chua co nhan vien trong ca</h3><p>Moi ca can toi thieu 1 nhan vien CSKH de nhan khach moi.</p></article>
                     @endforelse
+                </div>
+                <a class="shift-view-all" href="#shift-list">Xem toan bo danh sach ({{ $agents->count() }} nhan vien)</a>
+            </section>
+
+            <section class="assignment-rules-card" id="assignment-rules">
+                <header>
+                    <div>
+                        <h2>Quy tac phan cong nhanh</h2>
+                        <p>Thiet lap cach he thong tu dong phan phoi tin nhan moi.</p>
+                    </div>
+                </header>
+                <div class="assignment-rules-body">
+                    <div class="assignment-rule-toggle">
+                        <div>
+                            <span>Phan cong tu dong</span>
+                            <small>Tu dong giao chat cho nhan vien online.</small>
+                        </div>
+                        <label class="switch-toggle" aria-label="Bat phan cong tu dong">
+                            <input type="checkbox" checked>
+                            <span></span>
+                        </label>
+                    </div>
+                    <div class="assignment-rule-limit">
+                        <span>Gioi han mac dinh</span>
+                        <small>So luong hoi thoai toi da moi nhan vien xu ly cung luc.</small>
+                        <div class="assignment-slider">
+                            <i style="width: 46%"></i>
+                            <output>10</output>
+                        </div>
+                    </div>
+                    <div class="assignment-mode-list">
+                        <label class="assignment-mode active">
+                            <input type="radio" name="assignment_mode" checked>
+                            <span>Dua tren tai cong viec</span>
+                            <small>Uu tien nguoi co it hoi thoai nhat.</small>
+                        </label>
+                        <label class="assignment-mode">
+                            <input type="radio" name="assignment_mode">
+                            <span>Xoay vong (Round Robin)</span>
+                            <small>Chia deu theo thu tu lan luot.</small>
+                        </label>
+                    </div>
+                    <p class="assignment-note">
+                        Luu y: Gioi han nay co the duoc ghi de o cap do ca nhan trong phan Danh sach nhan vien.
+                    </p>
                 </div>
             </section>
 
