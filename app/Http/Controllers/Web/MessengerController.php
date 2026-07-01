@@ -23,6 +23,7 @@ use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Http\Resources\MessageResource;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\MessengerAttachmentStorage;
+use Modules\Text\Models\TextConversationLink;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MessengerController extends Controller
@@ -169,6 +170,7 @@ class MessengerController extends Controller
                 'can_claim' => $canClaim,
                 'can_reply' => $canReply,
                 'can_assign' => $user->can('conversation.assign') || $user->can('conversation.transfer'),
+                'bot_resume_due_at' => $this->botResumeDueAt($conversation),
                 'active_channel' => $activeChannel,
                 'created_at' => $conversation->created_at?->toISOString(),
                 'messages_url' => route('crm.conversations.messages.index', $conversation),
@@ -241,6 +243,17 @@ class MessengerController extends Controller
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    private function botResumeDueAt(Conversation $conversation): ?string
+    {
+        $link = TextConversationLink::query()
+            ->where('conversation_id', $conversation->id)
+            ->whereNotNull('bot_paused_at')
+            ->whereNotNull('bot_resume_due_at')
+            ->first(['bot_resume_due_at']);
+
+        return $link?->bot_resume_due_at?->toISOString();
     }
 
     public function inboxMessageStream(Request $request, ConversationVisibilityService $visibility): StreamedResponse

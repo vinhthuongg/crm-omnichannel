@@ -12,7 +12,7 @@ use Modules\Text\Models\TextConversationLink;
 
 class TextConversationBridge
 {
-    private const BOT_RESUME_AFTER_MINUTES = 30;
+    private const BOT_RESUME_AFTER_MINUTES = 1;
 
     public function __construct(
         private readonly TextAgentChatService $text,
