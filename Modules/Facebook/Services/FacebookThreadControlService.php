@@ -70,16 +70,6 @@ class FacebookThreadControlService
 
     public function passThreadControlToBot(Conversation $conversation, ?string $metadata = null): bool
     {
-        $targetAppId = trim((string) config('services.text.messenger_app_id', ''));
-
-        if ($targetAppId === '') {
-            Log::warning('Facebook pass_thread_control skipped because TEXT_MESSENGER_APP_ID is missing', [
-                'conversation_id' => $conversation->id,
-            ]);
-
-            return false;
-        }
-
         $page = $conversation->facebook_page_id
             ? FacebookPage::query()->where('page_id', $conversation->facebook_page_id)->first()
             : null;
@@ -94,6 +84,17 @@ class FacebookThreadControlService
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'has_page_token' => (bool) $page?->page_access_token,
                 'has_psid' => (bool) $psid,
+            ]);
+
+            return false;
+        }
+
+        $targetAppId = $this->resolveBotTargetAppId($page);
+
+        if ($targetAppId === '') {
+            Log::warning('Facebook pass_thread_control skipped because bot receiver app id could not be resolved', [
+                'conversation_id' => $conversation->id,
+                'facebook_page_id' => $conversation->facebook_page_id,
             ]);
 
             return false;
@@ -131,6 +132,88 @@ class FacebookThreadControlService
         ]);
 
         return false;
+    }
+
+    private function resolveBotTargetAppId(FacebookPage $page): string
+    {
+        $configuredAppId = trim((string) config('services.text.messenger_app_id', ''));
+
+        if ($configuredAppId !== '') {
+            return $configuredAppId;
+        }
+
+        $response = $this->http
+            ->connectTimeout(3)
+            ->timeout(8)
+            ->get($this->graphUrl('/me/messenger_profile'), [
+                'fields' => 'primary_receiver,secondary_receivers',
+                'access_token' => $page->page_access_token,
+            ]);
+
+        if ($response->failed()) {
+            Log::warning('Facebook messenger receiver discovery failed', [
+                'facebook_page_id' => $page->page_id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return '';
+        }
+
+        $payload = $response->json();
+
+        if (! is_array($payload)) {
+            Log::warning('Facebook messenger receiver discovery returned an invalid payload', [
+                'facebook_page_id' => $page->page_id,
+                'body' => $response->body(),
+            ]);
+
+            return '';
+        }
+
+        $ownAppId = trim((string) config('services.facebook.messenger_app_id', ''));
+        $receivers = [];
+
+        if (is_array($payload['primary_receiver'] ?? null)) {
+            $receivers[] = $payload['primary_receiver'];
+        }
+
+        foreach (($payload['secondary_receivers'] ?? []) as $receiver) {
+            if (is_array($receiver)) {
+                $receivers[] = $receiver;
+            }
+        }
+
+        $candidates = collect($receivers)
+            ->map(fn (array $receiver) => [
+                'id' => trim((string) ($receiver['id'] ?? '')),
+                'name' => trim((string) ($receiver['name'] ?? '')),
+            ])
+            ->filter(fn (array $receiver) => $receiver['id'] !== '' && $receiver['id'] !== $ownAppId)
+            ->values();
+
+        $matched = $candidates->first(fn (array $receiver) => preg_match('/text|chatbot|livechat/i', $receiver['name']) === 1);
+
+        if (! $matched && $candidates->count() === 1) {
+            $matched = $candidates->first();
+        }
+
+        if (! $matched) {
+            Log::warning('Facebook bot receiver app id was not found in messenger profile', [
+                'facebook_page_id' => $page->page_id,
+                'receivers' => $candidates->all(),
+            ]);
+
+            return '';
+        }
+
+        Log::info('Facebook bot receiver app id discovered from messenger profile', [
+            'facebook_page_id' => $page->page_id,
+            'target_app_id' => $matched['id'],
+            'receiver_name' => $matched['name'],
+        ]);
+
+        return $matched['id'];
     }
 
     private function requestThreadControl(FacebookPage $page, string $psid, Conversation $conversation): void
