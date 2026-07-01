@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('text_conversation_links', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('conversation_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->string('text_chat_id')->index();
+            $table->string('text_chat_id')->nullable()->index();
             $table->string('text_thread_id')->nullable()->index();
             $table->string('text_customer_id')->nullable()->index();
             $table->string('facebook_page_id')->nullable()->index();

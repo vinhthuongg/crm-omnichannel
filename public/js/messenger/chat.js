@@ -227,10 +227,14 @@
         const badge = document.querySelector('[data-bot-resume-countdown]');
         const dueAt = badge?.dataset.botResumeDueAt || '';
 
-        if (!badge || !dueAt) {
+        if (!badge) {
+            return;
+        }
+
+        if (!dueAt) {
             if (badge) {
-                badge.hidden = true;
-                badge.textContent = '';
+                badge.hidden = false;
+                badge.textContent = 'Bot san sang';
             }
 
             return;

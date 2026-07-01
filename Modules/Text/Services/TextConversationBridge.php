@@ -26,12 +26,18 @@ class TextConversationBridge
         $this->threadControl->takeThreadControl($conversation);
 
         $link = TextConversationLink::query()
-            ->where('conversation_id', $conversation->id)
-            ->first();
+            ->firstOrNew(['conversation_id' => $conversation->id]);
 
         if (! $link?->text_chat_id) {
-            Log::info('Text.com bot pause skipped because conversation is not mapped', [
+            $link->forceFill([
+                'bot_paused_at' => now(),
+                'bot_resume_due_at' => now()->addMinutes(self::BOT_RESUME_AFTER_MINUTES),
+                'bot_resumed_at' => null,
+            ])->save();
+
+            Log::info('Text.com bot resume timer stored without Text chat mapping', [
                 'conversation_id' => $conversation->id,
+                'resume_due_at' => $link->bot_resume_due_at?->toDateTimeString(),
             ]);
 
             return;
