@@ -5,8 +5,10 @@ namespace Modules\Message\Jobs;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Models\Message;
@@ -85,14 +87,16 @@ class SendOutboundMessageJob implements ShouldQueue
             ])->save();
             event(new MessageUpdatedEvent($message));
         } catch (\Throwable $exception) {
+            $error = $this->errorMessage($exception);
+
             $message->forceFill($this->attempts() >= $this->tries
                 ? [
                     'outbound_status' => 'failed',
-                    'outbound_error' => $exception->getMessage(),
+                    'outbound_error' => $error,
                 ]
                 : [
                     'outbound_status' => 'queued',
-                    'outbound_error' => $exception->getMessage(),
+                    'outbound_error' => $error,
                 ])->save();
             event(new MessageUpdatedEvent($message));
 
@@ -102,11 +106,33 @@ class SendOutboundMessageJob implements ShouldQueue
                 'channel' => $message->channel,
                 'attempt' => $this->attempts(),
                 'max_tries' => $this->tries,
-                'error' => $exception->getMessage(),
+                'error' => $error,
             ]);
 
             throw $exception;
         }
+    }
+
+    private function errorMessage(\Throwable $exception): string
+    {
+        if (! $exception instanceof RequestException || ! $exception->response) {
+            return $exception->getMessage();
+        }
+
+        $payload = $exception->response->json();
+        $error = is_array($payload) ? (array) Arr::get($payload, 'error', []) : [];
+
+        if ($error === []) {
+            return $exception->response->body() ?: $exception->getMessage();
+        }
+
+        return trim(collect([
+            Arr::get($error, 'message'),
+            Arr::get($error, 'type') ? 'type='.Arr::get($error, 'type') : null,
+            Arr::get($error, 'code') !== null ? 'code='.Arr::get($error, 'code') : null,
+            Arr::get($error, 'error_subcode') !== null ? 'subcode='.Arr::get($error, 'error_subcode') : null,
+            Arr::get($error, 'fbtrace_id') ? 'fbtrace_id='.Arr::get($error, 'fbtrace_id') : null,
+        ])->filter()->implode(' | '));
     }
 
     private function mergeSentAttachments(array $attachments, array $sentAttachments): array
