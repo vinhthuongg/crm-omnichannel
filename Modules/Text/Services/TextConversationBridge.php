@@ -7,94 +7,10 @@ use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
-use Modules\Facebook\Services\FacebookThreadControlService;
 use Modules\Text\Models\TextConversationLink;
 
 class TextConversationBridge
 {
-    private const BOT_RESUME_AFTER_MINUTES = 1;
-
-    public function __construct(
-        private readonly TextAgentChatService $text,
-        private readonly FacebookThreadControlService $threadControl,
-    )
-    {
-    }
-
-    public function pauseBotForConversation(Conversation $conversation): void
-    {
-        $this->threadControl->takeThreadControl($conversation);
-
-        $link = TextConversationLink::query()
-            ->firstOrNew(['conversation_id' => $conversation->id]);
-
-        if (! $link?->text_chat_id) {
-            $link->forceFill([
-                'bot_paused_at' => now(),
-                'bot_resume_due_at' => now()->addMinutes(self::BOT_RESUME_AFTER_MINUTES),
-                'bot_resumed_at' => null,
-            ])->save();
-
-            Log::info('Text.com bot resume timer stored without Text chat mapping', [
-                'conversation_id' => $conversation->id,
-                'resume_due_at' => $link->bot_resume_due_at?->toDateTimeString(),
-            ]);
-
-            return;
-        }
-
-        if ($link->bot_paused_at) {
-            $link->forceFill([
-                'bot_resume_due_at' => now()->addMinutes(self::BOT_RESUME_AFTER_MINUTES),
-                'bot_resumed_at' => null,
-            ])->save();
-
-            return;
-        }
-
-        if (! $this->text->transferChatToHuman($link->text_chat_id)) {
-            return;
-        }
-
-        $link->forceFill([
-            'bot_paused_at' => now(),
-            'bot_resume_due_at' => now()->addMinutes(self::BOT_RESUME_AFTER_MINUTES),
-            'bot_resumed_at' => null,
-        ])->save();
-
-        Log::info('Text.com bot paused by CRM outbound message', [
-            'conversation_id' => $conversation->id,
-            'text_chat_id' => $link->text_chat_id,
-            'resume_due_at' => $link->bot_resume_due_at?->toDateTimeString(),
-        ]);
-    }
-
-    public function resumeBotForLink(TextConversationLink $link): bool
-    {
-        $conversation = $link->conversation;
-
-        if (! $conversation) {
-            return false;
-        }
-
-        if (! $this->threadControl->passThreadControlToBot($conversation)) {
-            return false;
-        }
-
-        $link->forceFill([
-            'bot_paused_at' => null,
-            'bot_resume_due_at' => null,
-            'bot_resumed_at' => now(),
-        ])->save();
-
-        Log::info('Text.com bot resumed after CRM inactivity timeout', [
-            'conversation_id' => $conversation->id,
-            'text_chat_id' => $link->text_chat_id,
-        ]);
-
-        return true;
-    }
-
     public function upsertFromWebhook(array $payload): ?TextConversationLink
     {
         $chatId = $this->firstString($payload, [

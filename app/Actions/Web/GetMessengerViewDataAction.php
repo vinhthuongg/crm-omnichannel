@@ -9,7 +9,6 @@ use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Services\WorkShiftService;
-use Modules\Text\Models\TextConversationLink;
 
 class GetMessengerViewDataAction
 {
@@ -74,7 +73,6 @@ class GetMessengerViewDataAction
             'assignableAgents' => $this->assignableAgents($user),
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
-            'botResumeDueAt' => $this->botResumeDueAt($activeConversation),
             'profilePanel' => $this->profilePanel($activeConversation),
             'messages' => $messages,
             'hasOlderMessages' => $activeConversation && $oldestMessageId > 0
@@ -222,21 +220,6 @@ class GetMessengerViewDataAction
         }
 
         return null;
-    }
-
-    private function botResumeDueAt(?Conversation $conversation): ?string
-    {
-        if (! $conversation) {
-            return null;
-        }
-
-        $link = TextConversationLink::query()
-            ->where('conversation_id', $conversation->id)
-            ->whereNotNull('bot_paused_at')
-            ->whereNotNull('bot_resume_due_at')
-            ->first(['bot_resume_due_at']);
-
-        return $link?->bot_resume_due_at?->toISOString();
     }
 
     private function tagPresets(): Collection

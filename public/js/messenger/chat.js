@@ -201,60 +201,6 @@
         uploaded: [],
     };
     let olderMessagesLoading = false;
-    let botResumeCountdownTimer = null;
-
-    function setBotResumeCountdown(dueAt) {
-        const badge = document.querySelector('[data-bot-resume-countdown]');
-
-        if (!badge) {
-            return;
-        }
-
-        badge.dataset.botResumeDueAt = dueAt || '';
-        updateBotResumeCountdown();
-
-        if (botResumeCountdownTimer) {
-            window.clearInterval(botResumeCountdownTimer);
-            botResumeCountdownTimer = null;
-        }
-
-        if (dueAt) {
-            botResumeCountdownTimer = window.setInterval(updateBotResumeCountdown, 1000);
-        }
-    }
-
-    function updateBotResumeCountdown() {
-        const badge = document.querySelector('[data-bot-resume-countdown]');
-        const dueAt = badge?.dataset.botResumeDueAt || '';
-
-        if (!badge) {
-            return;
-        }
-
-        if (!dueAt) {
-            if (badge) {
-                badge.hidden = false;
-                badge.textContent = 'Bot san sang';
-            }
-
-            return;
-        }
-
-        const remainingSeconds = Math.max(0, Math.ceil((new Date(dueAt).getTime() - Date.now()) / 1000));
-
-        if (remainingSeconds <= 0) {
-            badge.textContent = 'Bot dang bat lai';
-            badge.hidden = false;
-            window.clearInterval(botResumeCountdownTimer);
-            botResumeCountdownTimer = null;
-            return;
-        }
-
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        badge.textContent = `Bot ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        badge.hidden = false;
-    }
 
     function readJsonDataset(value, fallback) {
         try {
@@ -1062,8 +1008,6 @@
         if (assignSelect) {
             assignSelect.value = conversation.assigned_to ? String(conversation.assigned_to) : '';
         }
-
-        setBotResumeCountdown(conversation.bot_resume_due_at || '');
 
         timeline.dataset.conversationId = conversation.id;
         timeline.dataset.pollUrl = conversation.messages_url;
@@ -2525,7 +2469,6 @@
         });
     }
 
-    setBotResumeCountdown(document.querySelector('[data-bot-resume-countdown]')?.dataset.botResumeDueAt || '');
     startRealtime();
     renderCustomerTagOptions('');
 
@@ -2622,9 +2565,6 @@
 
             const payload = await response.json();
             replacePendingMessage(pendingId, payload.data);
-            if (messageMode !== 'whisper') {
-                setBotResumeCountdown(new Date(Date.now() + 60000).toISOString());
-            }
             if (
                 Array.isArray(payload.data?.conversation_tags)
                 && String(payload.data?.conversation_id) === String(timeline?.dataset.conversationId)

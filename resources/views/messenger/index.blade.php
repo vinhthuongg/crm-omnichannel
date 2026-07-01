@@ -190,12 +190,6 @@
                                 <option value="{{ $agent->id }}" @selected((int) $activeConversation->assigned_to === (int) $agent->id)>{{ $agent->name }}</option>
                             @endforeach
                         </select>
-                        <span
-                            class="bot-resume-timer"
-                            data-bot-resume-countdown
-                            data-bot-resume-due-at="{{ $botResumeDueAt ?? '' }}"
-                            hidden
-                        ></span>
                         <button type="submit">
                             Lưu
                         </button>

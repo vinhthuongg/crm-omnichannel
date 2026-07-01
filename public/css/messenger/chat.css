@@ -737,24 +737,6 @@ body.messenger-page .conversation-assign-form button {
     font-weight: 500;
 }
 
-body.messenger-page .bot-resume-timer {
-    min-height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #fed7aa;
-    border-radius: 8px;
-    background: #fff7ed;
-    color: #9a3412;
-    padding: 0 10px;
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-body.messenger-page .bot-resume-timer[hidden] {
-    display: none;
-}
-
 body.messenger-page .conversation-claim-bar {
     border-bottom: 1px solid var(--chat-line);
     border-top: 0;
