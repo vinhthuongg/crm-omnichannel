@@ -16,6 +16,8 @@ class TextConversationLink extends Model
         'facebook_page_id',
         'facebook_psid',
         'bot_paused_at',
+        'bot_resume_due_at',
+        'bot_resumed_at',
         'last_payload',
     ];
 
@@ -23,6 +25,8 @@ class TextConversationLink extends Model
     {
         return [
             'bot_paused_at' => 'datetime',
+            'bot_resume_due_at' => 'datetime',
+            'bot_resumed_at' => 'datetime',
             'last_payload' => 'array',
         ];
     }

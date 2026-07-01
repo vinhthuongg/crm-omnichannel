@@ -26,6 +26,7 @@ return [
         'agent_email' => env('TEXT_AGENT_EMAIL'),
         'api_token' => env('TEXT_API_TOKEN'),
         'human_group_id' => env('TEXT_HUMAN_GROUP_ID'),
+        'messenger_app_id' => env('TEXT_MESSENGER_APP_ID'),
         'webhook_secret' => env('TEXT_WEBHOOK_SECRET'),
     ],
 ];

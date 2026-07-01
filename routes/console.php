@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use Modules\Search\Services\VectorSearchService;
 
 Artisan::command('inspire', function () {
@@ -15,3 +16,7 @@ Artisan::command('search:rebuild-vector-index {--customers : Rebuild customer se
     $this->line('Customer documents: '.$count);
     $this->line('Provider: '.config('search.vector.provider'));
 })->purpose('Rebuild CRM vector search documents');
+
+Schedule::command('text:resume-idle-bots')
+    ->everyMinute()
+    ->withoutOverlapping();
