@@ -29,4 +29,14 @@ class WorkShift extends Model
     {
         return $this->hasMany(Conversation::class);
     }
+
+    public function ownedConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'owner_shift_id');
+    }
+
+    public function queuedConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'queue_shift_id');
+    }
 }

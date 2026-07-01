@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
+use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\WorkShift;
 use Modules\Conversation\Support\ConversationStatus;
 
@@ -23,12 +24,29 @@ class WorkShiftController extends Controller
             ->with(['agents' => fn ($query) => $query->withCount([
                 'assignedConversations as active_conversations_count' => fn (Builder $conversationQuery) => $conversationQuery->whereIn('status', ConversationStatus::ACTIVE),
             ])])
+            ->withCount([
+                'agents',
+                'queuedConversations as waiting_conversations_count' => fn (Builder $query) => $query
+                    ->where('status', ConversationStatus::WAITING)
+                    ->whereNull('assigned_to'),
+                'ownedConversations as handling_conversations_count' => fn (Builder $query) => $query
+                    ->whereIn('status', ConversationStatus::ACTIVE)
+                    ->whereNotNull('assigned_to'),
+                'ownedConversations as finished_conversations_count' => fn (Builder $query) => $query
+                    ->whereIn('status', [ConversationStatus::RESOLVED, ConversationStatus::CLOSED]),
+            ])
             ->orderBy('starts_at')
             ->limit(50)
             ->get();
         $now = now();
         $currentShift = $shifts->first(fn (WorkShift $shift): bool => $shift->is_active && $this->containsTime($shift, $now));
         $nextShift = $shifts->first(fn (WorkShift $shift): bool => $shift->is_active && $shift->starts_at && $shift->starts_at->greaterThan($now));
+        $selectedShift = $shifts->firstWhere('id', (int) $request->query('shift_id')) ?: $currentShift ?: $nextShift ?: $shifts->first();
+        $manageStatus = $this->manageStatus($request);
+        $managedShifts = $shifts
+            ->filter(fn (WorkShift $shift): bool => $this->matchesManageStatus($shift, $manageStatus, $now))
+            ->values();
+        $staffMembers = $this->staffMembersFor($selectedShift);
 
         return view('work_shifts.index', [
             'currentUser' => $user,
@@ -38,8 +56,13 @@ class WorkShiftController extends Controller
                 'team_name' => $user->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
             'shifts' => $shifts,
+            'managedShifts' => $managedShifts,
             'currentShift' => $currentShift,
             'nextShift' => $nextShift,
+            'selectedShift' => $selectedShift,
+            'staffMembers' => $staffMembers,
+            'manageStatus' => $manageStatus,
+            'staffMetrics' => $this->staffMetrics($selectedShift),
             'agents' => User::role(['CSKH', 'User'])
                 ->where('is_active', true)
                 ->withCount([
@@ -139,6 +162,76 @@ class WorkShiftController extends Controller
         }
 
         return $current >= $start || $current < $end;
+    }
+
+    private function manageStatus(Request $request): string
+    {
+        $status = (string) $request->query('status', 'all');
+
+        return in_array($status, ['all', 'active', 'inactive', 'current'], true) ? $status : 'all';
+    }
+
+    private function matchesManageStatus(WorkShift $shift, string $status, Carbon $now): bool
+    {
+        return match ($status) {
+            'active' => $shift->is_active,
+            'inactive' => ! $shift->is_active,
+            'current' => $shift->is_active && $this->containsTime($shift, $now),
+            default => true,
+        };
+    }
+
+    private function staffMembersFor(?WorkShift $shift)
+    {
+        if (! $shift) {
+            return collect();
+        }
+
+        return $shift->agents()
+            ->withCount([
+                'assignedConversations as active_conversations_count' => fn (Builder $query) => $query
+                    ->where('owner_shift_id', $shift->id)
+                    ->whereIn('status', ConversationStatus::ACTIVE),
+                'assignedConversations as finished_conversations_count' => fn (Builder $query) => $query
+                    ->where('owner_shift_id', $shift->id)
+                    ->whereIn('status', [ConversationStatus::RESOLVED, ConversationStatus::CLOSED]),
+            ])
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function staffMetrics(?WorkShift $shift): array
+    {
+        if (! $shift) {
+            return [
+                'waiting' => 0,
+                'handling' => 0,
+                'finished' => 0,
+                'total' => 0,
+            ];
+        }
+
+        $waiting = Conversation::query()
+            ->where('queue_shift_id', $shift->id)
+            ->where('status', ConversationStatus::WAITING)
+            ->whereNull('assigned_to')
+            ->count();
+        $handling = Conversation::query()
+            ->where('owner_shift_id', $shift->id)
+            ->whereIn('status', ConversationStatus::ACTIVE)
+            ->whereNotNull('assigned_to')
+            ->count();
+        $finished = Conversation::query()
+            ->where('owner_shift_id', $shift->id)
+            ->whereIn('status', [ConversationStatus::RESOLVED, ConversationStatus::CLOSED])
+            ->count();
+
+        return [
+            'waiting' => $waiting,
+            'handling' => $handling,
+            'finished' => $finished,
+            'total' => $waiting + $handling + $finished,
+        ];
     }
 
     private function navItems(User $user): array

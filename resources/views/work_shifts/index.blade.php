@@ -11,8 +11,7 @@
 @section('content')
 @php
     $overviewShifts = $shifts->take(4)->values();
-    $staffShift = $currentShift ?: $nextShift;
-    $staffMembers = $staffShift?->agents ?? $agents->take(4);
+    $staffShift = $selectedShift;
     $onlineCount = $staffMembers->where('is_active', true)->count();
     $busyCount = max(0, $staffMembers->count() - $onlineCount);
     $activeShiftCount = $shifts->where('is_active', true)->count();
@@ -67,7 +66,7 @@
                         $startsHour = (int) $shift->starts_at?->format('H');
                         $icon = $startsHour >= 20 || $startsHour < 6 ? 'nightlight' : ($startsHour >= 12 ? 'wb_twilight' : 'wb_sunny');
                     @endphp
-                    <article class="shift-overview-card {{ $isCurrent ? 'is-current' : '' }}">
+                    <article class="shift-overview-card {{ $isCurrent ? 'is-current' : '' }} {{ $selectedShift?->is($shift) ? 'is-selected' : '' }}">
                         <header>
                             <span class="material-symbols-outlined" aria-hidden="true">{{ $icon }}</span>
                             <div>
@@ -76,7 +75,11 @@
                             </div>
                             <time>{{ $shift->starts_at?->format('H:i') }} - {{ $shift->ends_at?->format('H:i') }}</time>
                         </header>
-                        <footer><span>{{ $shift->starts_at?->format('d/m/Y') }}</span><span>{{ $shift->agents->count() }} nhan vien</span></footer>
+                        <footer>
+                            <span>{{ $shift->starts_at?->format('d/m/Y') }}</span>
+                            <span>{{ $shift->agents_count ?? $shift->agents->count() }} nhan vien</span>
+                            <a href="{{ route('work-shifts.index', ['shift_id' => $shift->id, 'status' => $manageStatus]).'#staff-on-shift' }}">Xem nhan su</a>
+                        </footer>
                     </article>
                 @empty
                     <article class="shift-overview-card is-empty">
@@ -88,12 +91,31 @@
             <section class="shift-staff-panel" id="staff-on-shift">
                 <header>
                     <div><p>Nhan su trong ca</p><h2>{{ $staffShift ? $staffShift->name : 'Chua co ca dang hien thi' }}</h2></div>
-                    <div class="shift-staff-stats"><span><i class="online"></i>{{ $onlineCount }} san sang</span><span><i class="break"></i>{{ $busyCount }} ban</span></div>
+                    <form class="shift-inline-form" method="GET" action="{{ route('work-shifts.index') }}">
+                        <input type="hidden" name="status" value="{{ $manageStatus }}">
+                        <label>
+                            <span>Chon ca</span>
+                            <select name="shift_id" onchange="this.form.submit()">
+                                @foreach($shifts as $shift)
+                                    <option value="{{ $shift->id }}" @selected($staffShift?->is($shift))>
+                                        {{ $shift->name ?: 'Ca truc #'.$shift->id }} - {{ $shift->starts_at?->format('H:i') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </form>
                 </header>
+                <div class="shift-metric-strip" aria-label="Thong ke ca truc dang xem">
+                    <article><span>Khach dang cho</span><strong>{{ $staffMetrics['waiting'] }}</strong></article>
+                    <article><span>Dang xu ly</span><strong>{{ $staffMetrics['handling'] }}</strong></article>
+                    <article><span>Da hoan tat</span><strong>{{ $staffMetrics['finished'] }}</strong></article>
+                    <article><span>Nhan su</span><strong>{{ $onlineCount }}/{{ $staffMembers->count() }}</strong></article>
+                </div>
                 <div class="shift-staff-list">
                     @forelse($staffMembers as $agent)
                         @php
                             $load = (int) ($agent->active_conversations_count ?? 0);
+                            $finishedLoad = (int) ($agent->finished_conversations_count ?? 0);
                             $percent = min(100, ($load / $maxLoad) * 100);
                             $isBusy = $load >= 8;
                         @endphp
@@ -101,7 +123,7 @@
                             <span class="shift-agent-avatar">{{ strtoupper(substr($agent->name, 0, 1)) }}<i class="{{ $isBusy ? 'break' : 'online' }}"></i></span>
                             <div class="shift-agent-info"><h3>{{ $agent->name }}</h3><p>{{ $agent->email }}</p></div>
                             <div class="shift-load"><div><span>Tai hoi thoai</span><small class="{{ $isBusy ? 'danger' : '' }}">{{ $load }}/10</small></div><b><i style="width: {{ $percent }}%"></i></b></div>
-                            <span class="shift-status-pill {{ $isBusy ? 'is-busy' : '' }}">{{ $isBusy ? 'Can giam tai' : 'San sang' }}</span>
+                            <span class="shift-status-pill {{ $isBusy ? 'is-busy' : '' }}">{{ $isBusy ? 'Can giam tai' : 'San sang' }} · {{ $finishedLoad }} xong</span>
                         </article>
                     @empty
                         <article class="work-shifts-empty"><h3>Chua co nhan vien trong ca</h3><p>Moi ca can toi thieu 1 nhan vien CSKH de nhan khach moi.</p></article>
@@ -111,18 +133,35 @@
 
             <section class="work-shifts-list" id="shift-list" aria-label="Danh sach ca truc">
                 <header class="work-shifts-section-head">
-                    <div><p>Quan ly</p><h2>{{ $shifts->count() }} ca truc gan day</h2></div>
+                    <div><p>Quan ly</p><h2>{{ $managedShifts->count() }} ca truc</h2></div>
+                    <form class="shift-inline-form" method="GET" action="{{ route('work-shifts.index') }}">
+                        @if($staffShift)
+                            <input type="hidden" name="shift_id" value="{{ $staffShift->id }}">
+                        @endif
+                        <label>
+                            <span>Trang thai</span>
+                            <select name="status" onchange="this.form.submit()">
+                                <option value="all" @selected($manageStatus === 'all')>Tat ca</option>
+                                <option value="active" @selected($manageStatus === 'active')>Dang bat</option>
+                                <option value="inactive" @selected($manageStatus === 'inactive')>Tam tat</option>
+                                <option value="current" @selected($manageStatus === 'current')>Dang dien ra</option>
+                            </select>
+                        </label>
+                    </form>
                     <button class="work-shifts-primary-action" type="button" data-open-shift-dialog="create-shift-dialog">Tao ca truc</button>
                 </header>
 
                 <div class="work-shifts-table">
-                    @forelse($shifts as $shift)
+                    @forelse($managedShifts as $shift)
                         <article class="work-shifts-card work-shifts-row">
                             <div class="work-shifts-row-main">
                                 <span class="shift-agent-avatar">{{ strtoupper(substr($shift->name ?: 'C', 0, 1)) }}</span>
                                 <div><h3>{{ $shift->name ?: 'Ca truc #'.$shift->id }}</h3><p>{{ $shift->starts_at?->format('d/m/Y H:i') }} - {{ $shift->ends_at?->format('d/m/Y H:i') }}</p></div>
                             </div>
-                            <div class="work-shifts-row-agents"><span>{{ $shift->agents->count() }}/2 nhan vien</span><small>{{ $shift->agents->pluck('name')->join(', ') ?: 'Chua gan nhan vien' }}</small></div>
+                            <div class="work-shifts-row-agents">
+                                <span>{{ $shift->agents_count ?? $shift->agents->count() }}/2 nhan vien</span>
+                                <small>{{ (int) $shift->waiting_conversations_count }} cho · {{ (int) $shift->handling_conversations_count }} dang xu ly · {{ (int) $shift->finished_conversations_count }} xong</small>
+                            </div>
                             <span class="shift-status-pill {{ $shift->is_active ? '' : 'is-busy' }}">{{ $shift->is_active ? 'Dang bat' : 'Tam tat' }}</span>
                             <div class="work-shifts-row-actions">
                                 <button type="button" data-open-shift-dialog="edit-shift-dialog-{{ $shift->id }}">Sua</button>
