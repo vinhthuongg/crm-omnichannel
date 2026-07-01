@@ -463,6 +463,17 @@
                     <span>Số Điện Thoại</span>
                     <strong data-profile-phone>{{ $activeConversation->customer?->phone ?: 'Chua co' }}</strong>
                 </article>
+                <div class="detected-phone-list" data-phone-candidates-list data-contact-url="{{ route('crm.conversations.customer.update', $activeConversation) }}">
+                    @php($detectedPhones = array_values($profilePanel['summary']['facts']['phones'] ?? []))
+                    @if(count($detectedPhones) > 0)
+                        <span>So dien thoai phat hien</span>
+                        @foreach($detectedPhones as $phone)
+                            <button type="button" data-use-detected-phone="{{ $phone }}" class="{{ $activeConversation->customer?->phone === $phone ? 'is-active' : '' }}">
+                                {{ $phone }}{{ $activeConversation->customer?->phone === $phone ? ' - dang luu' : '' }}
+                            </button>
+                        @endforeach
+                    @endif
+                </div>
             </section>
 
             <section class="profile-section profile-notes" data-customer-notes data-notes-url="{{ route('crm.conversations.customer-notes.store', $activeConversation) }}">

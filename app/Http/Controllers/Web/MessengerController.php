@@ -422,6 +422,7 @@ class MessengerController extends Controller
                 'facebook_profile_url' => $this->facebookProfileUrl($conversation),
                 'customer_contact' => $this->customerContactPayload($conversation),
                 'customer_public_details' => $this->customerPublicDetails($conversation),
+                'conversation_summary' => app(ConversationInsightSummaryService::class)->summarize($conversation),
             ],
         ]);
     }

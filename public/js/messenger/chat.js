@@ -151,6 +151,7 @@
         const contactToggle = event.target.closest('[data-contact-toggle]');
         const contactBack = event.target.closest('[data-contact-back]');
         const selectedTag = event.target.closest('[data-select-customer-tag]');
+        const detectedPhone = event.target.closest('[data-use-detected-phone]');
 
         if (toggle) {
             event.preventDefault();
@@ -175,6 +176,18 @@
         if (selectedTag) {
             event.preventDefault();
             storeCustomerTag(selectedTag.dataset.selectCustomerTag || '');
+        }
+
+        if (detectedPhone) {
+            event.preventDefault();
+            detectedPhone.disabled = true;
+            useDetectedPhone(detectedPhone.dataset.useDetectedPhone || '')
+                .catch((error) => {
+                    window.alert(error.message || 'Khong cap nhat duoc so dien thoai.');
+                })
+                .finally(() => {
+                    detectedPhone.disabled = false;
+                });
         }
     });
 
@@ -815,8 +828,15 @@
 
         if (conversation.conversation_summary) {
             renderConversationSummary(conversation.conversation_summary);
+            renderDetectedPhones(
+                conversation.conversation_summary?.facts?.phones || [],
+                conversation.customer_phone || conversation.customer_contact?.phone || '',
+                conversation.customer_update_url || ''
+            );
         } else if (Array.isArray(conversation.messages)) {
-            renderConversationSummary(semanticSummaryFromMessages(conversation.messages));
+            const summary = semanticSummaryFromMessages(conversation.messages);
+            renderConversationSummary(summary);
+            renderDetectedPhones(summary?.facts?.phones || [], conversation.customer_phone || '', conversation.customer_update_url || '');
         }
 
         const notes = panel.querySelector('[data-customer-notes]');
@@ -954,6 +974,10 @@
         });
         renderCustomerPublicDetails(conversation.customer_public_details || []);
 
+        if (conversation.conversation_summary) {
+            renderConversationSummary(conversation.conversation_summary);
+        }
+
         if (chatAvatar) {
             chatAvatar.innerHTML = avatarHtml(customerAvatar, customerName);
         }
@@ -965,6 +989,12 @@
         if (chatPhone) {
             chatPhone.textContent = conversation.customer_phone || 'Chua co so dien thoai';
         }
+
+        renderDetectedPhones(
+            document.querySelector('[data-conversation-summary-list]')?.dataset.detectedPhones?.split('|').filter(Boolean) || [],
+            conversation.customer_phone || '',
+            conversation.customer_update_url || document.querySelector('[data-phone-candidates-list]')?.dataset.contactUrl || ''
+        );
 
         if (profileName) {
             profileName.textContent = customerName;
@@ -1558,8 +1588,13 @@
             .map((message) => message.content || '')
             .join(' ')
             .match(/(?:\+?84|0)(?:[\s.\-]?\d){8,10}/);
-        const phoneText = phoneMatch
-            ? 'da co so dien thoai ' + phoneMatch[0].replace(/[^\d+]/g, '')
+        const phones = detectedPhonesFromMessages(usableMessages);
+        const savedPhone = document.querySelector('[data-profile-phone]')?.textContent?.trim() || '';
+        const latestPhone = phones.length ? phones[phones.length - 1] : '';
+        const phoneText = savedPhone && latestPhone && savedPhone !== latestPhone && savedPhone !== 'Chua co'
+            ? 'dang luu so ' + savedPhone + ', khach vua gui them so ' + latestPhone
+            : phoneMatch
+            ? 'da co so dien thoai ' + latestPhone
             : 'chua lay duoc so dien thoai';
         const needText = needs.length
             ? [...new Set(needs)].join(' va ')
@@ -1570,7 +1605,35 @@
 
         return {
             text: `${customerName} ${needText}. ${advisorText} va ${phoneText}.`,
+            facts: {phones, stored_phone: savedPhone, latest_phone: latestPhone},
         };
+    }
+
+    function detectedPhonesFromMessages(messages) {
+        const phones = [];
+        const pattern = /(?:\+?84|0)(?:[\s.\-]?\d){8,10}/g;
+
+        (messages || []).forEach(function (message) {
+            const matches = String(message.content || '').match(pattern) || [];
+
+            matches.forEach(function (match) {
+                const phone = match.replace(/[^\d+]/g, '');
+
+                if (!phone) {
+                    return;
+                }
+
+                const existingIndex = phones.indexOf(phone);
+
+                if (existingIndex >= 0) {
+                    phones.splice(existingIndex, 1);
+                }
+
+                phones.push(phone);
+            });
+        });
+
+        return phones;
     }
 
     function renderConversationSummary(summary) {
@@ -1584,6 +1647,7 @@
             ? summary
             : (summary?.text || 'Chua co du noi dung de tom tat hoi thoai.');
 
+        list.dataset.detectedPhones = (summary?.facts?.phones || []).join('|');
         list.innerHTML = `<article class="summary-item"><p>${escapeHtml(text)}</p></article>`;
     }
 
@@ -1593,7 +1657,72 @@
         }
 
         conversationSummaryMessages = [...conversationSummaryMessages.filter((item) => String(item.id) !== String(message.id)), message].slice(-40);
-        renderConversationSummary(semanticSummaryFromMessages(conversationSummaryMessages));
+        const summary = semanticSummaryFromMessages(conversationSummaryMessages);
+        renderConversationSummary(summary);
+        renderDetectedPhones(summary?.facts?.phones || [], document.querySelector('[data-profile-phone]')?.textContent?.trim() || '', document.querySelector('[data-phone-candidates-list]')?.dataset.contactUrl || '');
+    }
+
+    function renderDetectedPhones(phones, savedPhone, contactUrl) {
+        const list = document.querySelector('[data-phone-candidates-list]');
+        const uniquePhones = [...new Set(phones || [])].filter(Boolean);
+        const normalizedSavedPhone = String(savedPhone || '').trim();
+
+        if (!list) {
+            return;
+        }
+
+        if (contactUrl) {
+            list.dataset.contactUrl = contactUrl;
+        }
+
+        if (!uniquePhones.length) {
+            list.innerHTML = '';
+            return;
+        }
+
+        list.innerHTML = `
+            <span>So dien thoai phat hien</span>
+            ${uniquePhones.map(function (phone) {
+                const active = phone === normalizedSavedPhone;
+
+                return `<button type="button" data-use-detected-phone="${escapeHtml(phone)}" class="${active ? 'is-active' : ''}">${escapeHtml(phone)}${active ? ' - dang luu' : ''}</button>`;
+            }).join('')}
+        `;
+    }
+
+    async function useDetectedPhone(phone) {
+        const list = document.querySelector('[data-phone-candidates-list]');
+        const url = list?.dataset.contactUrl || document.querySelector('[data-contact-section]')?.dataset.contactUrl || '';
+        const contactForm = document.querySelector('[data-contact-form]');
+
+        if (!url || !phone) {
+            return;
+        }
+
+        const body = {
+            name: contactForm?.querySelector('[name="name"]')?.value || document.querySelector('[data-profile-name]')?.textContent || 'Customer',
+            phone,
+            email: contactForm?.querySelector('[name="email"]')?.value || '',
+        };
+
+        const response = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+            },
+            body: JSON.stringify(body),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(payload.message || 'Khong cap nhat duoc so dien thoai.');
+        }
+
+        applyCustomerContact(payload.data || {});
     }
 
     function tagBadgesHtml(tags) {
