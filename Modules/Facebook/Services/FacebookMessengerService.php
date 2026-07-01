@@ -36,6 +36,45 @@ class FacebookMessengerService
         return $this->sendSenderAction($recipientId, 'typing_off', $pageAccessToken);
     }
 
+    public function takeThreadControl(string $recipientId, ?string $pageAccessToken = null, string $metadata = 'CRM agent replied'): bool
+    {
+        if ($recipientId === '') {
+            return false;
+        }
+
+        try {
+            $response = $this->http
+                ->connectTimeout(5)
+                ->timeout(10)
+                ->withToken($this->token($pageAccessToken))
+                ->post($this->graphUrl('/me/take_thread_control'), [
+                    'recipient' => ['id' => $recipientId],
+                    'metadata' => $metadata,
+                ]);
+
+            if ($response->successful()) {
+                Log::info('Facebook thread control taken for CRM reply', [
+                    'recipient_id' => $recipientId,
+                ]);
+
+                return true;
+            }
+
+            Log::warning('Facebook take_thread_control failed', [
+                'recipient_id' => $recipientId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Facebook take_thread_control exception', [
+                'recipient_id' => $recipientId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        return false;
+    }
+
     public function sendSenderAction(string $recipientId, string $action, ?string $pageAccessToken = null): bool
     {
         if (! in_array($action, ['typing_on', 'typing_off', 'mark_seen'], true)) {

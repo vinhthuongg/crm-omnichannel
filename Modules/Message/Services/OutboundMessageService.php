@@ -3,6 +3,7 @@
 namespace Modules\Message\Services;
 
 use Illuminate\Support\Arr;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Conversation\Models\Conversation;
@@ -64,6 +65,29 @@ class OutboundMessageService
 
     private function sendFacebook(string $recipientId, string $content, array $attachments, ?string $pageAccessToken = null): array
     {
+        try {
+            return $this->sendFacebookPayload($recipientId, $content, $attachments, $pageAccessToken);
+        } catch (RequestException $exception) {
+            if (! $this->isAnotherAppControlError($exception)) {
+                throw $exception;
+            }
+
+            Log::warning('Facebook send blocked by another app, taking thread control and retrying once', [
+                'recipient_id' => $recipientId,
+                'status' => $exception->response->status(),
+                'body' => $exception->response->body(),
+            ]);
+
+            if (! $this->facebook->takeThreadControl($recipientId, $pageAccessToken)) {
+                throw $exception;
+            }
+
+            return $this->sendFacebookPayload($recipientId, $content, $attachments, $pageAccessToken);
+        }
+    }
+
+    private function sendFacebookPayload(string $recipientId, string $content, array $attachments, ?string $pageAccessToken = null): array
+    {
         $quickReplies = $this->quickReplies($attachments);
         $response = $content !== ''
             ? ($quickReplies
@@ -124,6 +148,20 @@ class OutboundMessageService
         }
 
         return $response;
+    }
+
+    private function isAnotherAppControlError(RequestException $exception): bool
+    {
+        $payload = $exception->response->json();
+        $error = is_array($payload) ? (array) Arr::get($payload, 'error', []) : [];
+        $message = mb_strtolower((string) Arr::get($error, 'message', ''));
+
+        return (int) Arr::get($error, 'code') === 10
+            && (
+                str_contains($message, 'another app')
+                || str_contains($message, 'ứng dụng khác')
+                || str_contains($message, 'ung dung khac')
+            );
     }
 
     private function quickReplies(array $attachments): array
