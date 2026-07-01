@@ -79,15 +79,33 @@ class FacebookMessengerService
 
     private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken = null): array
     {
-        $response = $this->http
-            ->connectTimeout(10)
-            ->timeout(30)
-            ->withToken($this->token($pageAccessToken))
-            ->post($this->graphUrl('/me/messages'), [
-                'messaging_type' => 'RESPONSE',
-                'recipient' => ['id' => $recipientId],
-                'message' => $message,
+        try {
+            $response = $this->http
+                ->connectTimeout(5)
+                ->timeout(15)
+                ->withToken($this->token($pageAccessToken))
+                ->post($this->graphUrl('/me/messages'), [
+                    'messaging_type' => 'RESPONSE',
+                    'recipient' => ['id' => $recipientId],
+                    'message' => $message,
+                ]);
+        } catch (ConnectionException $exception) {
+            if (! str_contains($exception->getMessage(), 'cURL error 28')) {
+                throw $exception;
+            }
+
+            Log::warning('Facebook text send timed out after request was sent', [
+                'recipient_id' => $recipientId,
+                'error' => $exception->getMessage(),
             ]);
+
+            return [
+                'recipient_id' => $recipientId,
+                'message_id' => null,
+                'delivery_status' => 'sent_response_timeout',
+            ];
+        }
+
         $response->throw();
         return $response->json();
     }

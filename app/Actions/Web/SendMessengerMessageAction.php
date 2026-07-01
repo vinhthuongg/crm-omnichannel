@@ -9,11 +9,9 @@ use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\ConversationService;
 use Modules\Message\Events\NewMessageEvent;
-use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\MessengerAttachmentStorage;
-use Modules\Message\Services\OutboundMessageService;
 use Modules\Search\Services\VectorSearchService;
 
 class SendMessengerMessageAction
@@ -79,12 +77,8 @@ class SendMessengerMessageAction
 
         $this->queueCustomerVectorRefresh($message);
 
-        if ($attachments) {
-            SendOutboundMessageJob::dispatch($message->id);
-            $this->kickLocalQueueWorker();
-        } else {
-            $this->sendTextAfterResponse($message);
-        }
+        SendOutboundMessageJob::dispatch($message->id);
+        $this->kickLocalQueueWorker();
 
         return $message;
     }
@@ -108,48 +102,6 @@ class SendMessengerMessageAction
                     'message_id' => $message->id,
                     'error' => $exception->getMessage(),
                 ]);
-            }
-        });
-    }
-
-    private function sendTextAfterResponse(Message $message): void
-    {
-        app()->terminating(function () use ($message): void {
-            $message = $message->fresh(['conversation.customer.channels']);
-
-            if (! $message?->conversation) {
-                return;
-            }
-
-            try {
-                $message->forceFill([
-                    'outbound_status' => 'sending',
-                    'outbound_error' => null,
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-
-                $externalMessageId = app(OutboundMessageService::class)->send(
-                    $message->conversation,
-                    $message->channel,
-                    (string) $message->content,
-                    [],
-                );
-
-                $message->forceFill([
-                    'external_message_id' => $externalMessageId,
-                    'outbound_status' => 'sent',
-                    'outbound_error' => null,
-                    'sent_at' => now(),
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-            } catch (\Throwable $exception) {
-                $message->forceFill([
-                    'outbound_status' => 'failed',
-                    'outbound_error' => $exception->getMessage(),
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-
-                report($exception);
             }
         });
     }
