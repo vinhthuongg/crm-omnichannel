@@ -203,6 +203,7 @@
     let olderMessagesLoading = false;
     let suggestionRequestId = 0;
     const replySuggestionCache = new Map();
+    let conversationSummaryMessages = [];
 
     function readJsonDataset(value, fallback) {
         try {
@@ -812,10 +813,10 @@
             renderProfileConversationTags(conversation.tags);
         }
 
-        if (Array.isArray(conversation.conversation_summary)) {
+        if (conversation.conversation_summary) {
             renderConversationSummary(conversation.conversation_summary);
         } else if (Array.isArray(conversation.messages)) {
-            renderConversationSummary(conversation.messages.map(summaryItemFromMessage).filter(Boolean).slice(-12));
+            renderConversationSummary(semanticSummaryFromMessages(conversation.messages));
         }
 
         const notes = panel.querySelector('[data-customer-notes]');
@@ -1175,6 +1176,7 @@
             return;
         }
 
+        conversationSummaryMessages = (messages || []).filter(hasRenderableMessage).slice(-40);
         timeline.querySelectorAll('.message-row').forEach((row) => row.remove());
         (messages || []).forEach(function (message) {
             if (!hasRenderableMessage(message)) {
@@ -1473,81 +1475,125 @@
             : '<p class="profile-empty">Chua co trang thai.</p>';
     }
 
-    function summaryItemFromMessage(message) {
-        if (!message || message.message_type === 'whisper' || message.channel === 'internal') {
-            return null;
+    function normalizedVietnameseText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .toLowerCase();
+    }
+
+    function detectSummaryVehicle(text) {
+        const vehicles = [
+            ['Toyota Camry', ['camry']],
+            ['Toyota Vios', ['vios']],
+            ['Toyota Corolla Cross', ['corolla cross']],
+            ['Toyota Yaris Cross', ['yaris cross']],
+            ['Toyota Veloz Cross', ['veloz']],
+            ['Toyota Avanza Premio', ['avanza']],
+            ['Toyota Raize', ['raize']],
+            ['Toyota Fortuner', ['fortuner']],
+            ['Toyota Innova Cross', ['innova']],
+            ['Toyota Hilux', ['hilux']],
+            ['Toyota Land Cruiser Prado', ['prado']],
+            ['Toyota Land Cruiser', ['land cruiser']],
+        ];
+
+        for (const [vehicle, aliases] of vehicles) {
+            if (aliases.some((alias) => text.includes(alias))) {
+                return vehicle;
+            }
         }
 
-        let content = String(message.content || '').trim();
+        return '';
+    }
 
-        if (message.is_recalled) {
-            content = 'Tin nhan da duoc thu hoi';
+    function semanticSummaryFromMessages(messages) {
+        const usableMessages = (messages || []).filter(function (message) {
+            return message && message.channel !== 'internal' && message.message_type !== 'whisper';
+        });
+        const fullText = normalizedVietnameseText(usableMessages.map((message) => message.content || '').join(' '));
+        const customerMessage = usableMessages.find((message) => message.sender_type === 'customer');
+        const customerName = customerMessage?.sender_name && !/^\d+$/.test(String(customerMessage.sender_name))
+            ? customerMessage.sender_name
+            : (document.querySelector('[data-profile-name]')?.textContent || 'Khach hang');
+        const vehicle = detectSummaryVehicle(fullText);
+        const needs = [];
+
+        if (/(mua|quan tam|tham khao|tu van)/.test(fullText) || vehicle) {
+            needs.push('muon tham khao ' + (vehicle || 'xe Toyota'));
         }
 
-        if (!content && Array.isArray(message.attachments) && message.attachments.length) {
-            content = 'Da gui ' + message.attachments.length + ' tep dinh kem';
+        if (/(bao gia|gia|lan banh|bao nhieu|nhieu tien)/.test(fullText)) {
+            needs.push('can bao gia');
         }
 
-        if (!content) {
-            return null;
+        if (/(tra gop|vay|ngan hang|lai suat|tra truoc)/.test(fullText)) {
+            needs.push('quan tam tra gop');
         }
 
-        const side = message.sender_type === 'customer' ? 'customer' : 'staff';
-        const label = message.sender_type === 'customer'
-            ? 'Khach hang'
-            : (message.sender_type === 'system' ? 'Bot' : 'Nhan vien');
+        if (/(lai thu|test drive|chay thu)/.test(fullText)) {
+            needs.push('muon lai thu');
+        }
+
+        if (/(dat lich|hen|lich hen|sap xep)/.test(fullText)) {
+            needs.push('muon dat lich');
+        }
+
+        if (/(bao duong|sua chua|dich vu|phu tung)/.test(fullText)) {
+            needs.push('can ho tro dich vu');
+        }
+
+        if (/(khuyen mai|uu dai|giam gia|ctkm)/.test(fullText)) {
+            needs.push('hoi ve uu dai');
+        }
+
+        const advisors = [...new Set(usableMessages
+            .filter((message) => message.sender_type === 'user' || message.sender_type === 'system')
+            .map((message) => message.sender_type === 'system' ? 'Bot' : (message.sender_name || 'Nhan vien'))
+            .filter(Boolean))]
+            .slice(0, 3);
+        const phoneMatch = usableMessages
+            .map((message) => message.content || '')
+            .join(' ')
+            .match(/(?:\+?84|0)(?:[\s.\-]?\d){8,10}/);
+        const phoneText = phoneMatch
+            ? 'da co so dien thoai ' + phoneMatch[0].replace(/[^\d+]/g, '')
+            : 'chua lay duoc so dien thoai';
+        const needText = needs.length
+            ? [...new Set(needs)].join(' va ')
+            : 'dang trao doi voi Toyota Kien Giang';
+        const advisorText = advisors.length
+            ? advisors.join(', ').replace(/, ([^,]*)$/, ' va $1') + ' da tu van'
+            : 'chua co nhan vien tu van';
 
         return {
-            side,
-            label,
-            content: summaryText(content),
-            time: messageTime(message),
+            text: `${customerName} ${needText}. ${advisorText} va ${phoneText}.`,
         };
     }
 
-    function renderConversationSummary(items) {
+    function renderConversationSummary(summary) {
         const list = document.querySelector('[data-conversation-summary-list]');
 
         if (!list) {
             return;
         }
 
-        const visibleItems = (items || []).filter((item) => item?.content).slice(-12);
+        const text = typeof summary === 'string'
+            ? summary
+            : (summary?.text || 'Chua co du noi dung de tom tat hoi thoai.');
 
-        list.innerHTML = visibleItems.length
-            ? visibleItems.map(function (item) {
-                return `
-                    <article class="summary-item is-${escapeHtml(item.side || 'staff')}">
-                        <span>${escapeHtml(item.label || 'Tin nhan')}${item.time ? ' - ' + escapeHtml(item.time) : ''}</span>
-                        <p>${escapeHtml(item.content)}</p>
-                    </article>
-                `;
-            }).join('')
-            : '<p class="profile-empty">Chua co noi dung de tom tat.</p>';
+        list.innerHTML = `<article class="summary-item"><p>${escapeHtml(text)}</p></article>`;
     }
 
     function appendConversationSummaryMessage(message) {
-        const list = document.querySelector('[data-conversation-summary-list]');
-        const item = summaryItemFromMessage(message);
-
-        if (!list || !item) {
+        if (!document.querySelector('[data-conversation-summary-list]') || !message || !hasRenderableMessage(message)) {
             return;
         }
 
-        const currentItems = Array.from(list.querySelectorAll('.summary-item')).map(function (node) {
-            const label = node.querySelector('span')?.textContent || '';
-            const content = node.querySelector('p')?.textContent || '';
-            const [name, time] = label.split(' - ');
-
-            return {
-                side: node.classList.contains('is-customer') ? 'customer' : 'staff',
-                label: name || 'Tin nhan',
-                time: time || '',
-                content,
-            };
-        });
-
-        renderConversationSummary([...currentItems, item]);
+        conversationSummaryMessages = [...conversationSummaryMessages.filter((item) => String(item.id) !== String(message.id)), message].slice(-40);
+        renderConversationSummary(semanticSummaryFromMessages(conversationSummaryMessages));
     }
 
     function tagBadgesHtml(tags) {

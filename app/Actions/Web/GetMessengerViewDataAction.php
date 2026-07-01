@@ -3,6 +3,7 @@
 namespace App\Actions\Web;
 
 use App\Models\User;
+use App\Services\ConversationInsightSummaryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
@@ -17,6 +18,7 @@ class GetMessengerViewDataAction
     public function __construct(
         private readonly WorkShiftService $shifts,
         private readonly ConversationVisibilityService $visibility,
+        private readonly ConversationInsightSummaryService $summaries,
     ) {
     }
 
@@ -257,7 +259,7 @@ class GetMessengerViewDataAction
                 'details' => [],
                 'notes' => [],
                 'tags' => [],
-                'summary' => [],
+                'summary' => ['text' => 'Chưa có đủ nội dung để tóm tắt hội thoại.', 'facts' => []],
             ];
         }
 
@@ -298,7 +300,7 @@ class GetMessengerViewDataAction
                 ])
                 ->values()
                 ->all() ?? [],
-            'summary' => $this->conversationSummary($conversation),
+            'summary' => $this->summaries->summarize($conversation),
         ];
     }
 

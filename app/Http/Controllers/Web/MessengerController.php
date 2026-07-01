@@ -6,6 +6,7 @@ use App\Actions\Web\GetMessengerViewDataAction;
 use App\Actions\Web\SendMessengerMessageAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\SendMessengerMessageRequest;
+use App\Services\ConversationInsightSummaryService;
 use App\Services\ConversationReplySuggestionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -183,7 +184,7 @@ class MessengerController extends Controller
                 'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
                 'customer_notes' => $this->customerNotesPayload($conversation),
                 'customer_tags' => $this->customerTagsPayload($conversation),
-                'conversation_summary' => $this->conversationSummaryPayload($conversation),
+                'conversation_summary' => app(ConversationInsightSummaryService::class)->summarize($conversation),
                 'all_customer_tags' => $this->tagPayloads(),
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'assignee_name' => $conversation->assignee?->name,
