@@ -21,7 +21,9 @@ body.messenger-page {
 
 body.messenger-page .messenger-crm-shell {
     height: 100vh;
-    min-height: 720px;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     background: var(--chat-bg);
 }
@@ -163,8 +165,12 @@ body.messenger-page .team-switcher {
 
 body.messenger-page .messenger-crm-main {
     min-width: 0;
+    min-height: 0;
+    height: 100vh;
+    height: 100dvh;
     display: grid;
     grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+    overflow: hidden;
 }
 
 body.messenger-page .crm-topbar {
@@ -268,6 +274,9 @@ body.messenger-page .account-menu button {
 
 body.messenger-page .messenger-shell {
     height: calc(100vh - var(--topbar-height));
+    height: calc(100dvh - var(--topbar-height));
+    max-height: calc(100vh - var(--topbar-height));
+    max-height: calc(100dvh - var(--topbar-height));
     min-height: 0;
     display: grid;
     grid-template-columns: var(--inbox-width) minmax(0, 1fr) var(--profile-width);
@@ -671,9 +680,11 @@ body.messenger-page .messenger-chat {
     grid-row: 2;
     min-width: 0;
     min-height: 0;
-    height: auto;
+    height: 100%;
+    max-height: 100%;
     display: grid;
     grid-template-rows: 54px auto minmax(0, 1fr) 154px;
+    overflow: hidden;
     border-right: 1px solid var(--chat-line);
     background: #fff;
 }
@@ -757,7 +768,10 @@ body.messenger-page .conversation-claim-bar {
 
 body.messenger-page .messenger-timeline {
     min-height: 0;
+    height: 100%;
+    max-height: 100%;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 20px 18px 22px;
     background-color: #fff;
     background-image: radial-gradient(#edf0f7 1px, transparent 1px);
@@ -1212,6 +1226,44 @@ body.messenger-page .messenger-profile-panel {
     overflow-y: auto;
     background: #fff;
     color: var(--chat-ink);
+}
+
+@media (min-width: 761px) {
+    body.messenger-page,
+    body.messenger-page .messenger-crm-shell,
+    body.messenger-page .messenger-crm-main,
+    body.messenger-page .messenger-shell,
+    body.messenger-page .messenger-chat {
+        overflow: hidden !important;
+    }
+
+    body.messenger-page .messenger-crm-shell,
+    body.messenger-page .messenger-crm-main {
+        height: 100dvh !important;
+        min-height: 0 !important;
+    }
+
+    body.messenger-page .messenger-shell {
+        height: calc(100dvh - var(--topbar-height)) !important;
+        max-height: calc(100dvh - var(--topbar-height)) !important;
+        min-height: 0 !important;
+    }
+
+    body.messenger-page .messenger-chat {
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    body.messenger-page .messenger-timeline,
+    body.messenger-page .messenger-list,
+    body.messenger-page .messenger-profile-panel {
+        min-height: 0 !important;
+    }
+
+    body.messenger-page .messenger-timeline {
+        overflow-y: auto !important;
+    }
 }
 
 body.messenger-page .profile-panel-title {
