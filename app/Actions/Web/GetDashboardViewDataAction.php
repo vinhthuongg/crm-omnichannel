@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\ActivityLog\Models\ActivityLog;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Services\ConversationIntentService;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
@@ -231,6 +232,8 @@ class GetDashboardViewDataAction
 
     private function dashboardIntentCards(User $user): array
     {
+        return $this->dashboardIntentCardsV2($user);
+
         return collect([
             ['label' => 'Khách YC Báo Giá', 'icon' => 'request_quote', 'keywords' => ['bao gia', 'báo giá', 'gia xe', 'giá xe', 'lan banh', 'lăn bánh']],
             ['label' => 'Yêu cầu Lái thử', 'icon' => 'directions_car', 'keywords' => ['lai thu', 'lái thử', 'test drive', 'chay thu', 'chạy thử']],
@@ -256,6 +259,38 @@ class GetDashboardViewDataAction
                         foreach ($keywords as $keyword) {
                             $query->orWhere('content', 'like', '%'.$keyword.'%');
                         }
+                    });
+            })
+            ->count();
+    }
+
+    private function dashboardIntentCardsV2(User $user): array
+    {
+        return collect([
+            ['label' => 'Khach YC Bao Gia', 'icon' => 'request_quote', 'tag' => ConversationIntentService::TAG_QUOTE, 'keywords' => ['bao gia', 'gia xe', 'lan banh']],
+            ['label' => 'Yeu cau Lai thu', 'icon' => 'directions_car', 'tag' => ConversationIntentService::TAG_TEST_DRIVE, 'keywords' => ['lai thu', 'test drive', 'chay thu']],
+            ['label' => 'Quan tam Tra gop', 'icon' => 'account_balance', 'tag' => ConversationIntentService::TAG_INSTALLMENT, 'keywords' => ['tra gop', 'vay', 'ngan hang', 'lai suat']],
+            ['label' => 'Khach Dat Lich', 'icon' => 'event_available', 'tag' => ConversationIntentService::TAG_APPOINTMENT, 'keywords' => ['dat lich', 'lich hen', 'ghe showroom']],
+            ['label' => 'Dat lich Bao duong', 'icon' => 'build', 'tag' => ConversationIntentService::TAG_MAINTENANCE, 'keywords' => ['bao duong', 'bao tri', 'xuong dich vu']],
+        ])->map(fn (array $item): array => [
+            'label' => $item['label'],
+            'icon' => $item['icon'],
+            'value' => $this->intentConversationCount($user, $item['tag'], $item['keywords']),
+        ])->all();
+    }
+
+    private function intentConversationCount(User $user, string $tagName, array $keywords): int
+    {
+        return (clone $this->visibleConversations($user))
+            ->where(function (Builder $query) use ($tagName, $keywords): void {
+                $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tagName))
+                    ->orWhereHas('messages', function (Builder $messageQuery) use ($keywords): void {
+                        $messageQuery->whereIn('sender_type', ['customer', 'system'])
+                            ->where(function (Builder $keywordQuery) use ($keywords): void {
+                                foreach ($keywords as $keyword) {
+                                    $keywordQuery->orWhere('content', 'like', '%'.$keyword.'%');
+                                }
+                            });
                     });
             })
             ->count();

@@ -190,7 +190,16 @@ class SendMessengerMessageAction
             ['color' => Tag::DEFAULTS[Tag::DEFAULT_CONSULTING], 'is_default' => true],
         );
 
-        $conversation->tags()->sync([$tag->id]);
+        $statusTagIds = Tag::query()
+            ->whereIn('name', array_keys(Tag::DEFAULTS))
+            ->pluck('id')
+            ->all();
+
+        if ($statusTagIds) {
+            $conversation->tags()->detach($statusTagIds);
+        }
+
+        $conversation->tags()->syncWithoutDetaching([$tag->id]);
         $conversation->load('tags');
     }
 

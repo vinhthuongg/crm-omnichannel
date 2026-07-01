@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationService;
+use Modules\Conversation\Services\ConversationIntentService;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Conversation\Support\ConversationStatus;
@@ -25,6 +26,7 @@ class MessageService
         private readonly OutboundMessageService $outbound,
         private readonly WorkShiftService $shifts,
         private readonly ConversationService $conversations,
+        private readonly ConversationIntentService $intents,
     ) {
     }
 
@@ -75,6 +77,7 @@ class MessageService
             return [$message, $conversation, $customer];
         });
 
+        $this->intents->classifyMessage($message);
         $this->broadcastNewMessage($message);
         $this->queueCustomerVectorRefresh($customer);
 
@@ -155,6 +158,7 @@ class MessageService
             return $stored;
         });
 
+        $this->intents->classifyMessage($stored);
         $this->broadcastNewMessage($stored);
         $this->queueCustomerVectorRefresh($conversation->customer);
 
@@ -298,7 +302,16 @@ class MessageService
             ['color' => $color, 'is_default' => array_key_exists($name, Tag::DEFAULTS)],
         );
 
-        $conversation->tags()->sync([$tag->id]);
+        $statusTagIds = Tag::query()
+            ->whereIn('name', array_keys(Tag::DEFAULTS))
+            ->pluck('id')
+            ->all();
+
+        if ($statusTagIds) {
+            $conversation->tags()->detach($statusTagIds);
+        }
+
+        $conversation->tags()->syncWithoutDetaching([$tag->id]);
         $conversation->load('tags');
     }
 }
