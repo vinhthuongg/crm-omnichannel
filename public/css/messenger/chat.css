@@ -1053,6 +1053,12 @@ body.messenger-page .composer-suggestion-button:hover {
     color: var(--chat-blue);
 }
 
+body.messenger-page .composer-suggestion-loading {
+    color: #667085;
+    font-size: 12px;
+    padding: 3px 0;
+}
+
 body.messenger-page .tag-manager-modal[hidden] {
     display: none;
 }

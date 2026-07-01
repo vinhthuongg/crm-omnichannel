@@ -28,4 +28,10 @@ return [
         'human_group_id' => env('TEXT_HUMAN_GROUP_ID'),
         'webhook_secret' => env('TEXT_WEBHOOK_SECRET'),
     ],
+    'nim' => [
+        'api_key' => env('NVIDIA_NIM_API_KEY', env('NVIDIA_API_KEY')),
+        'base_url' => env('NVIDIA_NIM_BASE_URL', 'https://integrate.api.nvidia.com/v1'),
+        'model' => env('NVIDIA_NIM_CHAT_MODEL', 'meta/llama-3.1-70b-instruct'),
+        'timeout' => (int) env('NVIDIA_NIM_TIMEOUT', 12),
+    ],
 ];

@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('conversations/{conversation}', [MessengerController::class, 'destroy'])->name('crm.conversations.destroy');
         Route::get('conversations/{conversation}/messages/stream', [MessengerController::class, 'messageStream'])->name('crm.conversations.messages.stream');
         Route::get('conversations/{conversation}/messages', [MessengerController::class, 'messages'])->name('crm.conversations.messages.index');
+        Route::get('conversations/{conversation}/reply-suggestions', [MessengerController::class, 'replySuggestions'])->name('crm.conversations.reply-suggestions');
         Route::delete('conversations/{conversation}/messages', [MessengerController::class, 'clearMessages'])->name('crm.conversations.messages.clear');
         Route::get('conversations/{conversation}', [MessengerController::class, 'show'])->name('crm.conversations.show');
         Route::post('conversations/{conversation}/read', [MessengerController::class, 'markRead'])->name('crm.conversations.read');

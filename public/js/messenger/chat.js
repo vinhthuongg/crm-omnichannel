@@ -201,6 +201,7 @@
         uploaded: [],
     };
     let olderMessagesLoading = false;
+    let suggestionRequestId = 0;
 
     function readJsonDataset(value, fallback) {
         try {
@@ -325,7 +326,30 @@
         return [...new Set(suggestions)].slice(0, 4);
     }
 
-    function renderReplySuggestions() {
+    async function fetchNimReplySuggestions(requestId) {
+        const url = composer?.dataset.suggestionsUrl || '';
+
+        if (!url) {
+            return [];
+        }
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok || requestId !== suggestionRequestId) {
+            return [];
+        }
+
+        const payload = await response.json();
+
+        return Array.isArray(payload.data?.suggestions) ? payload.data.suggestions : [];
+    }
+
+    function paintReplySuggestions(suggestions, loading = false) {
         const box = document.querySelector('[data-reply-suggestions]');
         const list = document.querySelector('[data-reply-suggestion-list]');
 
@@ -334,11 +358,38 @@
             return;
         }
 
-        const suggestions = replySuggestionsForContext(currentConversationContext());
+        if (loading) {
+            box.classList.remove('is-empty');
+            list.innerHTML = '<span class="composer-suggestion-loading">NIM dang goi y...</span>';
+            return;
+        }
+
         box.classList.toggle('is-empty', suggestions.length === 0);
         list.innerHTML = suggestions.map(function (suggestion) {
             return `<button type="button" class="composer-suggestion-button" data-reply-suggestion="${escapeHtml(suggestion)}">${escapeHtml(suggestion)}</button>`;
         }).join('');
+    }
+
+    async function renderReplySuggestions() {
+        const requestId = ++suggestionRequestId;
+        const localSuggestions = replySuggestionsForContext(currentConversationContext());
+
+        paintReplySuggestions(localSuggestions, true);
+
+        try {
+            const nimSuggestions = await fetchNimReplySuggestions(requestId);
+
+            if (requestId !== suggestionRequestId) {
+                return;
+            }
+
+            paintReplySuggestions(nimSuggestions.length ? nimSuggestions : localSuggestions);
+        } catch (error) {
+            if (requestId === suggestionRequestId) {
+                paintReplySuggestions(localSuggestions);
+            }
+            console.warn('NIM reply suggestions unavailable:', error);
+        }
     }
 
     function applyReplySuggestion(text) {
@@ -1151,6 +1202,7 @@
 
         composer.action = conversation.send_url;
         composer.dataset.uploadUrl = conversation.attachments_url;
+        composer.dataset.suggestionsUrl = conversation.reply_suggestions_url || '';
         updateConversationTags(conversation.tags_url, conversation.tags || []);
         const channelInput = composer.querySelector('input[name="channel"]');
 

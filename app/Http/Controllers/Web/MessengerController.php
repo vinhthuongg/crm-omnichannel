@@ -6,6 +6,7 @@ use App\Actions\Web\GetMessengerViewDataAction;
 use App\Actions\Web\SendMessengerMessageAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\SendMessengerMessageRequest;
+use App\Services\NimReplySuggestionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -136,6 +137,18 @@ class MessengerController extends Controller
         ]);
     }
 
+    public function replySuggestions(Request $request, Conversation $conversation, NimReplySuggestionService $suggestions): JsonResponse
+    {
+        $this->authorizeConversationAccess($request, $conversation);
+
+        return response()->json([
+            'data' => [
+                'suggestions' => $suggestions->suggest($conversation),
+                'provider' => trim((string) config('services.nim.api_key')) !== '' ? 'nvidia-nim' : 'local',
+            ],
+        ]);
+    }
+
     private function conversationPayload(Conversation $conversation, $messages, bool $hasOlderMessages, string $activeChannel, $user): array
     {
         $conversation->refresh();
@@ -174,6 +187,7 @@ class MessengerController extends Controller
                 'messages_url' => route('crm.conversations.messages.index', $conversation),
                 'read_url' => route('crm.conversations.read', $conversation),
                 'stream_url' => route('crm.conversations.messages.stream', $conversation),
+                'reply_suggestions_url' => route('crm.conversations.reply-suggestions', $conversation),
                 'send_url' => route('crm.conversations.messages.store', $conversation),
                 'delete_url' => route('crm.conversations.destroy', $conversation),
                 'clear_messages_url' => route('crm.conversations.messages.clear', $conversation),
