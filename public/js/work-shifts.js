@@ -1,28 +1,48 @@
 (function () {
     const requiredAgents = 2;
 
-    function selectedCount(select) {
+    function selectedCount(form) {
+        const checkboxes = Array.from(form.querySelectorAll('[data-agent-checkbox]'));
+
+        if (checkboxes.length > 0) {
+            return checkboxes.filter((checkbox) => checkbox.checked).length;
+        }
+
+        const select = form.querySelector('[data-agent-select]');
+
         return Array.from(select?.selectedOptions || []).length;
     }
 
     function updateAgentCount(form) {
-        const select = form.querySelector('[data-agent-select]');
         const count = form.querySelector('[data-agent-count]');
 
-        if (!select || !count) {
+        if (!count) {
             return;
         }
 
-        count.textContent = `${selectedCount(select)}/${requiredAgents}`;
+        count.textContent = `${selectedCount(form)}/${requiredAgents}`;
+    }
+
+    function syncAgentAvailability(form) {
+        const checkboxes = Array.from(form.querySelectorAll('[data-agent-checkbox]'));
+
+        if (checkboxes.length === 0) {
+            return;
+        }
+
+        const limitReached = selectedCount(form) >= requiredAgents;
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.disabled = limitReached && !checkbox.checked;
+        });
     }
 
     function validateForm(form) {
-        const select = form.querySelector('[data-agent-select]');
         const startsAt = form.querySelector('[name="starts_at"]');
         const endsAt = form.querySelector('[name="ends_at"]');
         const message = form.querySelector('[data-form-message]');
         const submit = form.querySelector('button[type="submit"]');
-        const agentCount = selectedCount(select);
+        const agentCount = selectedCount(form);
         let error = '';
 
         if (agentCount !== requiredAgents) {
@@ -48,10 +68,12 @@
 
     document.querySelectorAll('[data-shift-form]').forEach(function (form) {
         updateAgentCount(form);
+        syncAgentAvailability(form);
         validateForm(form);
 
         form.addEventListener('change', function () {
             updateAgentCount(form);
+            syncAgentAvailability(form);
             validateForm(form);
         });
 

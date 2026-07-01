@@ -529,6 +529,126 @@ body.work-shifts-page {
     gap: 10px;
 }
 
+.shift-time-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.shift-time-field {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    padding: 12px;
+}
+
+.shift-time-field small {
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.shift-agent-picker {
+    display: grid;
+    gap: 10px;
+}
+
+.shift-agent-picker > header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.shift-agent-picker > header span,
+.shift-agent-picker > header small {
+    display: block;
+}
+
+.shift-agent-picker > header span {
+    color: #374151;
+    font-size: 13px;
+}
+
+.shift-agent-picker > header small {
+    margin-top: 3px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.shift-agent-picker > header b {
+    min-width: 42px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 5px 10px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.shift-agent-options {
+    max-height: 300px;
+    display: grid;
+    gap: 8px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.shift-agent-option {
+    position: relative;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: 18px 38px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px !important;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px;
+    color: #1f2937 !important;
+    cursor: pointer;
+}
+
+.shift-agent-option:has(input:checked) {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.shift-agent-option:has(input:disabled:not(:checked)) {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.shift-agent-option input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+.shift-agent-option strong,
+.shift-agent-option small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shift-agent-option strong {
+    color: #111827;
+    font-size: 13px;
+}
+
+.shift-agent-option small,
+.shift-agent-option em {
+    color: #6b7280;
+    font-size: 12px;
+    font-style: normal;
+}
+
+.shift-agent-option em {
+    white-space: nowrap;
+}
+
 .work-shifts-toggle {
     width: fit-content;
     grid-template-columns: auto auto;
@@ -665,7 +785,8 @@ body.work-shifts-page {
     }
 
     .work-shifts-hero nav,
-    .work-shifts-fields {
+    .work-shifts-fields,
+    .shift-time-grid {
         display: grid;
         grid-template-columns: 1fr;
         width: 100%;
@@ -743,6 +864,14 @@ body.work-shifts-page {
 
     .work-shifts-row-actions {
         grid-template-columns: 1fr;
+    }
+
+    .shift-agent-option {
+        grid-template-columns: 18px 34px minmax(0, 1fr);
+    }
+
+    .shift-agent-option em {
+        grid-column: 3;
     }
 }
 
