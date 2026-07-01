@@ -91,32 +91,29 @@ class FacebookThreadControlService
 
         $targetAppId = $this->resolveBotTargetAppId($page);
 
-        if ($targetAppId === '') {
-            Log::warning('Facebook pass_thread_control skipped because bot receiver app id could not be resolved', [
-                'conversation_id' => $conversation->id,
-                'facebook_page_id' => $conversation->facebook_page_id,
-            ]);
+        $payload = [
+            'recipient' => ['id' => $psid],
+            'metadata' => $metadata ?: 'CRM inactivity timeout, returning thread to bot',
+            'access_token' => $page->page_access_token,
+        ];
 
-            return false;
+        if ($targetAppId !== '') {
+            $payload['target_app_id'] = $targetAppId;
         }
 
         $response = $this->http
             ->connectTimeout(3)
             ->timeout(8)
             ->asJson()
-            ->post($this->graphUrl('/me/pass_thread_control'), [
-                'recipient' => ['id' => $psid],
-                'target_app_id' => $targetAppId,
-                'metadata' => $metadata ?: 'CRM inactivity timeout, returning thread to bot',
-                'access_token' => $page->page_access_token,
-            ]);
+            ->post($this->graphUrl('/me/pass_thread_control'), $payload);
 
         if ($response->successful()) {
             Log::info('Facebook thread control passed back to bot', [
                 'conversation_id' => $conversation->id,
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'psid' => $psid,
-                'target_app_id' => $targetAppId,
+                'target_app_id' => $targetAppId ?: null,
+                'fallback_receiver' => $targetAppId === '' ? 'primary_receiver' : null,
             ]);
 
             return true;
@@ -126,7 +123,8 @@ class FacebookThreadControlService
             'conversation_id' => $conversation->id,
             'facebook_page_id' => $conversation->facebook_page_id,
             'psid' => $psid,
-            'target_app_id' => $targetAppId,
+            'target_app_id' => $targetAppId ?: null,
+            'fallback_receiver' => $targetAppId === '' ? 'primary_receiver' : null,
             'status' => $response->status(),
             'body' => $response->body(),
         ]);
