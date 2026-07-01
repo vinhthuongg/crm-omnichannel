@@ -6,7 +6,7 @@ use App\Actions\Web\GetMessengerViewDataAction;
 use App\Actions\Web\SendMessengerMessageAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\SendMessengerMessageRequest;
-use App\Services\NimReplySuggestionService;
+use App\Services\ConversationReplySuggestionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -137,14 +137,24 @@ class MessengerController extends Controller
         ]);
     }
 
-    public function replySuggestions(Request $request, Conversation $conversation, NimReplySuggestionService $suggestions): JsonResponse
+    public function replySuggestions(Request $request, Conversation $conversation, ConversationReplySuggestionService $suggestions): JsonResponse
     {
         $this->authorizeConversationAccess($request, $conversation);
+        $messageId = $suggestions->latestMessageId($conversation);
+        $cached = $suggestions->cached($conversation, $messageId);
+        $forceRefresh = $request->boolean('refresh');
+
+        if ($forceRefresh || (! $cached && $suggestions->hasProvider())) {
+            $suggestions->queue($conversation, $messageId, $forceRefresh);
+        }
 
         return response()->json([
             'data' => [
-                'suggestions' => $suggestions->suggest($conversation),
-                'provider' => trim((string) config('services.nim.api_key')) !== '' ? 'nvidia-nim' : 'local',
+                'suggestions' => $cached ? (array) $cached->suggestions : [],
+                'provider' => $cached?->provider ?? 'local',
+                'cached' => (bool) $cached,
+                'pending' => ! $cached && (bool) $messageId && $suggestions->hasProvider(),
+                'message_id' => $messageId,
             ],
         ]);
     }

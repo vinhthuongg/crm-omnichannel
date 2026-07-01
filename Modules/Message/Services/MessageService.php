@@ -3,6 +3,7 @@
 namespace Modules\Message\Services;
 
 use App\Models\User;
+use App\Services\ConversationReplySuggestionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
@@ -80,6 +81,7 @@ class MessageService
         $this->intents->classifyMessage($message);
         $this->broadcastNewMessage($message);
         $this->queueCustomerVectorRefresh($customer);
+        $this->queueReplySuggestions($conversation, $message);
 
         return $message;
     }
@@ -269,6 +271,21 @@ class MessageService
             } catch (\Throwable $exception) {
                 Log::warning('Customer vector index refresh failed', [
                     'customer_id' => $customer->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
+    }
+
+    private function queueReplySuggestions(Conversation $conversation, Message $message): void
+    {
+        app()->terminating(function () use ($conversation, $message): void {
+            try {
+                app(ConversationReplySuggestionService::class)->queue($conversation, (int) $message->id);
+            } catch (\Throwable $exception) {
+                Log::warning('Reply suggestion queue failed', [
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
                     'error' => $exception->getMessage(),
                 ]);
             }

@@ -202,6 +202,7 @@
     };
     let olderMessagesLoading = false;
     let suggestionRequestId = 0;
+    const replySuggestionCache = new Map();
 
     function readJsonDataset(value, fallback) {
         try {
@@ -326,14 +327,27 @@
         return [...new Set(suggestions)].slice(0, 4);
     }
 
-    async function fetchNimReplySuggestions(requestId) {
+    function replySuggestionCacheKey() {
+        return [
+            composer?.dataset.suggestionsUrl || '',
+            timeline?.dataset.lastMessageId || '0',
+        ].join('#');
+    }
+
+    async function fetchNimReplySuggestions(requestId, refresh = false) {
         const url = composer?.dataset.suggestionsUrl || '';
 
         if (!url) {
-            return [];
+            return {suggestions: [], pending: false};
         }
 
-        const response = await fetch(url, {
+        const endpoint = new URL(url, window.location.origin);
+
+        if (refresh) {
+            endpoint.searchParams.set('refresh', '1');
+        }
+
+        const response = await fetch(endpoint.toString(), {
             headers: {
                 Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -341,26 +355,26 @@
         });
 
         if (!response.ok || requestId !== suggestionRequestId) {
-            return [];
+            return {suggestions: [], pending: false};
         }
 
-        const payload = await response.json();
+        const payload = await response.json().catch(() => ({}));
+        const data = payload.data || {};
 
-        return Array.isArray(payload.data?.suggestions) ? payload.data.suggestions : [];
+        return {
+            suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+            pending: Boolean(data.pending),
+            cached: Boolean(data.cached),
+            messageId: data.message_id || null,
+        };
     }
 
-    function paintReplySuggestions(suggestions, loading = false) {
+    function paintReplySuggestions(suggestions) {
         const box = document.querySelector('[data-reply-suggestions]');
         const list = document.querySelector('[data-reply-suggestion-list]');
 
         if (!box || !list || !composer || composer.dataset.canReply !== '1') {
             box?.classList.add('is-empty');
-            return;
-        }
-
-        if (loading) {
-            box.classList.remove('is-empty');
-            list.innerHTML = '<span class="composer-suggestion-loading">NIM dang goi y...</span>';
             return;
         }
 
@@ -370,23 +384,39 @@
         }).join('');
     }
 
-    async function renderReplySuggestions() {
+    async function renderReplySuggestions(options = {}) {
         const requestId = ++suggestionRequestId;
         const localSuggestions = replySuggestionsForContext(currentConversationContext());
+        const key = replySuggestionCacheKey();
+        const cachedSuggestions = replySuggestionCache.get(key);
 
-        paintReplySuggestions(localSuggestions, true);
+        paintReplySuggestions(cachedSuggestions || localSuggestions);
 
         try {
-            const nimSuggestions = await fetchNimReplySuggestions(requestId);
+            const result = await fetchNimReplySuggestions(requestId, Boolean(options.refresh));
 
             if (requestId !== suggestionRequestId) {
                 return;
             }
 
-            paintReplySuggestions(nimSuggestions.length ? nimSuggestions : localSuggestions);
+            if (result.suggestions.length) {
+                replySuggestionCache.set(key, result.suggestions);
+                paintReplySuggestions(result.suggestions);
+                return;
+            }
+
+            paintReplySuggestions(cachedSuggestions || localSuggestions);
+
+            if (result.pending && Number(options.attempt || 0) < 2) {
+                window.setTimeout(function () {
+                    if (requestId === suggestionRequestId) {
+                        renderReplySuggestions({attempt: Number(options.attempt || 0) + 1});
+                    }
+                }, 2500);
+            }
         } catch (error) {
             if (requestId === suggestionRequestId) {
-                paintReplySuggestions(localSuggestions);
+                paintReplySuggestions(cachedSuggestions || localSuggestions);
             }
             console.warn('NIM reply suggestions unavailable:', error);
         }
@@ -2779,7 +2809,7 @@
 
     document.querySelector('[data-refresh-suggestions]')?.addEventListener('click', function (event) {
         event.preventDefault();
-        renderReplySuggestions();
+        renderReplySuggestions({refresh: true});
     });
 
     document.querySelector('[data-reply-suggestion-list]')?.addEventListener('click', function (event) {

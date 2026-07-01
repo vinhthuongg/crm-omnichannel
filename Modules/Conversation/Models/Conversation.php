@@ -88,6 +88,11 @@ class Conversation extends Model
         return $this->hasOne(TextConversationLink::class);
     }
 
+    public function replySuggestions(): HasMany
+    {
+        return $this->hasMany(ConversationReplySuggestion::class);
+    }
+
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class);
