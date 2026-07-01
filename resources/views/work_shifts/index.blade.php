@@ -104,7 +104,7 @@
                             <span class="shift-status-pill {{ $isBusy ? 'is-busy' : '' }}">{{ $isBusy ? 'Can giam tai' : 'San sang' }}</span>
                         </article>
                     @empty
-                        <article class="work-shifts-empty"><h3>Chua co nhan vien trong ca</h3><p>Moi ca can dung 2 nhan vien CSKH de nhan khach moi.</p></article>
+                        <article class="work-shifts-empty"><h3>Chua co nhan vien trong ca</h3><p>Moi ca can toi thieu 1 nhan vien CSKH de nhan khach moi.</p></article>
                     @endforelse
                 </div>
             </section>
@@ -140,7 +140,7 @@
                     @csrf
                     <header><div><p>Ca moi</p><h2>Tao lich truc</h2></div><button type="button" class="work-shift-dialog-close" data-close-shift-dialog aria-label="Dong">×</button></header>
                     @include('work_shifts.form_fields', ['shift' => null, 'agents' => $agents])
-                    <footer><small data-form-message>Chon dung 2 nhan vien cho moi ca truc.</small><button type="submit">Tao ca truc</button></footer>
+                    <footer><small data-form-message>Chon 1 den 2 nhan vien cho moi ca truc.</small><button type="submit">Tao ca truc</button></footer>
                 </form>
             </dialog>
 
@@ -151,7 +151,7 @@
                         @method('PUT')
                         <header><div><p>Chinh sua</p><h2>{{ $shift->name ?: 'Ca truc #'.$shift->id }}</h2></div><button type="button" class="work-shift-dialog-close" data-close-shift-dialog aria-label="Dong">×</button></header>
                         @include('work_shifts.form_fields', ['shift' => $shift, 'agents' => $agents])
-                        <footer><small data-form-message>Chon dung 2 nhan vien cho moi ca truc.</small><button type="submit">Luu thay doi</button></footer>
+                        <footer><small data-form-message>Chon 1 den 2 nhan vien cho moi ca truc.</small><button type="submit">Luu thay doi</button></footer>
                     </form>
                 </dialog>
             @endforeach

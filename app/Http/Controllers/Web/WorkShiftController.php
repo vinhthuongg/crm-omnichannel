@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Modules\Conversation\Models\WorkShift;
 use Modules\Conversation\Support\ConversationStatus;
@@ -54,12 +55,7 @@ class WorkShiftController extends Controller
         abort_unless($request->user()->can('user.manage'), 403);
 
         $validated = $this->validated($request);
-        $shift = WorkShift::query()->create([
-            'name' => $validated['name'] ?? null,
-            'starts_at' => $validated['starts_at'],
-            'ends_at' => $validated['ends_at'],
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+        $shift = WorkShift::query()->create($this->shiftAttributes($validated, $request->boolean('is_active', true)));
         $shift->agents()->sync($validated['agent_ids']);
 
         return back()->with('status', 'Da tao ca truc.');
@@ -70,12 +66,7 @@ class WorkShiftController extends Controller
         abort_unless($request->user()->can('user.manage'), 403);
 
         $validated = $this->validated($request);
-        $workShift->update([
-            'name' => $validated['name'] ?? null,
-            'starts_at' => $validated['starts_at'],
-            'ends_at' => $validated['ends_at'],
-            'is_active' => $request->boolean('is_active'),
-        ]);
+        $workShift->update($this->shiftAttributes($validated, $request->boolean('is_active')));
         $workShift->agents()->sync($validated['agent_ids']);
 
         return back()->with('status', 'Da cap nhat ca truc.');
@@ -94,11 +85,35 @@ class WorkShiftController extends Controller
     {
         return $request->validate([
             'name' => ['nullable', 'string', 'max:120'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
-            'agent_ids' => ['required', 'array', 'size:2'],
-            'agent_ids.*' => ['integer', 'exists:users,id'],
+            'starts_time' => ['required', 'date_format:H:i'],
+            'ends_time' => ['required', 'date_format:H:i'],
+            'agent_ids' => ['required', 'array', 'min:1', 'max:2'],
+            'agent_ids.*' => ['integer', 'distinct', 'exists:users,id'],
         ]);
+    }
+
+    private function shiftAttributes(array $validated, bool $isActive): array
+    {
+        $startsAt = $this->timeOnSystemDate($validated['starts_time']);
+        $endsAt = $this->timeOnSystemDate($validated['ends_time']);
+
+        if ($endsAt->lessThanOrEqualTo($startsAt)) {
+            $endsAt->addDay();
+        }
+
+        return [
+            'name' => $validated['name'] ?? null,
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
+            'is_active' => $isActive,
+        ];
+    }
+
+    private function timeOnSystemDate(string $time): Carbon
+    {
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+
+        return now()->startOfDay()->setTime($hour, $minute);
     }
 
     private function containsTime(WorkShift $shift, $time): bool

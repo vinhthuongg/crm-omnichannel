@@ -752,7 +752,8 @@ body.work-shifts-page {
 }
 
 .work-shift-form.is-invalid select,
-.work-shift-form.is-invalid input[name="ends_at"] {
+.work-shift-form.is-invalid input[name="starts_time"],
+.work-shift-form.is-invalid input[name="ends_time"] {
     border-color: #ef4444;
 }
 

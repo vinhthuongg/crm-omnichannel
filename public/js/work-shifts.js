@@ -1,5 +1,6 @@
 (function () {
-    const requiredAgents = 2;
+    const minAgents = 1;
+    const maxAgents = 2;
 
     function selectedCount(form) {
         const checkboxes = Array.from(form.querySelectorAll('[data-agent-checkbox]'));
@@ -20,7 +21,7 @@
             return;
         }
 
-        count.textContent = `${selectedCount(form)}/${requiredAgents}`;
+        count.textContent = `${selectedCount(form)}/${maxAgents}`;
     }
 
     function syncAgentAvailability(form) {
@@ -30,7 +31,7 @@
             return;
         }
 
-        const limitReached = selectedCount(form) >= requiredAgents;
+        const limitReached = selectedCount(form) >= maxAgents;
 
         checkboxes.forEach(function (checkbox) {
             checkbox.disabled = limitReached && !checkbox.checked;
@@ -38,25 +39,25 @@
     }
 
     function validateForm(form) {
-        const startsAt = form.querySelector('[name="starts_at"]');
-        const endsAt = form.querySelector('[name="ends_at"]');
+        const startsAt = form.querySelector('[name="starts_time"]');
+        const endsAt = form.querySelector('[name="ends_time"]');
         const message = form.querySelector('[data-form-message]');
         const submit = form.querySelector('button[type="submit"]');
         const agentCount = selectedCount(form);
         let error = '';
 
-        if (agentCount !== requiredAgents) {
-            error = 'Moi ca truc can dung 2 nhan vien.';
+        if (agentCount < minAgents || agentCount > maxAgents) {
+            error = 'Moi ca truc can tu 1 den 2 nhan vien.';
         }
 
-        if (!error && startsAt?.value && endsAt?.value && new Date(endsAt.value) <= new Date(startsAt.value)) {
-            error = 'Thoi gian ket thuc phai sau thoi gian bat dau.';
+        if (!error && (!startsAt?.value || !endsAt?.value)) {
+            error = 'Chon gio bat dau va gio ket thuc.';
         }
 
         form.classList.toggle('is-invalid', Boolean(error));
 
         if (message) {
-            message.textContent = error || 'Chon dung 2 nhan vien cho moi ca truc.';
+            message.textContent = error || 'Chon 1 den 2 nhan vien cho moi ca truc.';
         }
 
         if (submit) {
