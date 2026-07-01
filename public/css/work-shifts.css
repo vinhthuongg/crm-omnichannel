@@ -738,6 +738,17 @@ body.work-shifts-page {
     white-space: nowrap;
 }
 
+.shift-agent-empty {
+    margin: 0;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    color: #6b7280;
+    padding: 14px;
+    font-size: 13px;
+    text-align: center;
+}
+
 .work-shifts-toggle {
     width: fit-content;
     grid-template-columns: auto auto;

@@ -27,7 +27,7 @@
         <b data-agent-count>{{ $shift ? $shift->agents->count() : 0 }}/2</b>
     </header>
     <div class="shift-agent-options">
-        @foreach($agents as $agent)
+        @forelse($agents as $agent)
             @php($isSelected = (bool) $shift?->agents->contains('id', $agent->id))
             <label class="shift-agent-option">
                 <input
@@ -44,7 +44,9 @@
                 </span>
                 <em>{{ (int) ($agent->active_conversations_count ?? 0) }} hoi thoai</em>
             </label>
-        @endforeach
+        @empty
+            <p class="shift-agent-empty">Tat ca nhan vien dang nam trong ca truc dang bat.</p>
+        @endforelse
     </div>
 </section>
 

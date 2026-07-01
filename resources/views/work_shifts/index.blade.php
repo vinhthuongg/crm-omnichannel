@@ -178,7 +178,7 @@
                 <form class="work-shift-dialog-card work-shift-form" method="POST" action="{{ route('work-shifts.store') }}" data-shift-form>
                     @csrf
                     <header><div><p>Ca moi</p><h2>Tao lich truc</h2></div><button type="button" class="work-shift-dialog-close" data-close-shift-dialog aria-label="Dong">x</button></header>
-                    @include('work_shifts.form_fields', ['shift' => null, 'agents' => $agents])
+                    @include('work_shifts.form_fields', ['shift' => null, 'agents' => $createAgents])
                     <footer><small data-form-message>Chon 1 den 2 nhan vien cho moi ca truc.</small><button type="submit">Tao ca truc</button></footer>
                 </form>
             </dialog>
@@ -189,7 +189,12 @@
                         @csrf
                         @method('PUT')
                         <header><div><p>Chinh sua</p><h2>{{ $shift->name ?: 'Ca truc #'.$shift->id }}</h2></div><button type="button" class="work-shift-dialog-close" data-close-shift-dialog aria-label="Dong">x</button></header>
-                        @include('work_shifts.form_fields', ['shift' => $shift, 'agents' => $agents])
+                        @include('work_shifts.form_fields', [
+                            'shift' => $shift,
+                            'agents' => $agents
+                                ->filter(fn ($agent) => ! $busyAgentIds->contains($agent->id) || $shift->agents->contains('id', $agent->id))
+                                ->values(),
+                        ])
                         <footer><small data-form-message>Chon 1 den 2 nhan vien cho moi ca truc.</small><button type="submit">Luu thay doi</button></footer>
                     </form>
                 </dialog>

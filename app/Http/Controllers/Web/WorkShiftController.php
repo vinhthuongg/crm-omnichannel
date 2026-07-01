@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\WorkShift;
@@ -47,6 +48,8 @@ class WorkShiftController extends Controller
             ->filter(fn (WorkShift $shift): bool => $this->matchesManageStatus($shift, $manageStatus, $now))
             ->values();
         $staffMembers = $this->staffMembersFor($selectedShift);
+        $agents = $this->agents();
+        $busyAgentIds = $this->busyAgentIds();
 
         return view('work_shifts.index', [
             'currentUser' => $user,
@@ -63,13 +66,11 @@ class WorkShiftController extends Controller
             'staffMembers' => $staffMembers,
             'manageStatus' => $manageStatus,
             'staffMetrics' => $this->staffMetrics($selectedShift),
-            'agents' => User::role(['CSKH', 'User'])
-                ->where('is_active', true)
-                ->withCount([
-                    'assignedConversations as active_conversations_count' => fn (Builder $query) => $query->whereIn('status', ConversationStatus::ACTIVE),
-                ])
-                ->orderBy('name')
-                ->get(),
+            'agents' => $agents,
+            'createAgents' => $agents
+                ->reject(fn (User $agent): bool => $busyAgentIds->contains($agent->id))
+                ->values(),
+            'busyAgentIds' => $busyAgentIds,
         ]);
     }
 
@@ -78,6 +79,7 @@ class WorkShiftController extends Controller
         abort_unless($request->user()->can('user.manage'), 403);
 
         $validated = $this->validated($request);
+        $this->ensureAgentsAvailable($validated['agent_ids']);
         $shift = WorkShift::query()->create($this->shiftAttributes($validated, $request->boolean('is_active', true)));
         $shift->agents()->sync($validated['agent_ids']);
 
@@ -89,6 +91,7 @@ class WorkShiftController extends Controller
         abort_unless($request->user()->can('user.manage'), 403);
 
         $validated = $this->validated($request);
+        $this->ensureAgentsAvailable($validated['agent_ids'], $workShift);
         $workShift->update($this->shiftAttributes($validated, $request->boolean('is_active')));
         $workShift->agents()->sync($validated['agent_ids']);
 
@@ -232,6 +235,45 @@ class WorkShiftController extends Controller
             'finished' => $finished,
             'total' => $waiting + $handling + $finished,
         ];
+    }
+
+    private function agents()
+    {
+        return User::role(['CSKH', 'User'])
+            ->where('is_active', true)
+            ->withCount([
+                'assignedConversations as active_conversations_count' => fn (Builder $query) => $query->whereIn('status', ConversationStatus::ACTIVE),
+            ])
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function busyAgentIds()
+    {
+        return WorkShift::query()
+            ->where('is_active', true)
+            ->with('agents:id')
+            ->get()
+            ->flatMap(fn (WorkShift $shift) => $shift->agents->pluck('id'))
+            ->unique()
+            ->values();
+    }
+
+    private function ensureAgentsAvailable(array $agentIds, ?WorkShift $currentShift = null): void
+    {
+        $busyShift = WorkShift::query()
+            ->where('is_active', true)
+            ->when($currentShift, fn (Builder $query) => $query->where('id', '!=', $currentShift->id))
+            ->whereHas('agents', fn (Builder $query) => $query->whereIn('users.id', $agentIds))
+            ->first();
+
+        if (! $busyShift) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'agent_ids' => 'Nhan vien da nam trong ca truc dang bat. Vui long chon nhan vien khac.',
+        ]);
     }
 
     private function navItems(User $user): array
