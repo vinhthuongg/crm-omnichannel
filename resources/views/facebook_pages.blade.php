@@ -32,8 +32,34 @@
             <p class="field-error">{{ $errors->first('facebook') ?: session('facebook_pages_error') }}</p>
         @endif
 
-        @if($availablePages)
+        @php($availablePageIds = collect($availablePages)->map(fn ($page) => $page->id)->all())
+        @php($connectedOnlyPages = $connectedPages->reject(fn ($page) => in_array($page->page_id, $availablePageIds, true)))
+
+        @if($availablePages || $connectedOnlyPages->isNotEmpty())
             <div class="facebook-page-list">
+                @foreach($connectedOnlyPages as $connectedPage)
+                    <article class="facebook-page-card">
+                        <span class="thread-avatar large">
+                            @if($connectedPage->page_avatar)
+                                <img src="{{ $connectedPage->page_avatar }}" alt="{{ $connectedPage->page_name }}">
+                            @else
+                                {{ strtoupper(substr($connectedPage->page_name, 0, 1)) }}
+                            @endif
+                        </span>
+                        <div>
+                            <h2>{{ $connectedPage->page_name }}</h2>
+                            <p>{{ $connectedPage->page_id }}</p>
+                            <p>Da ket noi</p>
+                        </div>
+                        <form method="POST" action="{{ route('facebook.pages.sync-messages', $connectedPage) }}">
+                            @csrf
+                            <button type="submit">
+                                Dong bo tin nhan
+                            </button>
+                        </form>
+                    </article>
+                @endforeach
+
                 @foreach($availablePages as $page)
                     @php($connected = $connectedPages->has($page->id))
                     <article class="facebook-page-card">

@@ -43,6 +43,7 @@ class MessageResource extends JsonResource
             'external_message_id' => $this->external_message_id,
             'client_message_id' => $this->client_message_id,
             'outbound_status' => $this->outbound_status,
+            'outbound_error' => $this->outbound_error,
             'status' => $this->outbound_status && $this->outbound_status !== 'sent' ? $this->outbound_status : null,
             'is_recalled' => (bool) $this->recalled_at,
             'facebook_recalled' => false,

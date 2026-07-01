@@ -1456,7 +1456,13 @@
         const status = String(message.outbound_status || message.status || '').toLowerCase();
 
         if (status === 'failed') {
-            return 'gui loi';
+            const error = String(message.outbound_error || '').trim();
+
+            if (!error) {
+                return 'gui loi';
+            }
+
+            return `gui loi: ${error.slice(0, 120)}`;
         }
 
         return '';
