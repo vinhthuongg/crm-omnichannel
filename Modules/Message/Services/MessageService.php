@@ -94,6 +94,8 @@ class MessageService
     {
         $message = (array) data_get($event, 'message', []);
         $externalMessageId = (string) data_get($message, 'mid', '');
+        $appId = (string) data_get($message, 'app_id', '');
+        $currentMessengerAppId = (string) config('services.facebook.messenger_app_id', '');
 
         if ($externalMessageId !== '') {
             $existing = Message::query()
@@ -167,7 +169,10 @@ class MessageService
         $this->intents->classifyMessage($stored);
         $this->broadcastNewMessage($stored);
         $this->queueCustomerVectorRefresh($conversation->customer);
-        $this->queueEchoQuickReplyFallback($conversation, $stored, (array) data_get($metadataAttachment, 'payload'));
+
+        if ($appId === '' || $appId !== $currentMessengerAppId) {
+            $this->queueEchoQuickReplyFallback($conversation, $stored, (array) data_get($metadataAttachment, 'payload'));
+        }
 
         return $stored;
     }
@@ -301,7 +306,10 @@ class MessageService
     {
         $content = trim((string) $echoMessage->content);
 
-        if ($content === '' || ! $this->isBotEcho($metadata)) {
+        if ($content === ''
+            || str_starts_with((string) $echoMessage->client_message_id, 'echo_qr_')
+            || $this->isEchoQuickReplyFallback($metadata)
+            || ! $this->isBotEcho($metadata)) {
             return;
         }
 
@@ -363,6 +371,13 @@ class MessageService
         }
 
         return (bool) data_get($raw, 'message.is_echo', false);
+    }
+
+    private function isEchoQuickReplyFallback(array $metadata): bool
+    {
+        return (bool) data_get($metadata, 'raw.message.quick_replies')
+            || (string) data_get($metadata, 'raw.message.metadata', '') === 'echo_quick_reply_fallback'
+            || (string) data_get($metadata, 'name', '') === 'echo_quick_reply_fallback';
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void

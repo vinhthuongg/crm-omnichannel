@@ -101,6 +101,12 @@ class OutboundMessageService
                 continue;
             }
 
+            if (empty($attachment['facebook_attachment_id'])
+                && empty($attachment['url'])
+                && empty($attachment['path'])) {
+                continue;
+            }
+
             $type = (string) ($attachment['type'] ?? $this->facebookAttachmentType((string) ($attachment['mime_type'] ?? '')));
 
             if (! empty($attachment['facebook_attachment_id'])) {
@@ -137,7 +143,7 @@ class OutboundMessageService
 
             $response = $this->facebook->sendAttachment(
                 $recipientId,
-                (string) $attachment['url'],
+                (string) ($attachment['url'] ?? ''),
                 $type,
                 $pageAccessToken,
             );
