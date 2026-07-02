@@ -9,6 +9,7 @@ use Modules\Conversation\Models\Conversation;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
+use Modules\Message\Services\BotQuickReplyService;
 use Modules\Text\Models\TextConversationLink;
 
 class TextGatewayService
@@ -17,6 +18,7 @@ class TextGatewayService
         private readonly TextAgentChatService $text,
         private readonly TextCustomerChatService $customerText,
         private readonly TextConversationBridge $bridge,
+        private readonly BotQuickReplyService $quickReplies,
     ) {
     }
 
@@ -168,6 +170,19 @@ class TextGatewayService
         }
 
         $message = DB::transaction(function () use ($conversation, $content, $clientId, $event, $payload): Message {
+            $attachments = [[
+                'type' => 'metadata',
+                'name' => 'text_gateway',
+                'payload' => [
+                    'text_event' => $event,
+                    'raw' => $payload,
+                ],
+            ]];
+
+            if ($quickReplyAttachment = $this->quickReplies->attachmentFor($content)) {
+                $attachments[] = $quickReplyAttachment;
+            }
+
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
@@ -175,14 +190,7 @@ class TextGatewayService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => [[
-                    'type' => 'metadata',
-                    'name' => 'text_gateway',
-                    'payload' => [
-                        'text_event' => $event,
-                        'raw' => $payload,
-                    ],
-                ]],
+                'attachments' => $attachments,
                 'client_message_id' => $clientId,
                 'outbound_status' => 'queued',
             ]);
