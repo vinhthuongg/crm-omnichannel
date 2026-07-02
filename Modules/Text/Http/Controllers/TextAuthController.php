@@ -5,6 +5,7 @@ namespace Modules\Text\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Text\Services\TextOAuthService;
 
@@ -25,6 +26,11 @@ class TextAuthController extends Controller
         $state = (string) $request->query('state', '');
 
         if ($state === '' || $state !== $request->session()->pull('text_oauth_state')) {
+            Log::warning('Text.com OAuth callback rejected by invalid state', [
+                'has_state' => $state !== '',
+                'user_id' => $request->user()?->id,
+            ]);
+
             return redirect()
                 ->route('crm.channels')
                 ->with('error', 'Text.com OAuth state khong hop le. Hay thu ket noi lai.');
@@ -33,6 +39,11 @@ class TextAuthController extends Controller
         $code = (string) $request->query('code', '');
 
         if ($code === '') {
+            Log::warning('Text.com OAuth callback missing code', [
+                'user_id' => $request->user()?->id,
+                'query' => $request->query(),
+            ]);
+
             return redirect()
                 ->route('crm.channels')
                 ->with('error', 'Text.com khong tra ve authorization code.');
@@ -42,10 +53,22 @@ class TextAuthController extends Controller
             $payload = $oauth->exchangeCode($code);
             $oauth->persistAgentToken($payload);
         } catch (\Throwable $exception) {
+            Log::warning('Text.com OAuth token exchange failed', [
+                'user_id' => $request->user()?->id,
+                'error' => $exception->getMessage(),
+            ]);
+
             return redirect()
                 ->route('crm.channels')
                 ->with('error', 'Ket noi Text.com that bai: '.$exception->getMessage());
         }
+
+        Log::info('Text.com OAuth token stored', [
+            'user_id' => $request->user()?->id,
+            'organization_id' => $payload['organization_id'] ?? null,
+            'scope' => $payload['scope'] ?? null,
+            'expires_in' => $payload['expires_in'] ?? null,
+        ]);
 
         return redirect()
             ->route('crm.channels')
