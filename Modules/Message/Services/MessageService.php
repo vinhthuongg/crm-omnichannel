@@ -301,7 +301,7 @@ class MessageService
     {
         $content = trim((string) $echoMessage->content);
 
-        if ($content === '' || ! $this->isBotEcho($metadata) || ! $this->canSendEchoQuickReply($conversation)) {
+        if ($content === '' || ! $this->isBotEcho($metadata)) {
             return;
         }
 
@@ -336,12 +336,7 @@ class MessageService
                 'outbound_status' => 'queued',
             ]);
 
-            $automationState = (array) ($conversation->automation_state ?? []);
-            $automationState['last_echo_quick_reply_at'] = now()->toIso8601String();
-            $automationState['last_echo_quick_reply_source_message_id'] = $echoMessage->id;
-
             $conversation->forceFill([
-                'automation_state' => $automationState,
                 'last_message_at' => $message->created_at,
             ])->save();
 
@@ -368,22 +363,6 @@ class MessageService
         }
 
         return (bool) data_get($raw, 'message.is_echo', false);
-    }
-
-    private function canSendEchoQuickReply(Conversation $conversation): bool
-    {
-        $automationState = (array) ($conversation->automation_state ?? []);
-        $lastSentAt = data_get($automationState, 'last_echo_quick_reply_at');
-
-        if (! $lastSentAt) {
-            return true;
-        }
-
-        try {
-            return now()->diffInSeconds(\Illuminate\Support\Carbon::parse((string) $lastSentAt)) >= 60;
-        } catch (\Throwable) {
-            return true;
-        }
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
