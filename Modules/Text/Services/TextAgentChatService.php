@@ -27,13 +27,10 @@ class TextAgentChatService
     {
         $chat = [
             'users' => [
-                array_filter([
+                [
                     'id' => $customer['id'] ?? null,
-                    'name' => $customer['name'] ?? null,
                     'type' => 'customer',
-                    'email' => $customer['email'] ?? null,
-                    'avatar' => $customer['avatar'] ?? null,
-                ], fn ($value): bool => filled($value)),
+                ],
             ],
             'thread' => [
                 'events' => [$event],

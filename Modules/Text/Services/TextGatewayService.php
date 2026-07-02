@@ -2,6 +2,7 @@
 
 namespace Modules\Text\Services;
 
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
@@ -73,7 +74,7 @@ class TextGatewayService
             Log::warning('Text.com customer relay failed', [
                 'conversation_id' => $conversation->id,
                 'message_id' => $message->id,
-                'error' => $exception->getMessage(),
+                ...$this->exceptionContext($exception),
             ]);
         }
     }
@@ -98,7 +99,7 @@ class TextGatewayService
                 'conversation_id' => $message->conversation_id,
                 'message_id' => $message->id,
                 'text_chat_id' => $link->text_chat_id,
-                'error' => $exception->getMessage(),
+                ...$this->exceptionContext($exception),
             ]);
         }
     }
@@ -240,7 +241,6 @@ class TextGatewayService
         $event = [
             'type' => 'message',
             'text' => $this->messageText($message),
-            'visibility' => 'all',
             'custom_id' => $customId,
         ];
 
@@ -298,5 +298,18 @@ class TextGatewayService
         }
 
         return '';
+    }
+
+    private function exceptionContext(\Throwable $exception): array
+    {
+        if ($exception instanceof RequestException && $exception->response) {
+            return [
+                'error' => $exception->getMessage(),
+                'status' => $exception->response->status(),
+                'body' => mb_substr($exception->response->body(), 0, 2000),
+            ];
+        }
+
+        return ['error' => $exception->getMessage()];
     }
 }
