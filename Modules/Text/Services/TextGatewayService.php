@@ -9,7 +9,6 @@ use Modules\Conversation\Models\Conversation;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
-use Modules\Message\Services\BotQuickReplyService;
 use Modules\Text\Models\TextConversationLink;
 
 class TextGatewayService
@@ -18,7 +17,6 @@ class TextGatewayService
         private readonly TextAgentChatService $text,
         private readonly TextCustomerChatService $customerText,
         private readonly TextConversationBridge $bridge,
-        private readonly BotQuickReplyService $quickReplies,
     ) {
     }
 
@@ -178,10 +176,6 @@ class TextGatewayService
                     'raw' => $payload,
                 ],
             ]];
-
-            if ($quickReplyAttachment = $this->quickReplies->attachmentFor($content)) {
-                $attachments[] = $quickReplyAttachment;
-            }
 
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,

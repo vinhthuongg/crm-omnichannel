@@ -15,7 +15,6 @@ use Modules\Customer\Models\CustomerChannel;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
-use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -30,7 +29,6 @@ class MessageService
         private readonly WorkShiftService $shifts,
         private readonly ConversationService $conversations,
         private readonly ConversationIntentService $intents,
-        private readonly BotQuickReplyService $botQuickReplies,
     ) {
     }
 
@@ -94,8 +92,6 @@ class MessageService
     {
         $message = (array) data_get($event, 'message', []);
         $externalMessageId = (string) data_get($message, 'mid', '');
-        $appId = (string) data_get($message, 'app_id', '');
-        $currentMessengerAppId = (string) config('services.facebook.messenger_app_id', '');
 
         if ($externalMessageId !== '') {
             $existing = Message::query()
@@ -169,10 +165,6 @@ class MessageService
         $this->intents->classifyMessage($stored);
         $this->broadcastNewMessage($stored);
         $this->queueCustomerVectorRefresh($conversation->customer);
-
-        if ($appId === '' || $appId !== $currentMessengerAppId) {
-            $this->queueEchoQuickReplyFallback($conversation, $stored, (array) data_get($metadataAttachment, 'payload'));
-        }
 
         return $stored;
     }
@@ -300,84 +292,6 @@ class MessageService
                 ]);
             }
         });
-    }
-
-    private function queueEchoQuickReplyFallback(Conversation $conversation, Message $echoMessage, array $metadata): void
-    {
-        $content = trim((string) $echoMessage->content);
-
-        if ($content === ''
-            || str_starts_with((string) $echoMessage->client_message_id, 'echo_qr_')
-            || $this->isEchoQuickReplyFallback($metadata)
-            || ! $this->isBotEcho($metadata)) {
-            return;
-        }
-
-        $quickReplyAttachment = $this->botQuickReplies->attachmentFor($content);
-
-        if (! $quickReplyAttachment) {
-            return;
-        }
-
-        $prompt = $this->botQuickReplies->promptFor($content);
-
-        $fallback = DB::transaction(function () use ($conversation, $prompt, $quickReplyAttachment, $echoMessage): Message {
-            $message = $this->repository->create([
-                'conversation_id' => $conversation->id,
-                'sender_type' => 'system',
-                'sender_id' => null,
-                'channel' => 'facebook',
-                'content' => $prompt,
-                'message_type' => 'text',
-                'attachments' => [
-                    [
-                        'type' => 'metadata',
-                        'name' => 'echo_quick_reply_fallback',
-                        'payload' => [
-                            'source_message_id' => $echoMessage->id,
-                            'created_from_echo' => true,
-                        ],
-                    ],
-                    $quickReplyAttachment,
-                ],
-                'client_message_id' => 'echo_qr_'.$echoMessage->id,
-                'outbound_status' => 'queued',
-            ]);
-
-            $conversation->forceFill([
-                'last_message_at' => $message->created_at,
-            ])->save();
-
-            return $message->load(['conversation.customer.channels', 'sender']);
-        });
-
-        $this->broadcastNewMessage($fallback);
-        SendOutboundMessageJob::dispatch($fallback->id);
-    }
-
-    private function isBotEcho(array $metadata): bool
-    {
-        $raw = (array) data_get($metadata, 'raw', []);
-        $appId = (string) data_get($raw, 'message.app_id', data_get($metadata, 'app_id', ''));
-        $configuredTextAppId = (string) config('services.text.messenger_app_id', env('TEXT_MESSENGER_APP_ID', ''));
-        $currentMessengerAppId = (string) config('services.facebook.messenger_app_id', '');
-
-        if ($configuredTextAppId !== '' && $appId === $configuredTextAppId) {
-            return true;
-        }
-
-        if ($appId !== '' && $currentMessengerAppId !== '' && $appId !== $currentMessengerAppId) {
-            return true;
-        }
-
-        return (bool) data_get($raw, 'message.is_echo', false);
-    }
-
-    private function isEchoQuickReplyFallback(array $metadata): bool
-    {
-        return (bool) data_get($metadata, 'raw.message.quick_replies')
-            || (string) data_get($metadata, 'raw.message.metadata', '') === 'echo_quick_reply_fallback'
-            || (string) data_get($metadata, 'name', '') === 'echo_quick_reply_fallback';
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
