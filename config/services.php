@@ -24,8 +24,11 @@ return [
     'text' => [
         'bridge_enabled' => env('TEXT_BRIDGE_ENABLED', false),
         'base_url' => env('TEXT_API_BASE_URL', 'https://api.livechatinc.com/v3.6'),
+        'client_id' => env('TEXT_CLIENT_ID'),
+        'organization_id' => env('TEXT_ORGANIZATION_ID'),
         'agent_email' => env('TEXT_AGENT_EMAIL'),
         'api_token' => env('TEXT_API_TOKEN'),
+        'agent_access_token' => env('TEXT_AGENT_ACCESS_TOKEN'),
         'default_group_id' => env('TEXT_DEFAULT_GROUP_ID', env('TEXT_HUMAN_GROUP_ID')),
         'human_group_id' => env('TEXT_HUMAN_GROUP_ID', env('TEXT_DEFAULT_GROUP_ID')),
         'webhook_secret' => env('TEXT_WEBHOOK_SECRET'),

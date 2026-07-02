@@ -13,6 +13,8 @@ class TextConversationLink extends Model
         'text_chat_id',
         'text_thread_id',
         'text_customer_id',
+        'text_customer_access_token',
+        'text_customer_token_expires_at',
         'facebook_page_id',
         'facebook_psid',
         'bot_paused_at',
@@ -22,6 +24,7 @@ class TextConversationLink extends Model
     protected function casts(): array
     {
         return [
+            'text_customer_token_expires_at' => 'datetime',
             'bot_paused_at' => 'datetime',
             'last_payload' => 'array',
         ];

@@ -15,13 +15,15 @@ class TextGatewayService
 {
     public function __construct(
         private readonly TextAgentChatService $text,
+        private readonly TextCustomerChatService $customerText,
         private readonly TextConversationBridge $bridge,
     ) {
     }
 
     public function enabled(): bool
     {
-        return $this->text->bridgeEnabled();
+        return (bool) config('services.text.bridge_enabled', false)
+            && $this->customerText->configured();
     }
 
     public function relayCustomerMessage(Message $message): void
@@ -37,13 +39,13 @@ class TextGatewayService
             return;
         }
 
-        $link = $conversation->textConversationLink;
-        $customerId = $link?->text_customer_id ?: $this->customerUserId($conversation);
-        $event = $this->messageEvent($message, 'crm_in_'.$message->id, $customerId);
+        $link = $this->ensureCustomerToken($conversation, $conversation->textConversationLink);
+        $customerId = (string) $link->text_customer_id;
+        $event = $this->customerMessageEvent($message, 'crm_in_'.$message->id);
 
         try {
             if (! $link?->text_chat_id) {
-                $response = $this->text->startChat($this->customerPayload($conversation, $customerId), $event);
+                $response = $this->customerText->startChat((string) $link->text_customer_access_token, $event);
                 $this->storeLink($conversation, $response, $customerId, [
                     'source' => 'crm_gateway_start',
                     'message_id' => $message->id,
@@ -54,7 +56,7 @@ class TextGatewayService
             }
 
             try {
-                $this->text->sendEvent($link->text_chat_id, $event);
+                $this->customerText->sendEvent((string) $link->text_customer_access_token, $link->text_chat_id, $event);
             } catch (\Throwable $exception) {
                 Log::warning('Text.com send_event failed, trying resume_chat', [
                     'conversation_id' => $conversation->id,
@@ -63,7 +65,7 @@ class TextGatewayService
                     'error' => $exception->getMessage(),
                 ]);
 
-                $response = $this->text->resumeChat($link->text_chat_id, $event, $customerId);
+                $response = $this->customerText->resumeChat((string) $link->text_customer_access_token, $link->text_chat_id, $event);
                 $this->storeLink($conversation, $response + ['chat_id' => $link->text_chat_id], $customerId, [
                     'source' => 'crm_gateway_resume',
                     'message_id' => $message->id,
@@ -81,7 +83,10 @@ class TextGatewayService
 
     public function relayAgentMessage(Message $message): void
     {
-        if (! $this->enabled() || $message->sender_type !== 'user' || $message->channel !== 'facebook') {
+        if (! (bool) config('services.text.bridge_enabled', false)
+            || ! $this->text->configured()
+            || $message->sender_type !== 'user'
+            || $message->channel !== 'facebook') {
             return;
         }
 
@@ -93,7 +98,7 @@ class TextGatewayService
         }
 
         try {
-            $this->text->sendEvent($link->text_chat_id, $this->messageEvent($message, 'crm_out_'.$message->id));
+            $this->text->sendEvent($link->text_chat_id, $this->agentMessageEvent($message, 'crm_out_'.$message->id));
         } catch (\Throwable $exception) {
             Log::warning('Text.com agent relay failed', [
                 'conversation_id' => $message->conversation_id,
@@ -200,7 +205,28 @@ class TextGatewayService
         return $message;
     }
 
-    private function storeLink(Conversation $conversation, array $response, string $customerId, array $payload): TextConversationLink
+    private function ensureCustomerToken(Conversation $conversation, ?TextConversationLink $link): TextConversationLink
+    {
+        $hasUsableToken = $link?->text_customer_access_token
+            && (! $link->text_customer_token_expires_at || $link->text_customer_token_expires_at->isFuture());
+
+        if ($hasUsableToken) {
+            return $link;
+        }
+
+        $tokenPayload = $this->customerText->issueCustomerToken($link?->text_customer_id ?: null);
+        $accessToken = (string) ($tokenPayload['access_token'] ?? '');
+
+        if ($accessToken === '') {
+            throw new \RuntimeException('Text.com customer token response did not include access_token.');
+        }
+
+        $customerId = (string) ($tokenPayload['entity_id'] ?? $link?->text_customer_id ?? $this->customerUserId($conversation));
+
+        return $this->storeCustomerToken($conversation, $customerId, $accessToken, $tokenPayload);
+    }
+
+    private function storeCustomerToken(Conversation $conversation, string $customerId, string $accessToken, array $tokenPayload): TextConversationLink
     {
         $facebookChannel = $conversation->customer?->channels()
             ->where('channel', 'facebook')
@@ -209,9 +235,38 @@ class TextGatewayService
         return TextConversationLink::query()->updateOrCreate(
             ['conversation_id' => $conversation->id],
             [
-                'text_chat_id' => (string) data_get($response, 'chat_id', $conversation->textConversationLink?->text_chat_id),
-                'text_thread_id' => (string) data_get($response, 'thread_id', $conversation->textConversationLink?->text_thread_id),
+                'text_chat_id' => $conversation->textConversationLink?->text_chat_id,
+                'text_thread_id' => $conversation->textConversationLink?->text_thread_id,
                 'text_customer_id' => $customerId,
+                'text_customer_access_token' => $accessToken,
+                'text_customer_token_expires_at' => $this->customerText->tokenExpiresAt($tokenPayload),
+                'facebook_page_id' => $conversation->facebook_page_id,
+                'facebook_psid' => $facebookChannel?->external_id,
+                'last_payload' => [
+                    'source' => 'text_customer_token',
+                    'token_payload' => array_diff_key($tokenPayload, ['access_token' => true]),
+                ],
+            ],
+        );
+    }
+
+    private function storeLink(Conversation $conversation, array $response, string $customerId, array $payload): TextConversationLink
+    {
+        $facebookChannel = $conversation->customer?->channels()
+            ->where('channel', 'facebook')
+            ->first();
+        $existingLink = TextConversationLink::query()
+            ->where('conversation_id', $conversation->id)
+            ->first();
+
+        return TextConversationLink::query()->updateOrCreate(
+            ['conversation_id' => $conversation->id],
+            [
+                'text_chat_id' => (string) data_get($response, 'chat_id', $existingLink?->text_chat_id),
+                'text_thread_id' => (string) data_get($response, 'thread_id', $existingLink?->text_thread_id),
+                'text_customer_id' => $customerId,
+                'text_customer_access_token' => $existingLink?->text_customer_access_token,
+                'text_customer_token_expires_at' => $existingLink?->text_customer_token_expires_at,
                 'facebook_page_id' => $conversation->facebook_page_id,
                 'facebook_psid' => $facebookChannel?->external_id,
                 'last_payload' => $payload + ['response' => $response],
@@ -219,36 +274,28 @@ class TextGatewayService
         );
     }
 
-    private function customerPayload(Conversation $conversation, string $customerId): array
-    {
-        $customer = $conversation->customer;
-
-        return [
-            'id' => $customerId,
-            'name' => $customer?->name ?: 'Facebook customer',
-            'email' => $customer?->email,
-            'avatar' => $customer?->avatar,
-        ];
-    }
-
     private function customerUserId(Conversation $conversation): string
     {
         return 'crm_customer_'.$conversation->customer_id;
     }
 
-    private function messageEvent(Message $message, string $customId, ?string $authorId = null): array
+    private function customerMessageEvent(Message $message, string $customId): array
     {
-        $event = [
+        return [
+            'type' => 'message',
+            'text' => $this->messageText($message),
+            'recipients' => 'all',
+            'custom_id' => $customId,
+        ];
+    }
+
+    private function agentMessageEvent(Message $message, string $customId): array
+    {
+        return [
             'type' => 'message',
             'text' => $this->messageText($message),
             'custom_id' => $customId,
         ];
-
-        if ($authorId) {
-            $event['author_id'] = $authorId;
-        }
-
-        return $event;
     }
 
     private function messageText(Message $message): string

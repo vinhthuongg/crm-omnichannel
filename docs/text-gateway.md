@@ -8,7 +8,7 @@ CRM la ung dung duy nhat ket noi truc tiep voi Facebook Messenger. Text.com chi 
 Facebook Messenger
 -> Facebook webhook
 -> CRM store message
--> CRM relay customer message to Text.com Agent Chat API
+-> CRM relay customer message to Text.com Customer Chat API
 -> Text.com bot/agent replies
 -> Text.com webhook / incoming_event
 -> CRM stores bot message
@@ -21,14 +21,19 @@ Facebook Messenger
 ```env
 TEXT_API_BASE_URL=https://api.livechatinc.com/v3.6
 TEXT_BRIDGE_ENABLED=true
+TEXT_CLIENT_ID=your_text_app_client_id
+TEXT_ORGANIZATION_ID=your_text_organization_id
 TEXT_AGENT_EMAIL=agent@example.com
 TEXT_API_TOKEN=your_text_personal_access_token
+TEXT_AGENT_ACCESS_TOKEN=oauth_agent_access_token_with_customers_own
 TEXT_DEFAULT_GROUP_ID=0
 TEXT_HUMAN_GROUP_ID=0
 TEXT_WEBHOOK_SECRET=change_this_secret
 ```
 
 `TEXT_DEFAULT_GROUP_ID` la group ma CRM tao chat Text.com vao. `TEXT_HUMAN_GROUP_ID` chi dung cho tinh nang transfer sang nhan vien Text.com neu can.
+
+`TEXT_API_TOKEN` la Personal Access Token dung cho Agent Chat API. `TEXT_AGENT_ACCESS_TOKEN` la OAuth agent access token co scope `customers:own`; token nay bat buoc de CRM tao customer access token va gui tin nhu khach hang qua Customer Chat API. Khong dung PAT cho `TEXT_AGENT_ACCESS_TOKEN`.
 
 ## Text.com webhook
 
