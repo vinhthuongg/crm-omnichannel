@@ -96,8 +96,8 @@
             <section class="agent-report-page">
                 <header class="agent-page-header">
                     <div>
-                        <h1>Hieu suat nhan vien</h1>
-                        <p>Du lieu tong hop tu hoi thoai that dang co trong he thong.</p>
+                        <h1>Hiệu Suất Nhân Viên</h1>
+                        <p>Dữ liệu được tổng hợp từ các cuộc hội thoại hiện có trong hệ thống</p>
                     </div>
                 </header>
 
@@ -119,42 +119,42 @@
                 <section class="agent-chart-grid">
                     <article class="agent-panel">
                         <header>
-                            <h3>Hoi thoai xu ly theo nhan vien</h3>
+                            <h3>Hội Thoại Xử Lí Theo Nhân Viên</h3>
                             <button type="button" aria-label="Tuy chon">
                                 <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
                             </button>
                         </header>
-                        <div id="agent-handled-bar" class="agent-chart" aria-label="Hoi thoai xu ly theo nhan vien"></div>
+                        <div id="agent-handled-bar" class="agent-chart" aria-label="Hội Thoại Xử Lí Theo Nhân Viên"></div>
                     </article>
 
                     <article class="agent-panel">
                         <header>
-                            <h3>Toc do phan hoi trung binh (phut)</h3>
-                            <span class="agent-chart-legend"><i></i>Toan doi</span>
+                            <h3>Tốc Độ Phản Hồi Trung Bình (Phút)</h3>
+                            <span class="agent-chart-legend"><i></i>Toàn Đội</span>
                         </header>
-                        <div id="agent-response-line" class="agent-chart" aria-label="Toc do phan hoi trung binh"></div>
+                        <div id="agent-response-line" class="agent-chart" aria-label="Tốc Độ Phản Hồi Trung Bình"></div>
                     </article>
                 </section>
 
                 <section class="agent-table-panel">
                     <header>
-                        <h3>Chi tiet hieu suat nhan vien</h3>
+                        <h3>Chi Tiết Hiệu Suất Nhân Viên</h3>
                         <label>
-                            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-                            <input type="search" placeholder="Tim nhan vien...">
+                            <span class="material-symbols-outlined" aria-hidden="true">Search</span>
+                            <input type="search" placeholder="Tìm Nhân Viên">
                         </label>
                     </header>
                     <div class="agent-table-wrap">
                         <table class="agent-performance-table">
                             <thead>
                                 <tr>
-                                    <th>Nhan vien</th>
-                                    <th>Tong hoi thoai</th>
-                                    <th>Da xu ly</th>
-                                    <th>Dang xu ly</th>
-                                    <th>TG phan hoi TB</th>
-                                    <th>SDT thu thap</th>
-                                    <th>Danh gia</th>
+                                    <th>Nhân Viên</th>
+                                    <th>Tổng Hội Thoại</th>
+                                    <th>Đã Xử Lí</th>
+                                    <th>Đang Xử Lí</th>
+                                    <th>TG Phản Hồi Trung Bình</th>
+                                    <th>SDT Thu Nhập</th>
+                                    <th>Đánh Giá</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -182,7 +182,7 @@
                         </table>
                     </div>
                     <footer>
-                        <span>Hien thi {{ count($agentDashboard['rows']) }} nhan vien</span>
+                        <span>Hien thi {{ count($agentDashboard['rows']) }} Nhân Viên</span>
                     </footer>
                 </section>
             </section>
@@ -265,7 +265,7 @@
                         @empty
                             <div class="activity-empty">
                                 <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
-                                <p>Chua co hoat dong nao duoc ghi nhan.</p>
+                                <p>Chưa Có Hoạt Động Nào Ghi Nhận</p>
                             </div>
                         @endforelse
                     </div>
@@ -422,6 +422,8 @@
                         </div>
                     </article>
                 </section>
+
+                @include('dashboard.agent-performance')
             </section>
         @endif
     </main>
@@ -442,18 +444,10 @@
         var todayLineData = @json($dashboardOverview['timeSeries'] ?? []);
         var todaySourceData = @json($dashboardOverview['sources'] ?? []);
 
-        if (activeSection === 'agents') {
-            if (!agentBarData.length) {
-                agentBarData = [{agent: 'Chua co', value: 0}];
-            }
-
-            if (!agentLineData.length) {
-                agentLineData = [{hour: '08:00', value: 0}];
-            }
-
+        if (document.getElementById('agent-handled-bar') && document.getElementById('agent-response-line')) {
             Morris.Bar({
                 element: 'agent-handled-bar',
-                data: agentBarData,
+                data: agentBarData.length ? agentBarData : [{agent: 'Chua co', value: 0}],
                 xkey: 'agent',
                 ykeys: ['value'],
                 labels: ['Hoi thoai'],
@@ -466,7 +460,7 @@
 
             Morris.Line({
                 element: 'agent-response-line',
-                data: agentLineData,
+                data: agentLineData.length ? agentLineData : [{hour: '08:00', value: 0}],
                 xkey: 'hour',
                 ykeys: ['value'],
                 labels: ['Phut'],
@@ -479,8 +473,6 @@
                 resize: true,
                 hideHover: 'auto'
             });
-
-            return;
         }
 
         if (activeSection === 'channels') {
