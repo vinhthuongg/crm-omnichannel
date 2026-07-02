@@ -9,8 +9,10 @@ use RuntimeException;
 
 class TextCustomerChatService
 {
-    public function __construct(private readonly Http $http)
-    {
+    public function __construct(
+        private readonly Http $http,
+        private readonly TextOAuthService $oauth,
+    ) {
     }
 
     public function configured(): bool
@@ -40,7 +42,7 @@ class TextCustomerChatService
         $response = $this->http
             ->connectTimeout(5)
             ->timeout(20)
-            ->withToken($this->agentAccessToken())
+            ->withToken($this->oauth->validAgentAccessToken())
             ->acceptJson()
             ->asJson()
             ->post('https://accounts.livechat.com/v2/customer/token', $payload);
