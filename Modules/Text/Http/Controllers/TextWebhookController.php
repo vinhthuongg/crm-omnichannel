@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Modules\Text\Services\TextConversationBridge;
+use Modules\Text\Services\TextGatewayService;
 
 class TextWebhookController extends Controller
 {
-    public function __invoke(Request $request, TextConversationBridge $bridge): JsonResponse
+    public function __invoke(Request $request, TextGatewayService $gateway): JsonResponse
     {
         $secret = (string) config('services.text.webhook_secret', '');
 
@@ -20,12 +20,12 @@ class TextWebhookController extends Controller
         }
 
         $payload = $request->all();
-        $link = $bridge->upsertFromWebhook($payload);
+        $message = $gateway->handleWebhook($payload);
 
         Log::info('Text.com webhook handled', [
-            'mapped' => (bool) $link?->conversation_id,
-            'text_chat_id' => $link?->text_chat_id,
-            'conversation_id' => $link?->conversation_id,
+            'message_id' => $message?->id,
+            'conversation_id' => $message?->conversation_id,
+            'text_chat_id' => data_get($payload, 'payload.chat_id') ?: data_get($payload, 'chat_id'),
         ]);
 
         return response()->json(['ok' => true]);

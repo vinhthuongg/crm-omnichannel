@@ -19,6 +19,7 @@ use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
 use Modules\Search\Services\VectorSearchService;
+use Modules\Text\Jobs\RelayInboundMessageToTextJob;
 
 class MessageService
 {
@@ -82,6 +83,7 @@ class MessageService
         $this->broadcastNewMessage($message);
         $this->queueCustomerVectorRefresh($customer);
         $this->queueReplySuggestions($conversation, $message);
+        RelayInboundMessageToTextJob::dispatch($message->id);
 
         return $message;
     }

@@ -50,12 +50,18 @@ class TextConversationBridge
         ]);
         $conversation = $this->resolveConversation($facebookPsid, $facebookPageId);
 
+        $criteria = $conversation
+            ? ['conversation_id' => $conversation->id]
+            : ['text_chat_id' => $chatId];
+        $existing = TextConversationLink::query()
+            ->when(isset($criteria['conversation_id']), fn ($query) => $query->where('conversation_id', $criteria['conversation_id']))
+            ->when(isset($criteria['text_chat_id']), fn ($query) => $query->where('text_chat_id', $criteria['text_chat_id']))
+            ->first();
+
         return TextConversationLink::query()->updateOrCreate(
-            $conversation
-                ? ['conversation_id' => $conversation->id]
-                : ['text_chat_id' => $chatId],
+            $criteria,
             [
-                'conversation_id' => $conversation?->id,
+                'conversation_id' => $conversation?->id ?? $existing?->conversation_id,
                 'text_chat_id' => $chatId,
                 'text_thread_id' => $this->firstString($payload, [
                     'thread.id',
@@ -69,9 +75,9 @@ class TextConversationBridge
                     'customer.id',
                     'visitor.id',
                     'author.id',
-                ]) ?: null,
-                'facebook_page_id' => $facebookPageId ?: null,
-                'facebook_psid' => $facebookPsid ?: null,
+                ]) ?: $existing?->text_customer_id,
+                'facebook_page_id' => $facebookPageId ?: $existing?->facebook_page_id,
+                'facebook_psid' => $facebookPsid ?: $existing?->facebook_psid,
                 'last_payload' => $payload,
             ],
         );

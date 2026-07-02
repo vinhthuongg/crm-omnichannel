@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Modules\Message\Events\MessageUpdatedEvent;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\OutboundMessageService;
+use Modules\Text\Jobs\RelayOutboundMessageToTextJob;
 
 class SendOutboundMessageJob implements ShouldQueue
 {
@@ -86,6 +87,10 @@ class SendOutboundMessageJob implements ShouldQueue
                 'sent_at' => now(),
             ])->save();
             event(new MessageUpdatedEvent($message));
+
+            if ($message->sender_type === 'user' && $message->channel === 'facebook') {
+                RelayOutboundMessageToTextJob::dispatch($message->id);
+            }
         } catch (\Throwable $exception) {
             $error = $this->errorMessage($exception);
 
