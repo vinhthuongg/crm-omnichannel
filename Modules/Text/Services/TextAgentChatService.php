@@ -15,8 +15,7 @@ class TextAgentChatService
 
     public function configured(): bool
     {
-        return $this->agentEmail() !== ''
-            && $this->apiToken() !== '';
+        return $this->apiToken() !== '';
     }
 
     public function bridgeEnabled(): bool
@@ -127,7 +126,7 @@ class TextAgentChatService
         $response = $this->http
             ->connectTimeout(3)
             ->timeout(8)
-            ->withBasicAuth($this->agentEmail(), $this->apiToken())
+            ->withHeaders(['Authorization' => 'Basic '.$this->apiToken()])
             ->acceptJson()
             ->asJson()
             ->post($this->endpoint('/agent/action/transfer_chat'), [
@@ -167,7 +166,7 @@ class TextAgentChatService
         $response = $this->http
             ->connectTimeout(5)
             ->timeout(20)
-            ->withBasicAuth($this->agentEmail(), $this->apiToken())
+            ->withHeaders(['Authorization' => 'Basic '.$this->apiToken()])
             ->acceptJson()
             ->asJson()
             ->post($this->endpoint($path), $payload);
