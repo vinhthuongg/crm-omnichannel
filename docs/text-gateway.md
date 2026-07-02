@@ -30,6 +30,7 @@ TEXT_API_TOKEN=your_text_personal_access_token
 TEXT_AGENT_ACCESS_TOKEN=oauth_agent_access_token_with_customers_own
 TEXT_AGENT_REFRESH_TOKEN=oauth_refresh_token
 TEXT_AGENT_TOKEN_EXPIRES_AT=2026-07-02T12:00:00+07:00
+TEXT_MESSENGER_APP_ID=optional_text_messenger_app_id_for_echo_detection
 TEXT_DEFAULT_GROUP_ID=0
 TEXT_HUMAN_GROUP_ID=0
 TEXT_WEBHOOK_SECRET=change_this_secret

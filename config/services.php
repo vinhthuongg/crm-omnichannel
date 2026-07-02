@@ -33,6 +33,7 @@ return [
         'agent_access_token' => env('TEXT_AGENT_ACCESS_TOKEN'),
         'agent_refresh_token' => env('TEXT_AGENT_REFRESH_TOKEN'),
         'agent_token_expires_at' => env('TEXT_AGENT_TOKEN_EXPIRES_AT'),
+        'messenger_app_id' => env('TEXT_MESSENGER_APP_ID'),
         'default_group_id' => env('TEXT_DEFAULT_GROUP_ID', env('TEXT_HUMAN_GROUP_ID')),
         'human_group_id' => env('TEXT_HUMAN_GROUP_ID', env('TEXT_DEFAULT_GROUP_ID')),
         'webhook_secret' => env('TEXT_WEBHOOK_SECRET'),

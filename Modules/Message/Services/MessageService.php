@@ -15,6 +15,7 @@ use Modules\Customer\Models\CustomerChannel;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
+use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -29,6 +30,7 @@ class MessageService
         private readonly WorkShiftService $shifts,
         private readonly ConversationService $conversations,
         private readonly ConversationIntentService $intents,
+        private readonly BotQuickReplyService $botQuickReplies,
     ) {
     }
 
@@ -165,6 +167,7 @@ class MessageService
         $this->intents->classifyMessage($stored);
         $this->broadcastNewMessage($stored);
         $this->queueCustomerVectorRefresh($conversation->customer);
+        $this->queueEchoQuickReplyFallback($conversation, $stored, (array) data_get($metadataAttachment, 'payload'));
 
         return $stored;
     }
@@ -292,6 +295,95 @@ class MessageService
                 ]);
             }
         });
+    }
+
+    private function queueEchoQuickReplyFallback(Conversation $conversation, Message $echoMessage, array $metadata): void
+    {
+        $content = trim((string) $echoMessage->content);
+
+        if ($content === '' || ! $this->isBotEcho($metadata) || ! $this->canSendEchoQuickReply($conversation)) {
+            return;
+        }
+
+        $quickReplyAttachment = $this->botQuickReplies->attachmentFor($content);
+
+        if (! $quickReplyAttachment) {
+            return;
+        }
+
+        $prompt = $this->botQuickReplies->promptFor($content);
+
+        $fallback = DB::transaction(function () use ($conversation, $prompt, $quickReplyAttachment, $echoMessage): Message {
+            $message = $this->repository->create([
+                'conversation_id' => $conversation->id,
+                'sender_type' => 'system',
+                'sender_id' => null,
+                'channel' => 'facebook',
+                'content' => $prompt,
+                'message_type' => 'text',
+                'attachments' => [
+                    [
+                        'type' => 'metadata',
+                        'name' => 'echo_quick_reply_fallback',
+                        'payload' => [
+                            'source_message_id' => $echoMessage->id,
+                            'created_from_echo' => true,
+                        ],
+                    ],
+                    $quickReplyAttachment,
+                ],
+                'client_message_id' => 'echo_qr_'.$echoMessage->id,
+                'outbound_status' => 'queued',
+            ]);
+
+            $automationState = (array) ($conversation->automation_state ?? []);
+            $automationState['last_echo_quick_reply_at'] = now()->toIso8601String();
+            $automationState['last_echo_quick_reply_source_message_id'] = $echoMessage->id;
+
+            $conversation->forceFill([
+                'automation_state' => $automationState,
+                'last_message_at' => $message->created_at,
+            ])->save();
+
+            return $message->load(['conversation.customer.channels', 'sender']);
+        });
+
+        $this->broadcastNewMessage($fallback);
+        SendOutboundMessageJob::dispatch($fallback->id);
+    }
+
+    private function isBotEcho(array $metadata): bool
+    {
+        $raw = (array) data_get($metadata, 'raw', []);
+        $appId = (string) data_get($raw, 'message.app_id', data_get($metadata, 'app_id', ''));
+        $configuredTextAppId = (string) config('services.text.messenger_app_id', env('TEXT_MESSENGER_APP_ID', ''));
+        $currentMessengerAppId = (string) config('services.facebook.messenger_app_id', '');
+
+        if ($configuredTextAppId !== '' && $appId === $configuredTextAppId) {
+            return true;
+        }
+
+        if ($appId !== '' && $currentMessengerAppId !== '' && $appId !== $currentMessengerAppId) {
+            return true;
+        }
+
+        return (bool) data_get($raw, 'message.is_echo', false);
+    }
+
+    private function canSendEchoQuickReply(Conversation $conversation): bool
+    {
+        $automationState = (array) ($conversation->automation_state ?? []);
+        $lastSentAt = data_get($automationState, 'last_echo_quick_reply_at');
+
+        if (! $lastSentAt) {
+            return true;
+        }
+
+        try {
+            return now()->diffInSeconds(\Illuminate\Support\Carbon::parse((string) $lastSentAt)) >= 60;
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
