@@ -475,18 +475,66 @@ class BotpressChatService
 
     private function quickRepliesForBotMessage(string $content, array $payload = []): array
     {
-        $custom = data_get($payload, 'quick_replies')
-            ?: data_get($payload, 'quickReplies')
-            ?: data_get($payload, 'suggestions')
-            ?: data_get($payload, 'buttons')
-            ?: data_get($payload, 'payload.quick_replies')
-            ?: data_get($payload, 'payload.quickReplies');
+        foreach ($this->quickReplyPayloadPaths() as $path) {
+            $custom = data_get($payload, $path);
 
-        $items = is_array($custom) && $custom !== []
-            ? $this->normalizeQuickReplies($custom)
-            : $this->defaultQuickReplies($content);
+            if (! is_array($custom) || $custom === []) {
+                continue;
+            }
+
+            $items = $this->normalizeQuickReplies($custom);
+
+            if ($items !== []) {
+                Log::info('Botpress custom quick replies applied', [
+                    'path' => $path,
+                    'count' => count($items),
+                    'titles' => array_column($items, 'title'),
+                ]);
+
+                return array_values(array_slice($items, 0, 11));
+            }
+        }
+
+        $items = $this->defaultQuickReplies($content);
 
         return array_values(array_slice($items, 0, 11));
+    }
+
+    private function quickReplyPayloadPaths(): array
+    {
+        $keys = [
+            'quick_replies',
+            'quickReplies',
+            'suggestions',
+            'buttons',
+            'options',
+            'choices',
+            'actions',
+            'items',
+        ];
+
+        $prefixes = [
+            '',
+            'payload.',
+            'data.',
+            'data.payload.',
+            'message.',
+            'message.payload.',
+            'response.',
+            'response.payload.',
+            'output.',
+            'output.payload.',
+        ];
+
+        $paths = [];
+
+        foreach ($prefixes as $prefix) {
+            foreach ($keys as $key) {
+                $paths[] = $prefix.$key;
+            }
+        }
+
+        return $paths;
     }
 
     private function normalizeQuickReplies(array $items): array
@@ -494,20 +542,88 @@ class BotpressChatService
         return collect($items)
             ->map(function (mixed $item): ?array {
                 $title = is_array($item)
-                    ? (string) (data_get($item, 'title') ?: data_get($item, 'text') ?: data_get($item, 'label') ?: data_get($item, 'name'))
+                    ? $this->firstQuickReplyScalar($item, [
+                        'title',
+                        'label',
+                        'text',
+                        'name',
+                        'value',
+                        'displayText',
+                        'display_text',
+                        'message',
+                        'payload.title',
+                        'payload.label',
+                        'payload.text',
+                    ])
                     : (string) $item;
 
-                $title = trim($title);
+                $title = trim((string) $title);
 
                 if ($title === '') {
                     return null;
                 }
 
-                return $this->quickReply($title, is_array($item) ? (string) (data_get($item, 'payload') ?: $title) : $title);
+                $replyPayload = is_array($item)
+                    ? $this->firstQuickReplyScalar($item, [
+                        'payload',
+                        'value',
+                        'text',
+                        'message',
+                        'query',
+                        'intent',
+                        'id',
+                        'payload.payload',
+                        'payload.value',
+                        'payload.text',
+                        'payload.label',
+                        'payload.title',
+                    ])
+                    : $title;
+
+                return $this->quickReply($title, $replyPayload ?: $title);
             })
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function firstQuickReplyScalar(array $item, array $paths): ?string
+    {
+        foreach ($paths as $path) {
+            $value = data_get($item, $path);
+            $scalar = $this->quickReplyScalar($value);
+
+            if ($scalar !== null) {
+                return $scalar;
+            }
+        }
+
+        return null;
+    }
+
+    private function quickReplyScalar(mixed $value): ?string
+    {
+        if (is_scalar($value)) {
+            $value = trim((string) $value);
+
+            return $value === '' ? null : $value;
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        foreach (['text', 'title', 'label', 'value', 'message', 'payload'] as $key) {
+            $scalar = $this->quickReplyScalar($value[$key] ?? null);
+
+            if ($scalar !== null) {
+                return $scalar;
+            }
+        }
+
+        $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return is_string($encoded) && $encoded !== '[]' ? $encoded : null;
     }
 
     private function defaultQuickReplies(string $content): array
