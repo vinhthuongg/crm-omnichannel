@@ -1,6 +1,6 @@
 (function () {
     const data = window.CrmDashboardData || {};
-    const palette = ['#0052cc', '#2684ff', '#36b37e', '#ffab00', '#ba1a1a'];
+    const palette = ['#064aa8', '#087747', '#765000', '#76edac', '#c0182f'];
 
     function initShell() {
         document.querySelector('[data-sidebar-toggle]')?.addEventListener('click', function () {
@@ -102,8 +102,8 @@
             const areaPath = `${pathValue} L ${points[points.length - 1].x} ${pad.top + innerHeight} L ${points[0].x} ${pad.top + innerHeight} Z`;
             svg.appendChild(svgNode('path', {
                 d: areaPath,
-                fill: color,
-                opacity: '.08',
+            fill: color,
+            opacity: '.14',
             }));
         }
 
@@ -299,7 +299,7 @@
 
         if (data.activeSection === 'dashboard' || data.activeSection === 'reports') {
             drawLineChart('today-conversation-line', data.todayLine || [], {
-                color: '#ba1a1a',
+                color: '#0f56b3',
                 area: true,
                 label: 'Hoi thoai theo thoi gian',
             });

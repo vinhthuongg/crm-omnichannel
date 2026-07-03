@@ -1,30 +1,30 @@
 :root {
-    --dash-bg: #f4f5f7;
-    --dash-surface: #ffffff;
-    --dash-surface-soft: #f8faff;
-    --dash-border: #dfe1e6;
-    --dash-border-soft: #ebedf2;
-    --dash-text: #191b23;
-    --dash-muted: #5f6675;
-    --dash-subtle: #7a869a;
-    --dash-primary: #0052cc;
-    --dash-primary-soft: #eaf1ff;
-    --dash-success: #1f8f63;
+    --dash-bg: #fbf9ff;
+    --dash-surface: #fbfaff;
+    --dash-surface-soft: #f3f2fb;
+    --dash-border: #bfc3dc;
+    --dash-border-soft: #cfd3e6;
+    --dash-text: #070a18;
+    --dash-muted: #262b45;
+    --dash-subtle: #6e7288;
+    --dash-primary: #0f56b3;
+    --dash-primary-soft: #d9e3f7;
+    --dash-success: #007a52;
     --dash-success-soft: #e7f7ef;
-    --dash-warning: #b36b00;
+    --dash-warning: #735000;
     --dash-warning-soft: #fff4db;
-    --dash-danger: #ba1a1a;
+    --dash-danger: #c0182f;
     --dash-danger-soft: #fff0f0;
-    --dash-shadow: 0 4px 10px rgba(9, 30, 66, .06);
+    --dash-shadow: 0 1px 2px rgba(22, 26, 48, .04);
 }
 
 .today-dashboard-page,
 .agent-report-page {
     min-height: calc(100vh - 64px);
     display: grid;
-    gap: 24px;
+    gap: 22px;
     align-content: start;
-    padding: 24px;
+    padding: 20px;
     background: var(--dash-bg);
     color: var(--dash-text);
 }
@@ -39,19 +39,15 @@
 }
 
 .today-dashboard-eyebrow {
-    display: inline-flex;
-    margin-bottom: 6px;
-    color: var(--dash-primary);
-    font-size: 12px;
-    line-height: 16px;
+    display: none;
 }
 
 .today-dashboard-header h1,
 .agent-page-header h1 {
     margin: 0;
     color: var(--dash-text);
-    font-size: 30px;
-    line-height: 38px;
+    font-size: 22px;
+    line-height: 30px;
     font-weight: 600;
     letter-spacing: 0;
 }
@@ -59,14 +55,14 @@
 .today-dashboard-header p,
 .agent-page-header p,
 .dashboard-section-header p {
-    margin: 6px 0 0;
+    margin: 4px 0 0;
     color: var(--dash-muted);
     font-size: 14px;
     line-height: 20px;
 }
 
 .today-dashboard-status {
-    display: inline-flex;
+    display: none;
     align-items: center;
     gap: 8px;
     min-height: 36px;
@@ -86,11 +82,17 @@
     background: var(--dash-success);
 }
 
-.today-kpi-grid,
+.today-metric-grid,
+.today-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+}
+
 .agent-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    gap: 14px;
 }
 
 .today-intent-grid {
@@ -107,7 +109,7 @@
 .agent-table-panel {
     min-width: 0;
     border: 1px solid var(--dash-border);
-    border-radius: 12px;
+    border-radius: 7px;
     background: var(--dash-surface);
     box-shadow: var(--dash-shadow);
 }
@@ -115,20 +117,16 @@
 .today-kpi-card,
 .agent-kpi-card {
     position: relative;
-    min-height: 164px;
+    min-height: 76px;
     display: flex;
     justify-content: space-between;
-    gap: 16px;
+    gap: 10px;
     overflow: hidden;
-    padding: 22px 24px;
+    padding: 14px;
 }
 
 .today-kpi-card.is-urgent::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 4px;
-    background: var(--dash-danger);
+    display: none;
 }
 
 .today-kpi-card p,
@@ -136,16 +134,16 @@
 .today-intent-card p {
     margin: 0;
     color: var(--dash-muted);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 12px;
+    line-height: 16px;
 }
 
 .today-kpi-card h2,
 .agent-kpi-card h2 {
-    margin: 36px 0 10px;
+    margin: 6px 0 0;
     color: var(--dash-text);
-    font-size: 38px;
-    line-height: 42px;
+    font-size: 23px;
+    line-height: 28px;
     font-weight: 600;
     letter-spacing: 0;
 }
@@ -171,7 +169,7 @@
     align-items: center;
     gap: 6px;
     color: var(--dash-muted);
-    font-size: 13px;
+    font-size: 12px;
     line-height: 18px;
 }
 
@@ -198,11 +196,7 @@
 
 .today-kpi-card > b,
 .agent-kpi-card > b {
-    width: 46px;
-    height: 46px;
-    border-radius: 10px;
-    background: var(--dash-primary-soft);
-    color: var(--dash-primary);
+    display: none;
 }
 
 .today-kpi-card.is-urgent > b {
@@ -217,19 +211,11 @@
 }
 
 .today-intent-card {
-    min-height: 88px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px;
+    flex-direction: row-reverse;
 }
 
 .today-intent-card > b {
-    width: 44px;
-    height: 44px;
-    border-radius: 999px;
-    background: var(--dash-primary-soft);
-    color: var(--dash-primary);
+    display: none;
 }
 
 .today-intent-card strong {
@@ -244,14 +230,14 @@
 .today-chart-grid,
 .agent-chart-grid {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(320px, .95fr);
-    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
 }
 
 .today-panel,
 .agent-panel,
 .agent-table-panel {
-    padding: 24px;
+    padding: 14px;
 }
 
 .today-panel header,
@@ -261,7 +247,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 }
 
 .today-panel h3,
@@ -270,8 +256,8 @@
 .dashboard-section-header h2 {
     margin: 0;
     color: var(--dash-text);
-    font-size: 18px;
-    line-height: 26px;
+    font-size: 20px;
+    line-height: 28px;
     font-weight: 600;
 }
 
@@ -297,12 +283,12 @@
 .today-line-chart,
 .agent-chart {
     width: 100%;
-    min-height: 300px;
+    min-height: 238px;
 }
 
 .today-donut-chart {
     width: 100%;
-    min-height: 270px;
+    min-height: 238px;
 }
 
 .crm-chart-empty {
@@ -328,10 +314,11 @@
 }
 
 .today-source-legend {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 14px;
-    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 18px;
+    margin-top: 10px;
     color: var(--dash-muted);
     font-size: 14px;
 }
@@ -351,20 +338,20 @@
 }
 
 .today-source-legend span:nth-child(2)::before {
-    background: #2684ff;
+    background: #087747;
 }
 
 .today-source-legend span:nth-child(3)::before {
-    background: #36b37e;
+    background: #765000;
 }
 
 .today-source-legend span:nth-child(4)::before {
-    background: #ffab00;
+    background: #76edac;
 }
 
 .dashboard-agent-performance {
     display: grid;
-    gap: 24px;
+    gap: 18px;
 }
 
 .agent-table-panel {
@@ -374,7 +361,7 @@
 
 .agent-table-panel > header {
     margin: 0;
-    padding: 18px 20px;
+    padding: 14px;
     border-bottom: 1px solid var(--dash-border-soft);
 }
 
@@ -419,7 +406,7 @@
 .agent-performance-table th,
 .agent-performance-table td {
     border-bottom: 1px solid var(--dash-border-soft);
-    padding: 14px 18px;
+    padding: 14px;
     color: var(--dash-text);
     font-size: 13px;
     text-align: left;
@@ -482,13 +469,17 @@
 .agent-table-panel footer {
     display: flex;
     justify-content: space-between;
-    padding: 14px 20px;
+    padding: 14px;
     color: var(--dash-muted);
     font-size: 13px;
 }
 
 @media (max-width: 1280px) {
-    .today-kpi-grid,
+    .today-metric-grid,
+    .today-kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .agent-kpi-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -520,10 +511,11 @@
         gap: 12px;
     }
 
+    .today-metric-grid,
     .today-kpi-grid,
     .today-intent-grid,
     .agent-kpi-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .agent-table-panel label {
@@ -555,6 +547,7 @@
         line-height: 32px;
     }
 
+    .today-metric-grid,
     .today-kpi-grid,
     .agent-kpi-grid,
     .today-intent-grid {
@@ -570,9 +563,9 @@
 
     .today-kpi-card h2,
     .agent-kpi-card h2 {
-        margin-top: 22px;
-        font-size: 32px;
-        line-height: 36px;
+        margin-top: 6px;
+        font-size: 24px;
+        line-height: 30px;
     }
 
     .today-line-chart,

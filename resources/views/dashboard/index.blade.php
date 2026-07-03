@@ -373,7 +373,7 @@
                     </span>
                 </header>
 
-                <section class="today-kpi-grid">
+                <section class="today-metric-grid">
                     @foreach($dashboardOverview['cards'] as $card)
                         <article class="today-kpi-card {{ $card['accent'] ? 'is-urgent' : '' }}">
                             <div>
@@ -386,17 +386,15 @@
                             </b>
                         </article>
                     @endforeach
-                </section>
 
-                <section class="today-intent-grid">
                     @foreach($dashboardOverview['intentCards'] as $intent)
-                        <article class="today-intent-card">
+                        <article class="today-kpi-card today-intent-card">
                             <b>
                                 <span class="material-symbols-outlined" aria-hidden="true">{{ $intent['icon'] }}</span>
                             </b>
                             <div>
                                 <p>{{ $intent['label'] }}</p>
-                                <strong>{{ number_format($intent['value']) }}</strong>
+                                <h2>{{ number_format($intent['value']) }}</h2>
                             </div>
                         </article>
                     @endforeach
