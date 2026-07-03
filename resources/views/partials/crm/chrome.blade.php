@@ -1,14 +1,14 @@
 @php($navLabels = [
     'dashboard' => 'Dashboard',
-    'conversations' => 'Hoi thoai',
-    'customers' => 'Khach hang',
-    'agents' => 'Nhan vien',
-    'work_shifts' => 'Ca truc',
-    'channels' => 'Ket noi kenh',
-    'activity' => 'Hoat dong',
-    'activity_log' => 'Thong bao',
-    'notifications' => 'Thong bao',
-    'settings' => 'Cai dat',
+    'conversations' => 'Hội thoại',
+    'customers' => 'Khách hàng',
+    'agents' => 'Nhân viên',
+    'work_shifts' => 'Ca trực',
+    'channels' => 'Kết nối kênh',
+    'activity' => 'Hoạt động',
+    'activity_log' => 'Thông báo',
+    'notifications' => 'Thông báo',
+    'settings' => 'Cài đặt',
 ])
 
 <aside class="crm-sidebar">

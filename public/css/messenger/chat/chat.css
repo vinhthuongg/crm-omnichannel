@@ -3,18 +3,22 @@ body.messenger-page {
     --inbox-width: 270px;
     --profile-width: 320px;
     --topbar-height: 42px;
-    --chat-bg: #f7f8fc;
-    --chat-card: #ffffff;
-    --chat-soft: #f1f5ff;
-    --chat-line: #f0cfd2;
-    --chat-line-strong: #efb7bd;
-    --chat-ink: #161925;
-    --chat-muted: #6b7280;
-    --chat-red: #d70616;
-    --chat-blue: #0f62fe;
-    --chat-blue-soft: #e9f1ff;
-    --chat-green: #12a150;
-    --chat-shadow: 0 16px 36px rgba(20, 23, 40, .08);
+    --chat-bg: #fbf9ff;
+    --chat-card: #fbfaff;
+    --chat-soft: #f3f2fb;
+    --chat-line: #cfd3e6;
+    --chat-line-strong: #bfc3dc;
+    --chat-ink: #070a18;
+    --chat-muted: #6e7288;
+    --chat-red: #c0182f;
+    --chat-blue: #0f56b3;
+    --chat-blue-soft: #d9e3f7;
+    --chat-green: #007a52;
+    --chat-green-soft: #e7f7ef;
+    --chat-warning: #735000;
+    --chat-warning-soft: #fff4db;
+    --chat-danger-soft: #fff0f0;
+    --chat-shadow: 0 1px 2px rgba(22, 26, 48, .04);
     background: var(--chat-bg);
     color: var(--chat-ink);
 }
@@ -42,7 +46,7 @@ body.messenger-page .messenger-crm-shell {
 body.messenger-page .crm-sidebar {
     padding-top: var(--topbar-height);
     border-right: 1px solid var(--chat-line);
-    background: #fbfbff;
+    background: var(--chat-card);
 }
 
 body.messenger-page .crm-logo {
@@ -61,7 +65,7 @@ body.messenger-page .crm-logo {
     font-size: 21px;
     font-weight: 500;
     letter-spacing: 0;
-    background: #fff;
+    background: var(--chat-card);
     text-decoration: none;
 }
 
@@ -78,7 +82,7 @@ body.messenger-page .sidebar-user-card {
     gap: 8px;
     border-right: 1px solid var(--chat-line);
     border-bottom: 1px solid var(--chat-line);
-    background: #fbfbff;
+    background: var(--chat-card);
     padding: 8px 12px;
     color: #111827;
     text-decoration: none;
@@ -152,7 +156,7 @@ body.messenger-page .side-nav a .nav-material-icon {
 
 body.messenger-page .side-nav a.active {
     border-left-color: var(--chat-red);
-    background: #eaf1ff;
+    background: var(--chat-blue-soft);
     color: #111827;
 }
 
@@ -160,7 +164,7 @@ body.messenger-page .team-switcher {
     margin: 22px 14px 0;
     border-color: var(--chat-line);
     border-radius: 8px;
-    background: #fff;
+    background: var(--chat-card);
 }
 
 body.messenger-page .messenger-crm-main {
@@ -182,7 +186,7 @@ body.messenger-page .crm-topbar {
     align-items: center;
     gap: 16px;
     border-bottom: 1px solid var(--chat-line);
-    background: #fff;
+    background: var(--chat-card);
     padding: 0 20px 0 16px;
 }
 
@@ -228,7 +232,7 @@ body.messenger-page .topbar-global-search input {
     height: 30px;
     border: 1px solid var(--chat-line-strong);
     border-radius: 8px;
-    background: #f8fafc;
+    background: var(--chat-soft);
     padding: 0 14px 0 38px;
     color: var(--chat-ink);
     outline: none;
@@ -284,7 +288,7 @@ body.messenger-page .messenger-shell {
     grid-template-rows: 0 minmax(0, 1fr);
     overflow: hidden;
     border: 0;
-    background: #fff;
+    background: var(--chat-card);
 }
 
 body.messenger-page .messenger-drawer-backdrop,
@@ -550,7 +554,7 @@ body.messenger-page .messenger-status-tabs a span {
     margin-left: 5px;
     border-radius: 999px;
     background: #fff;
-    color: #d70616;
+    color: var(--chat-red);
     font-size: 10px;
     font-weight: 500;
 }
@@ -562,13 +566,13 @@ body.messenger-page .messenger-status-tabs a.active {
 }
 
 body.messenger-page .messenger-status-tabs a:nth-child(2) {
-    border-color: #ffd5de;
-    background: #fff0f3;
-    color: #d70616;
+    border-color: #f0c2ca;
+    background: var(--chat-danger-soft);
+    color: var(--chat-red);
 }
 
 body.messenger-page .messenger-status-tabs a:nth-child(2).active {
-    background: #ffe5eb;
+    background: #f7dce1;
 }
 
 body.messenger-page .messenger-thread-list {
@@ -1721,7 +1725,7 @@ body.messenger-page .summary-item.is-customer {
 }
 
 body.messenger-page .summary-item.is-staff {
-    border-left: 3px solid #d70616;
+    border-left: 3px solid var(--chat-red);
 }
 
 body.messenger-page .summary-item span {

@@ -183,7 +183,7 @@
             detectedPhone.disabled = true;
             useDetectedPhone(detectedPhone.dataset.useDetectedPhone || '')
                 .catch((error) => {
-                    window.alert(error.message || 'Khong cap nhat duoc so dien thoai.');
+            window.alert(error.message || 'Không cập nhật được số điện thoại.');
                 })
                 .finally(() => {
                     detectedPhone.disabled = false;
@@ -761,7 +761,7 @@
             ? `<div class="message-bubble is-recalled"><p>Tin nhan da duoc thu hoi</p></div>`
             : content
             ? `<div class="message-bubble ${isWhisper ? 'is-whisper' : ''}">
-                    <span class="message-sender">${escapeHtml(isWhisper ? `Thi tham - ${message.sender_name || 'Nhan vien'}` : (message.sender_name || 'Unknown'))}</span>
+                    <span class="message-sender">${escapeHtml(isWhisper ? `Thì thầm - ${message.sender_name || 'Nhân viên'}` : (message.sender_name || 'Unknown'))}</span>
                     <p>${escapeHtml(content)}</p>
                 </div>`
             : '';
@@ -771,7 +771,7 @@
             <div class="message-stack">
                 ${textBubble}
                 ${attachments}
-                <time>${escapeHtml(messageTime(message))} - ${escapeHtml(isWhisper ? 'Noi bo' : ((message.channel || '').charAt(0).toUpperCase() + (message.channel || '').slice(1)))}${status ? ` - ${escapeHtml(status)}` : ''}</time>
+                <time>${escapeHtml(messageTime(message))} - ${escapeHtml(isWhisper ? 'Nội bộ' : ((message.channel || '').charAt(0).toUpperCase() + (message.channel || '').slice(1)))}${status ? ` - ${escapeHtml(status)}` : ''}</time>
             </div>
         `;
     }
@@ -878,7 +878,7 @@
             const channel = form.querySelector('[data-contact-channel]');
 
             if (channel) {
-                channel.value = contact?.channel || 'Chua co kenh';
+                channel.value = contact?.channel || 'Chưa có kênh';
             }
         });
     }
@@ -891,7 +891,7 @@
         }
 
         if (!Array.isArray(details) || !details.length) {
-            container.innerHTML = '<p class="profile-empty">Chua co thong tin cong khai.</p>';
+            container.innerHTML = '<p class="profile-empty">Chưa có thông tin công khai.</p>';
             return;
         }
 
@@ -914,7 +914,7 @@
         }
 
         if (status) {
-            status.textContent = 'Dang luu...';
+            status.textContent = 'Đang lưu...';
         }
 
         if (submit) {
@@ -936,7 +936,7 @@
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload.message || 'Khong luu duoc thong tin.');
+                throw new Error(payload.message || 'Không lưu được thông tin.');
             }
 
             applyCustomerContact(payload.data || {});
@@ -946,7 +946,7 @@
             }
         } catch (error) {
             if (status) {
-                status.textContent = error.message || 'Luu that bai';
+                status.textContent = error.message || 'Lưu thất bại';
             }
         } finally {
             if (submit) {
@@ -987,7 +987,7 @@
         }
 
         if (chatPhone) {
-            chatPhone.textContent = conversation.customer_phone || 'Chua co so dien thoai';
+            chatPhone.textContent = conversation.customer_phone || 'Chưa có số điện thoại';
         }
 
         renderDetectedPhones(
@@ -1027,7 +1027,7 @@
         }
 
         if (!notes.length) {
-            container.innerHTML = '<p class="profile-empty">Chua co ghi chu nao.</p>';
+            container.innerHTML = '<p class="profile-empty">Chưa có ghi chú nào.</p>';
             return;
         }
 
@@ -1100,7 +1100,7 @@
             const visibleTags = (tags || []).slice(0, 1);
             list.innerHTML = visibleTags.length
                 ? visibleTags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
-                : '<p class="profile-empty">Khach hang chua co the nao</p>';
+                : '<p class="profile-empty">Khách hàng chưa có thẻ nào</p>';
         }
 
         renderCustomerTagOptions('');
@@ -1119,7 +1119,7 @@
 
         options.innerHTML = visible.length
             ? visible.map((tag) => `<button type="button" data-select-customer-tag="${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</button>`).join('')
-            : '<p>Khong co tag phu hop.</p>';
+                : '<p>Không có tag phù hợp.</p>';
     }
 
     function matchingCustomerTagName(value) {
@@ -1255,11 +1255,11 @@
         }
 
         if (chatPhone) {
-            chatPhone.textContent = conversation.customer_phone || 'Chua co so dien thoai';
+            chatPhone.textContent = conversation.customer_phone || 'Chưa có số điện thoại';
         }
 
         if (chatAssignee) {
-            chatAssignee.textContent = conversation.assignee_name ? `Phu trach: ${conversation.assignee_name}` : 'Chua gan nhan vien';
+            chatAssignee.textContent = conversation.assignee_name ? `Phụ trách: ${conversation.assignee_name}` : 'Chưa gán nhân viên';
         }
 
         if (assignForm && conversation.assign_url) {
@@ -1358,7 +1358,7 @@
         form.querySelector('[data-tag-manager-id]').value = '';
         form.querySelector('[data-tag-manager-name]').readOnly = false;
         form.querySelector('[data-tag-manager-color]').value = '#2563eb';
-        form.querySelector('[data-tag-manager-submit]').textContent = 'Luu tag';
+        form.querySelector('[data-tag-manager-submit]').textContent = 'Lưu tag';
     }
 
     function tagPayloadFromButton(button) {
@@ -1456,7 +1456,7 @@
         });
 
         if (!response.ok) {
-            throw new Error('Khong tai duoc tag.');
+            throw new Error('Không tải được tag.');
         }
 
         const payload = await response.json();
@@ -1477,7 +1477,7 @@
         try {
             await loadTagCatalog();
         } catch (error) {
-            setTagManagerStatus(error.message || 'Khong tai duoc tag.', true);
+            setTagManagerStatus(error.message || 'Không tải được tag.', true);
         }
 
         modal.querySelector('[data-tag-manager-name]')?.focus();
@@ -1502,7 +1502,7 @@
 
         list.innerHTML = visibleTags.length
             ? visibleTags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
-            : '<p class="profile-empty">Chua co trang thai.</p>';
+            : '<p class="profile-empty">Chưa có trạng thái.</p>';
     }
 
     function normalizedVietnameseText(value) {
@@ -1547,7 +1547,7 @@
         const customerMessage = usableMessages.find((message) => message.sender_type === 'customer');
         const customerName = customerMessage?.sender_name && !/^\d+$/.test(String(customerMessage.sender_name))
             ? customerMessage.sender_name
-            : (document.querySelector('[data-profile-name]')?.textContent || 'Khach hang');
+            : (document.querySelector('[data-profile-name]')?.textContent || 'Khách hàng');
         const vehicle = detectSummaryVehicle(fullText);
         const needs = [];
 
@@ -1581,7 +1581,7 @@
 
         const advisors = [...new Set(usableMessages
             .filter((message) => message.sender_type === 'user' || message.sender_type === 'system')
-            .map((message) => message.sender_type === 'system' ? 'Bot' : (message.sender_name || 'Nhan vien'))
+            .map((message) => message.sender_type === 'system' ? 'Bot' : (message.sender_name || 'Nhân viên'))
             .filter(Boolean))]
             .slice(0, 3);
         const phoneMatch = usableMessages
@@ -1591,7 +1591,7 @@
         const phones = detectedPhonesFromMessages(usableMessages);
         const savedPhone = document.querySelector('[data-profile-phone]')?.textContent?.trim() || '';
         const latestPhone = phones.length ? phones[phones.length - 1] : '';
-        const phoneText = savedPhone && latestPhone && savedPhone !== latestPhone && savedPhone !== 'Chua co'
+        const phoneText = savedPhone && latestPhone && savedPhone !== latestPhone && savedPhone !== 'Chưa có'
             ? 'dang luu so ' + savedPhone + ', khach vua gui them so ' + latestPhone
             : phoneMatch
             ? 'da co so dien thoai ' + latestPhone
@@ -1645,7 +1645,7 @@
 
         const text = typeof summary === 'string'
             ? summary
-            : (summary?.text || 'Chua co du noi dung de tom tat hoi thoai.');
+            : (summary?.text || 'Chưa có đủ nội dung để tóm tắt hội thoại.');
 
         list.dataset.detectedPhones = (summary?.facts?.phones || []).join('|');
         list.innerHTML = `<article class="summary-item"><p>${escapeHtml(text)}</p></article>`;
@@ -1681,7 +1681,7 @@
         }
 
         list.innerHTML = `
-            <span>So dien thoai phat hien</span>
+            <span>Số điện thoại phát hiện</span>
             ${uniquePhones.map(function (phone) {
                 const active = phone === normalizedSavedPhone;
 
@@ -1719,7 +1719,7 @@
         const payload = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            throw new Error(payload.message || 'Khong cap nhat duoc so dien thoai.');
+            throw new Error(payload.message || 'Không cập nhật được số điện thoại.');
         }
 
         applyCustomerContact(payload.data || {});
@@ -1810,8 +1810,8 @@
         claimButton.disabled = !canClaim;
         claimButton.dataset.claimUrl = conversation.claim_url || '';
         claimStatus.textContent = canClaim
-            ? 'Hoi thoai moi trong ca truc cua ban.'
-            : (canReply ? 'Ban dang phu trach hoi thoai nay.' : 'Ban can nhan xu ly truoc khi tra loi.');
+            ? 'Hội thoại mới trong ca trực của bạn.'
+            : (canReply ? 'Bạn đang phụ trách hội thoại này.' : 'Bạn cần nhận xử lý trước khi trả lời.');
     }
 
     document.querySelector('[data-claim-button]')?.addEventListener('click', async function () {
@@ -1837,7 +1837,7 @@
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload.message || 'Khong nhan duoc hoi thoai.');
+            throw new Error(payload.message || 'Không nhận được hội thoại.');
             }
 
             const conversation = {
@@ -1850,7 +1850,7 @@
 
             const assignee = document.querySelector('[data-chat-assignee]');
             if (assignee && payload.data?.assignee_name) {
-                assignee.textContent = `Phu trach: ${payload.data.assignee_name}`;
+                assignee.textContent = `Phụ trách: ${payload.data.assignee_name}`;
             }
         } catch (error) {
             const status = document.querySelector('[data-claim-status]');
@@ -1870,7 +1870,7 @@
 
         if (!assignedTo || !url) {
             if (status) {
-                status.textContent = 'Chon nhan vien';
+                status.textContent = 'Chọn nhân viên';
             }
             return;
         }
@@ -1880,7 +1880,7 @@
         }
 
         if (status) {
-            status.textContent = 'Dang luu...';
+            status.textContent = 'Đang lưu...';
         }
 
         try {
@@ -1897,14 +1897,14 @@
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload.message || 'Khong phan cong duoc hoi thoai.');
+                throw new Error(payload.message || 'Không phân công được hội thoại.');
             }
 
             const data = payload.data || {};
             const assignee = document.querySelector('[data-chat-assignee]');
 
             if (assignee) {
-                assignee.textContent = data.assignee_name ? `Phu trach: ${data.assignee_name}` : 'Chua gan nhan vien';
+                assignee.textContent = data.assignee_name ? `Phụ trách: ${data.assignee_name}` : 'Chưa gán nhân viên';
             }
 
             updateClaimState({
@@ -1919,7 +1919,7 @@
             }
         } catch (error) {
             if (status) {
-                status.textContent = error.message || 'Luu that bai';
+                status.textContent = error.message || 'Lưu thất bại';
             }
         } finally {
             if (button) {
@@ -2101,7 +2101,7 @@
         const time = pending.querySelector('time');
 
         if (time) {
-            time.textContent = `Gui that bai - ${error}`;
+            time.textContent = `Gửi thất bại - ${error}`;
         }
     }
 
@@ -2143,7 +2143,7 @@
         }
 
         if (!content) {
-            content = 'Chua co tin nhan';
+            content = 'Chưa có tin nhắn';
         }
 
         if (message?.is_recalled) {
@@ -2543,12 +2543,12 @@
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload.message || 'Khong xoa duoc hoi thoai.');
+            throw new Error(payload.message || 'Không xóa được hội thoại.');
             }
 
             handleDeletedMessages(payload.data || {});
         } catch (error) {
-            window.alert(error.message || 'Khong xoa duoc hoi thoai.');
+            window.alert(error.message || 'Không xóa được hội thoại.');
         } finally {
             button.disabled = false;
         }
@@ -3051,7 +3051,7 @@
                     return {};
                 });
 
-                throw new Error(payload.message || 'Khong gui duoc tin nhan.');
+                throw new Error(payload.message || 'Không gửi được tin nhắn.');
             }
 
             const payload = await response.json();
@@ -3109,7 +3109,7 @@
         const files = Array.from(event.target.files || []);
 
         if (fileList) {
-            fileList.textContent = files.length ? 'Dang tai: ' + files.map((file) => file.name).join(', ') : '';
+            fileList.textContent = files.length ? 'Đang tải: ' + files.map((file) => file.name).join(', ') : '';
         }
 
         attachmentUpload.files = files;
@@ -3158,8 +3158,8 @@
 
             if (textInput) {
                 textInput.placeholder = mode === 'whisper'
-                    ? 'Nhap ghi chu noi bo, chi nhan vien thay'
-                    : 'Nhap noi dung tin nhan va nhan Enter de gui';
+                    ? 'Nhập ghi chú nội bộ, chỉ nhân viên thấy'
+                    : 'Nhập nội dung tin nhắn và nhấn Enter để gửi';
                 textInput.focus();
             }
         });
@@ -3372,7 +3372,7 @@
             })
                 .then(function (response) {
                     if (!response.ok) {
-                        throw new Error('Khong xoa duoc tag.');
+            throw new Error('Không xóa được tag.');
                     }
 
                     return response.json();
@@ -3384,7 +3384,7 @@
                     refreshThreadList();
                 })
                 .catch(function (error) {
-                    setTagManagerStatus(error.message || 'Khong xoa duoc tag.', true);
+            setTagManagerStatus(error.message || 'Không xóa được tag.', true);
                 });
         }
     });
@@ -3426,7 +3426,7 @@
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload.message || 'Khong luu duoc tag.');
+            throw new Error(payload.message || 'Không lưu được tag.');
             }
 
             applyTagCatalog(payload.data?.tags || []);
@@ -3434,7 +3434,7 @@
             setTagManagerStatus('Da luu tag.');
             await refreshThreadList();
         } catch (error) {
-            setTagManagerStatus(error.message || 'Khong luu duoc tag.', true);
+            setTagManagerStatus(error.message || 'Không lưu được tag.', true);
         }
     });
 
@@ -3486,7 +3486,7 @@
             });
 
             if (!response.ok) {
-                throw new Error('Khong luu duoc tag.');
+            throw new Error('Không lưu được tag.');
             }
 
             const payload = await response.json();
@@ -3532,7 +3532,7 @@
                 return {};
             });
 
-            throw new Error(payload.message || 'Khong tai duoc file.');
+            throw new Error(payload.message || 'Không tải được file.');
         }
 
         const payload = await response.json();

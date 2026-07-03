@@ -40,9 +40,9 @@
             data-reverb-scheme="{{ $reverbPublicScheme ?: (request()->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws')) }}"
             data-customer-tag-options-json='@json($customerTagOptions)'
         >
-            <button type="button" class="messenger-drawer-backdrop" data-messenger-drawer-close aria-label="Dong bang dieu khien"></button>
+            <button type="button" class="messenger-drawer-backdrop" data-messenger-drawer-close aria-label="Đóng bảng điều khiển"></button>
 <aside class="messenger-list" data-messenger-list-panel>
-                <button type="button" class="messenger-panel-close" data-messenger-drawer-close aria-label="Dong danh sach hoi thoai">
+                <button type="button" class="messenger-panel-close" data-messenger-drawer-close aria-label="Đóng danh sách hội thoại">
                     <span class="material-symbols-outlined" aria-hidden="true">close</span>
                 </button>
                 <div class="messenger-list-head">
@@ -50,10 +50,10 @@
                         <h1>Hội Thoại</h1>
                     </div>
                     <div class="messenger-filter-menu">
-                        <button type="button" class="messenger-filter-button" aria-label="Loc tag hoi thoai">
+                        <button type="button" class="messenger-filter-button" aria-label="Lọc tag hội thoại">
                             <span class="material-symbols-outlined" aria-hidden="true">filter_list</span>
                         </button>
-                        <nav class="messenger-tag-menu" aria-label="Loc tag hoi thoai">
+                        <nav class="messenger-tag-menu" aria-label="Lọc tag hội thoại">
                             <a
                                 class="{{ blank($filters['tag'] ?? '') ? 'active' : '' }}"
                                 href="{{ route('crm.conversations', array_filter([
@@ -61,7 +61,7 @@
                                     'status' => ($filters['status'] ?? 'all') === 'all' ? null : $filters['status'],
                                     'q' => $filters['search'] ?: null,
                                 ])) }}"
-                            >Tat ca tag</a>
+                            >Tất cả tag</a>
                             @foreach($allTags as $tag)
                                 <a
                                     class="{{ ($filters['tag'] ?? '') === $tag->name ? 'active' : '' }}"
@@ -89,7 +89,7 @@
             @endif
             <label class="messenger-search-box">
                 <span aria-hidden="true"></span>
-                <input type="search" name="q" placeholder="Tim kiem..." value="{{ $filters['search'] }}" data-auto-search-input>
+                <input type="search" name="q" placeholder="Tìm kiếm..." value="{{ $filters['search'] }}" data-auto-search-input>
             </label>
 </form>
         <nav class="messenger-status-tabs" aria-label="Trang thai hoi thoai">
@@ -113,7 +113,7 @@
         <div class="messenger-thread-list">
             @forelse($conversations as $conversation)
                 @php($lastMessage = $conversation->messages->first())
-                @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chua co tin nhan')
+                @php($lastMessagePreview = $lastMessage?->conversationPreviewText() ?? 'Chưa có tin nhắn')
                 @php($threadLastMessageAt = $conversation->last_message_at ?: $lastMessage?->created_at)
                 @php($isActive = $activeConversation?->id === $conversation->id)
                 @php($unreadCount = (int) $conversation->unread_messages_count)
@@ -151,7 +151,7 @@
                     </span>
                 </a>
             @empty
-                <div class="messenger-empty">No matching conversations found.</div>
+                <div class="messenger-empty">Không có hội thoại phù hợp.</div>
             @endforelse
         </div>
     </aside>
@@ -162,7 +162,7 @@
             @php($canClaim = ! $activeConversation->assigned_to && ! $currentUser->can('conversation.view_all') && app(\Modules\Conversation\Services\WorkShiftService::class)->userBelongsToShift($currentUser, $activeConversation->queue_shift_id))
             @php($canAssign = ($currentUser->can('conversation.assign') || $currentUser->can('conversation.transfer')) && $assignableAgents->isNotEmpty())
             <header class="messenger-chat-head">
-                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="list" aria-label="Mo danh sach hoi thoai">
+                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="list" aria-label="Mở danh sách hội thoại">
                     <span class="material-symbols-outlined" aria-hidden="true">forum</span>
                 </button>
                 <div class="chat-contact">
@@ -175,8 +175,8 @@
                     </span>
                     <div>
                         <h2 data-chat-customer-name>{{ $activeConversation->customer?->name ?? 'Customer' }}</h2>
-                        <p class="chat-customer-phone" data-chat-customer-phone>{{ $activeConversation->customer?->phone ?: 'Chua co so dien thoai' }}</p>
-                        <p data-chat-assignee>{{ $activeConversation->assignee?->name ? 'Phu trach: '.$activeConversation->assignee->name : 'Chua gan nhan vien' }}</p>
+                        <p class="chat-customer-phone" data-chat-customer-phone>{{ $activeConversation->customer?->phone ?: 'Chưa có số điện thoại' }}</p>
+                        <p data-chat-assignee>{{ $activeConversation->assignee?->name ? 'Phụ trách: '.$activeConversation->assignee->name : 'Chưa gán nhân viên' }}</p>
                     </div>
                 </div>
                 @if($canAssign)
@@ -194,14 +194,14 @@
                         <small data-assign-status></small>
                     </form>
                 @endif
-                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="profile" aria-label="Mo thong tin khach hang">
+                <button type="button" class="messenger-mobile-toggle" data-messenger-drawer-toggle="profile" aria-label="Mở thông tin khách hàng">
                     <span class="material-symbols-outlined" aria-hidden="true">contacts</span>
                 </button>
             </header>
             <div class="conversation-claim-bar {{ $canClaim || ! $canReply ? '' : 'is-hidden' }}" data-claim-bar>
-                <span data-claim-status>{{ $canClaim ? 'Hoi thoai moi trong ca truc cua ban.' : 'Ban can nhan xu ly truoc khi tra loi.' }}</span>
+                <span data-claim-status>{{ $canClaim ? 'Hội thoại mới trong ca trực của bạn.' : 'Bạn cần nhận xử lý trước khi trả lời.' }}</span>
                 <button type="button" data-claim-button data-claim-url="{{ route('crm.conversations.claim', $activeConversation) }}" {{ $canClaim ? '' : 'disabled' }}>
-                    Nhan xu ly
+                    Nhận xử lý
                 </button>
             </div>
 
@@ -282,7 +282,7 @@
                                     @endforeach
                                 </div>
                             @endif
-                            <time>{{ $message['created_at']?->format('H:i') }} - {{ $isWhisper ? 'Noi bo' : ucfirst($message['channel']) }}</time>
+                            <time>{{ $message['created_at']?->format('H:i') }} - {{ $isWhisper ? 'Nội bộ' : ucfirst($message['channel']) }}</time>
                         </div>
                     </article>
                 @endforeach
@@ -322,23 +322,23 @@
                     @endforeach
                     <button type="button" class="composer-tag-add" data-open-tag-manager aria-label="Custom tag">+</button>
                 </div>
-                <section class="composer-suggestions" data-reply-suggestions aria-label="Goi y cau tra loi">
+                <section class="composer-suggestions" data-reply-suggestions aria-label="Gợi ý câu trả lời">
                     <div class="composer-suggestion-head">
-                        <span>Goi y cau noi tiep theo</span>
-                        <button type="button" data-refresh-suggestions>Lam moi</button>
+                        <span>Gợi ý câu nói tiếp theo</span>
+                        <button type="button" data-refresh-suggestions>Làm mới</button>
                     </div>
                     <div class="composer-suggestion-list" data-reply-suggestion-list></div>
                 </section>
                 <textarea name="content" rows="3" placeholder="Nhập Nội Dung Tin Nhắn" autocomplete="off" {{ $canReply ? '' : 'disabled' }}>{{ old('content') }}</textarea>
                 <div class="composer-bottom-row">
                     <div class="composer-actions" aria-label="Message tools">
-                        <label class="composer-attach-button" title="Dinh kem file, anh, video">
+                        <label class="composer-attach-button" title="Đính kèm file, ảnh, video">
                             Đính Kèm
                             <input type="file" name="attachments[]" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" multiple data-composer-files>
                         </label>
-                        <button class="composer-send-button" type="submit" title="Gui" {{ $canReply ? '' : 'disabled' }}>
+                        <button class="composer-send-button" type="submit" title="Gửi" {{ $canReply ? '' : 'disabled' }}>
                             <span class="material-symbols-outlined" aria-hidden="true">send</span>
-                            <span class="sr-only">Gui</span>
+                            <span class="sr-only">Gửi</span>
                         </button>
                     </div>
                 </div>
@@ -358,7 +358,7 @@
         @endif
     </section>
     <aside class="messenger-profile-panel" data-profile-panel data-messenger-profile-panel>
-        <button type="button" class="messenger-panel-close" data-messenger-drawer-close aria-label="Dong thong tin khach hang">
+        <button type="button" class="messenger-panel-close" data-messenger-drawer-close aria-label="Đóng thông tin khách hàng">
             <span class="material-symbols-outlined" aria-hidden="true">close</span>
         </button>
         @if($activeConversation)
@@ -399,11 +399,11 @@
                             </label>
                             <label>
                                 <span>Kênh Liên Hệ</span>
-                                <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chua co kenh' }}" data-contact-channel disabled>
+                                <input type="text" value="{{ $profilePanel['contact']['channel'] ?: 'Chưa có kênh' }}" data-contact-channel disabled>
                             </label>
                             <div class="profile-contact-actions">
                                 <button type="submit">
-                                    Save
+                                    Lưu
                                 </button>
                                 <small data-contact-status></small>
                             </div>
@@ -436,7 +436,7 @@
             <header class="profile-panel-title">
                 <h3>Thông Tin Khách Hàng</h3>
                 <button type="button" class="profile-contact-toggle" data-contact-toggle>
-                    Chinh sua
+                    Chỉnh sửa
                 </button>
             </header>
 
@@ -460,15 +460,15 @@
             <section class="profile-contact-summary">
                 <article>
                     <span>Số Điện Thoại</span>
-                    <strong data-profile-phone>{{ $activeConversation->customer?->phone ?: 'Chua co' }}</strong>
+                    <strong data-profile-phone>{{ $activeConversation->customer?->phone ?: 'Chưa có' }}</strong>
                 </article>
                 <div class="detected-phone-list" data-phone-candidates-list data-contact-url="{{ route('crm.conversations.customer.update', $activeConversation) }}">
                     @php($detectedPhones = array_values($profilePanel['summary']['facts']['phones'] ?? []))
                     @if(count($detectedPhones) > 0)
-                        <span>So dien thoai phat hien</span>
+                        <span>Số điện thoại phát hiện</span>
                         @foreach($detectedPhones as $phone)
                             <button type="button" data-use-detected-phone="{{ $phone }}" class="{{ $activeConversation->customer?->phone === $phone ? 'is-active' : '' }}">
-                                {{ $phone }}{{ $activeConversation->customer?->phone === $phone ? ' - dang luu' : '' }}
+                                {{ $phone }}{{ $activeConversation->customer?->phone === $phone ? ' - đang lưu' : '' }}
                             </button>
                         @endforeach
                     @endif
@@ -479,7 +479,7 @@
                 <header>
                     <h4>Ghi Chú (<span data-note-count>{{ count($profilePanel['notes']) }}</span>)</h4>
                     <button type="button" data-notes-toggle>
-                        Xem tat ca
+                        Xem tất cả
                     </button>
                 </header>
                 <textarea rows="3" placeholder="Nhập Ghi Chú Và Ấn Enter" data-note-input></textarea>
@@ -508,7 +508,7 @@
         @else
             <section class="profile-section is-empty">
                 <h4>Thông Tin Khách Hàng</h4>
-                <p>Chọn Một Conversation Để Xem Chi Tiết.</p>
+                <p>Chọn một hội thoại để xem chi tiết.</p>
             </section>
         @endif
     </aside>
@@ -517,28 +517,28 @@
 </div>
 
 <div class="tag-manager-modal" data-tag-manager-modal hidden>
-    <div class="tag-manager-dialog" role="dialog" aria-modal="true" aria-label="Custom tag">
+        <div class="tag-manager-dialog" role="dialog" aria-modal="true" aria-label="Tùy chỉnh tag">
         <header>
             <div>
-                <h3>Custom tag</h3>
-                <p>Chi giu 2 tag mac dinh. Tag custom co the sua mau, doi ten va xoa.</p>
+                <h3>Tùy chỉnh tag</h3>
+                <p>Chỉ giữ 2 tag mặc định. Tag tùy chỉnh có thể sửa màu, đổi tên và xóa.</p>
             </div>
-            <button type="button" class="tag-manager-close" data-close-tag-manager aria-label="Dong">
+            <button type="button" class="tag-manager-close" data-close-tag-manager aria-label="Đóng">
                 <span class="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
         </header>
         <form class="tag-manager-form" data-tag-manager-form>
             <input type="hidden" name="id" data-tag-manager-id>
             <label>
-                <span>Ten tag</span>
-                <input type="text" name="name" maxlength="80" placeholder="Vi du: Uu tien" required data-tag-manager-name>
+                <span>Tên tag</span>
+                <input type="text" name="name" maxlength="80" placeholder="Ví dụ: Ưu tiên" required data-tag-manager-name>
             </label>
             <label>
-                <span>Mau</span>
+                <span>Màu</span>
                 <input type="color" name="color" value="#2563eb" data-tag-manager-color>
             </label>
-            <button type="submit" data-tag-manager-submit>Luu tag</button>
-            <button type="button" data-tag-manager-reset>Tag moi</button>
+            <button type="submit" data-tag-manager-submit>Lưu tag</button>
+            <button type="button" data-tag-manager-reset>Tag mới</button>
         </form>
         <p class="tag-manager-status" data-tag-manager-status></p>
         <div class="tag-manager-list" data-tag-manager-list></div>
