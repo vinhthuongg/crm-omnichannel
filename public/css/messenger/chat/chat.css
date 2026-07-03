@@ -1057,15 +1057,15 @@ body.messenger-page .composer-tag-add {
 body.messenger-page .composer-suggestions {
     min-width: 0;
     width: 100%;
-    min-height: 62px;
+    min-height: 58px;
     display: grid;
     grid-template-rows: auto minmax(30px, auto);
     gap: 6px;
     border: 1px solid #e5edf8;
     border-radius: 10px;
     background: #f8fbff;
-    padding: 7px 9px;
-    overflow: visible;
+    padding: 7px 9px 8px;
+    overflow: hidden;
 }
 
 body.messenger-page .composer-suggestions.is-empty {
@@ -1098,11 +1098,11 @@ body.messenger-page .composer-suggestion-list {
     min-width: 0;
     max-width: 100%;
     min-height: 32px;
-    padding-bottom: 2px;
+    padding-bottom: 0;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: thin;
-    -ms-overflow-style: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     cursor: grab;
     scroll-behavior: smooth;
     touch-action: pan-x;
@@ -1111,16 +1111,7 @@ body.messenger-page .composer-suggestion-list {
 }
 
 body.messenger-page .composer-suggestion-list::-webkit-scrollbar {
-    height: 6px;
-}
-
-body.messenger-page .composer-suggestion-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-body.messenger-page .composer-suggestion-list::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: #cbd5e1;
+    display: none;
 }
 
 body.messenger-page .composer-suggestion-list.is-dragging {
@@ -1326,7 +1317,7 @@ body.messenger-page .messenger-composer textarea {
     border: 1px solid var(--chat-line);
     border-radius: 14px;
     background: #f8fafc;
-    padding: 13px 112px 13px 14px;
+    padding: 13px 104px 13px 14px;
     color: var(--chat-ink);
     outline: none;
 }
@@ -1338,8 +1329,8 @@ body.messenger-page .messenger-composer textarea:focus {
 
 body.messenger-page .composer-bottom-row {
     position: absolute;
-    right: 22px;
-    bottom: 28px;
+    right: 18px;
+    bottom: 24px;
     z-index: 5;
     min-height: 0;
     display: flex;
@@ -1352,7 +1343,7 @@ body.messenger-page .composer-bottom-row {
 body.messenger-page .composer-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     pointer-events: auto;
 }
 
