@@ -343,6 +343,8 @@ class BotpressChatService
                 'conversationId' => 'crm_conversation_'.$conversation->id,
                 'userId' => 'crm_conversation_'.$conversation->id.'_customer_'.$conversation->customer_id,
                 'text' => $this->messageText($message),
+                'callbackUrl' => $this->callbackUrl(),
+                'callbackSecret' => trim((string) config('services.botpress.callback_secret', '')),
                 'message' => [
                     'id' => $message->id,
                     'text' => $this->messageText($message),
@@ -356,6 +358,7 @@ class BotpressChatService
                 'metadata' => [
                     'facebook_page_id' => $conversation->facebook_page_id,
                     'crm_conversation_id' => $conversation->id,
+                    'callback_url' => $this->callbackUrl(),
                 ],
             ]);
 
@@ -564,6 +567,14 @@ class BotpressChatService
         $url = trim((string) config('services.botpress.webhook_url', ''));
 
         return str_contains($url, 'webhook.botpress.cloud');
+    }
+
+    private function callbackUrl(): string
+    {
+        $secret = trim((string) config('services.botpress.callback_secret', ''));
+        $url = route('botpress.callback', [], true);
+
+        return $secret === '' ? $url : $url.'?secret='.rawurlencode($secret);
     }
 
     private function jwt(array $payload, string $secret): string

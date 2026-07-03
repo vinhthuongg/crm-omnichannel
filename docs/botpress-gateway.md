@@ -60,6 +60,8 @@ Neu workflow Botpress khong tra response ngay, hay cho Botpress goi nguoc ve CRM
 POST https://oldthread.store/api/webhook/botpress?secret={BOTPRESS_CALLBACK_SECRET}
 ```
 
+CRM cung gui san `callbackUrl` va `callbackSecret` trong payload sang Botpress. Trong workflow Botpress co the dung `event.payload.callbackUrl` de goi nguoc ve CRM.
+
 Payload toi thieu:
 
 ```json
