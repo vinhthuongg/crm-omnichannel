@@ -27,12 +27,16 @@ Neu muon bao mat hon, dat Encryption Key trong Chat integration va dien cung key
 
 ```env
 BOTPRESS_ENABLED=true
+BOTPRESS_API_KEY=your_botpress_api_key
+BOTPRESS_WEBHOOK_URL=https://webhook.botpress.cloud/your_webhook_id
 BOTPRESS_BASE_URL=https://chat.botpress.cloud
 BOTPRESS_WEBHOOK_ID=your_botpress_chat_webhook_id
 BOTPRESS_ENCRYPTION_KEY=optional_same_key_as_chat_integration
 BOTPRESS_RESPONSE_POLL_ATTEMPTS=8
 BOTPRESS_RESPONSE_POLL_DELAY_MS=700
 ```
+
+`BOTPRESS_WEBHOOK_URL` hoac `BOTPRESS_WEBHOOK_ID` deu duoc. Neu dien full URL `https://webhook.botpress.cloud/...`, CRM se tu lay ID cuoi URL va goi Chat API qua `https://chat.botpress.cloud/{id}`.
 
 Sau khi sua env:
 

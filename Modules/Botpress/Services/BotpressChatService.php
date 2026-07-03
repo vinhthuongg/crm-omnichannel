@@ -20,7 +20,7 @@ class BotpressChatService
     public function enabled(): bool
     {
         return (bool) config('services.botpress.enabled', false)
-            && trim((string) config('services.botpress.webhook_id', '')) !== '';
+            && $this->webhookId() !== '';
     }
 
     public function relayCustomerMessage(Message $inbound): void
@@ -240,6 +240,12 @@ class BotpressChatService
             ->asJson()
             ->timeout(20);
 
+        $apiKey = trim((string) config('services.botpress.api_key', ''));
+
+        if ($apiKey !== '') {
+            $request = $request->withToken($apiKey);
+        }
+
         if ($userKey) {
             $request = $request->withHeaders(['x-user-key' => $userKey]);
         }
@@ -250,7 +256,26 @@ class BotpressChatService
     private function baseUrl(): string
     {
         return rtrim((string) config('services.botpress.base_url', 'https://chat.botpress.cloud'), '/')
-            .'/'.trim((string) config('services.botpress.webhook_id', ''), '/');
+            .'/'.$this->webhookId();
+    }
+
+    private function webhookId(): string
+    {
+        $id = trim((string) config('services.botpress.webhook_id', ''));
+
+        if ($id !== '') {
+            return trim($id, '/');
+        }
+
+        $url = trim((string) config('services.botpress.webhook_url', ''));
+
+        if ($url === '') {
+            return '';
+        }
+
+        $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
+
+        return $path !== '' ? basename($path) : '';
     }
 
     private function userKeyFor(string $userId): string

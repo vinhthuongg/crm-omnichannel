@@ -23,6 +23,8 @@ return [
     'zalo' => ['access_token' => env('ZALO_ACCESS_TOKEN')],
     'botpress' => [
         'enabled' => env('BOTPRESS_ENABLED', false),
+        'api_key' => env('BOTPRESS_API_KEY'),
+        'webhook_url' => env('BOTPRESS_WEBHOOK_URL'),
         'webhook_id' => env('BOTPRESS_WEBHOOK_ID'),
         'base_url' => env('BOTPRESS_BASE_URL', 'https://chat.botpress.cloud'),
         'encryption_key' => env('BOTPRESS_ENCRYPTION_KEY'),
