@@ -3,6 +3,7 @@ body.messenger-page {
     --inbox-width: 270px;
     --profile-width: 320px;
     --topbar-height: 42px;
+    --chat-header-height: 54px;
     --chat-bg: #fbf9ff;
     --chat-card: #fbfaff;
     --chat-soft: #f3f2fb;
@@ -375,10 +376,11 @@ body.messenger-page .messenger-list {
 }
 
 body.messenger-page .messenger-list-head {
-    min-height: 42px;
+    min-height: var(--chat-header-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border-bottom: 1px solid var(--chat-line);
     padding: 0 8px 0 8px;
 }
 
@@ -738,7 +740,7 @@ body.messenger-page .messenger-chat {
     height: 100%;
     max-height: 100%;
     display: grid;
-    grid-template-rows: 54px auto minmax(0, 1fr) auto;
+    grid-template-rows: var(--chat-header-height) auto minmax(0, 1fr) auto;
     overflow: hidden;
     border-right: 1px solid var(--chat-line);
     background: #fff;
@@ -746,7 +748,7 @@ body.messenger-page .messenger-chat {
 
 body.messenger-page .messenger-chat-head {
     grid-row: 1;
-    min-height: 54px;
+    min-height: var(--chat-header-height);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1468,7 +1470,7 @@ body.messenger-page .messenger-profile-panel {
 }
 
 body.messenger-page .profile-panel-title {
-    min-height: 44px;
+    min-height: var(--chat-header-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
