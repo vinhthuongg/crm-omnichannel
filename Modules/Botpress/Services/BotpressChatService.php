@@ -27,7 +27,7 @@ class BotpressChatService
     public function relayCustomerMessage(Message $inbound): void
     {
         if (! $this->enabled()) {
-            Log::info('Botpress relay skipped because integration is disabled', [
+            Log::warning('Botpress relay skipped because integration is disabled', [
                 'message_id' => $inbound->id,
                 'enabled' => config('services.botpress.enabled'),
                 'webhook_id' => $this->webhookId(),
@@ -45,7 +45,7 @@ class BotpressChatService
         $conversation = $inbound->conversation;
 
         if (! $conversation?->customer) {
-            Log::info('Botpress relay skipped because conversation or customer is missing', [
+            Log::warning('Botpress relay skipped because conversation or customer is missing', [
                 'message_id' => $inbound->id,
                 'conversation_id' => $inbound->conversation_id,
             ]);
@@ -54,7 +54,7 @@ class BotpressChatService
         }
 
         if ($this->botIsPaused($conversation)) {
-            Log::info('Botpress relay skipped because automation is paused', [
+            Log::warning('Botpress relay skipped because automation is paused', [
                 'message_id' => $inbound->id,
                 'conversation_id' => $conversation->id,
                 'automation_state' => $conversation->automation_state,
@@ -79,7 +79,7 @@ class BotpressChatService
             $reply = $this->waitForBotReply($link, $beforeMessageId);
 
             if (! $reply) {
-                Log::info('Botpress relay finished without bot reply', [
+                Log::warning('Botpress relay finished without bot reply', [
                     'conversation_id' => $conversation->id,
                     'message_id' => $inbound->id,
                     'botpress_conversation_id' => $link->botpress_conversation_id,

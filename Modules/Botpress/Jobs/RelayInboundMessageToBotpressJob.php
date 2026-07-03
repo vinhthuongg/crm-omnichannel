@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Modules\Botpress\Services\BotpressChatService;
 use Modules\Message\Models\Message;
 
@@ -28,11 +29,19 @@ class RelayInboundMessageToBotpressJob implements ShouldQueue
 
     public function handle(BotpressChatService $botpress): void
     {
+        Log::warning('Botpress relay job started', [
+            'message_id' => $this->messageId,
+        ]);
+
         $message = Message::query()
             ->with('conversation.customer.channels')
             ->find($this->messageId);
 
         if (! $message) {
+            Log::warning('Botpress relay job skipped because message was not found', [
+                'message_id' => $this->messageId,
+            ]);
+
             return;
         }
 
