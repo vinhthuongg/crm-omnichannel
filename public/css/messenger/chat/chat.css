@@ -1317,7 +1317,7 @@ body.messenger-page .messenger-composer textarea {
     border: 1px solid var(--chat-line);
     border-radius: 14px;
     background: #f8fafc;
-    padding: 13px 104px 13px 14px;
+    padding: 13px 98px 13px 14px;
     color: var(--chat-ink);
     outline: none;
 }
@@ -1329,8 +1329,8 @@ body.messenger-page .messenger-composer textarea:focus {
 
 body.messenger-page .composer-bottom-row {
     position: absolute;
-    right: 18px;
-    bottom: 24px;
+    right: 22px;
+    bottom: 34px;
     z-index: 5;
     min-height: 0;
     display: flex;
@@ -1343,15 +1343,15 @@ body.messenger-page .composer-bottom-row {
 body.messenger-page .composer-actions {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     pointer-events: auto;
 }
 
 body.messenger-page .composer-actions button,
 body.messenger-page .composer-actions label {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1377,9 +1377,9 @@ body.messenger-page .composer-actions label input {
 }
 
 body.messenger-page .composer-actions .composer-send-button {
-    width: 38px;
-    min-width: 38px;
-    height: 36px;
+    width: 36px;
+    min-width: 36px;
+    height: 34px;
     border-radius: 999px;
     background: var(--chat-red);
     border-color: var(--chat-red);
