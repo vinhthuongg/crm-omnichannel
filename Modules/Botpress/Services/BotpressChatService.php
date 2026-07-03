@@ -473,7 +473,7 @@ class BotpressChatService
 
     private function extractInlineQuickReplies(string $content): array
     {
-        if (! preg_match('/<QUICK_REPLIES>(.*?)<\/QUICK_REPLIES>/is', $content, $matches)) {
+        if (! preg_match('/<\s*QUICK_REPLIES\s*>(.*?)<\s*\/\s*QUICK_REPLIES\s*>/is', $content, $matches)) {
             return [
                 'content' => trim($content),
                 'quick_replies' => [],
@@ -481,7 +481,7 @@ class BotpressChatService
         }
 
         $replyBlock = trim((string) ($matches[1] ?? ''));
-        $cleanContent = trim((string) preg_replace('/<QUICK_REPLIES>.*?<\/QUICK_REPLIES>/is', '', $content));
+        $cleanContent = trim((string) preg_replace('/<\s*QUICK_REPLIES\s*>.*?<\s*\/\s*QUICK_REPLIES\s*>/is', '', $content));
         $quickReplies = collect(preg_split('/\R+/', $replyBlock) ?: [])
             ->map(fn (string $line): string => trim(preg_replace('/^\s*[-*•\d.)]+\s*/u', '', $line) ?: ''))
             ->filter()

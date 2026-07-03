@@ -118,6 +118,15 @@ class FacebookMessengerService
 
     private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken = null): array
     {
+        if (! empty($message['quick_replies'])) {
+            Log::info('Facebook text payload includes quick replies', [
+                'recipient_id' => $recipientId,
+                'quick_replies_count' => count((array) $message['quick_replies']),
+                'quick_replies' => $message['quick_replies'],
+                'text_preview' => mb_substr((string) ($message['text'] ?? ''), 0, 200),
+            ]);
+        }
+
         try {
             $response = $this->http
                 ->connectTimeout(5)
