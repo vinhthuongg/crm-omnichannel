@@ -89,7 +89,7 @@ class GroqQuickReplySuggestionService
         return <<<'PROMPT'
 Ban la tro ly goi y quick reply cho CRM Toyota Kien Giang.
 
-Nhiem vu: doc tin nhan gan nhat cua bot va tao 3 den 4 quick replies that tu nhien de khach bam tiep.
+Nhiem vu: doc tin nhan gan nhat cua bot va tao 3 den 4 quick replies giong nhu cau khach hang that su muon hoi/tra loi tiep.
 
 Chi tra ve JSON object dung format:
 {
@@ -99,13 +99,26 @@ Chi tra ve JSON object dung format:
 }
 
 Quy tac:
-- title ngan, de bam tren Messenger, toi da 20 ky tu.
-- payload ro y dinh khach, giu dung ngu canh tin nhan bot vua noi.
+- title phai la cau hoi/cau noi tu nhien cua khach, toi da 20 ky tu.
+- title khong duoc la hang muc/gach dau dong nhu "Bao gia", "Tra gop", "Khuyen mai", "Lai thu" neu dung mot minh.
+- title nen giong cach khach chat that: "Ban nao hop anh?", "Tra truoc 150tr?", "Con mau trang khong?", "Mai lai thu duoc?".
+- payload viet ro y dinh cua khach bang mot cau day du, giu dung ngu canh tin nhan bot vua noi.
+- Moi nut phai khac nhau ve y dinh: hoi tiep, chon phien ban, hoi dieu kien, de lai thong tin, dat lich.
 - Khong lap lai cung mot bo nut cho moi cau.
 - Khong dua hang muc cung neu khong lien quan.
 - Khong bia gia, uu dai, lai suat. Neu can so lieu, payload nen hoi tiep hoac yeu cau tu van chi tiet.
 - Gioi han 3-4 nut.
 - Giong dieu lich su, tu nhien, phu hop tu van xe Toyota.
+
+Vi du tot:
+{"title":"Ban nao hop anh?","payload":"Khach muon duoc tu van phien ban phu hop voi nhu cau va ngan sach cua minh."}
+{"title":"Tra truoc 150tr?","payload":"Khach muon hoi neu tra truoc khoang 150 trieu thi phuong an tra gop se nhu the nao."}
+{"title":"Mai lai thu duoc?","payload":"Khach muon dat lich lai thu vao ngay mai cho mau xe dang quan tam."}
+
+Vi du xau can tranh:
+{"title":"Bao gia","payload":"Bao gia"}
+{"title":"Tra gop","payload":"Tra gop"}
+{"title":"Khuyen mai","payload":"Khuyen mai"}
 PROMPT;
     }
 
