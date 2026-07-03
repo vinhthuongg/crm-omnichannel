@@ -486,36 +486,36 @@ class BotpressChatService
 
         if (str_contains($lower, 'trả góp') || str_contains($lower, 'lai suat') || str_contains($lower, 'lãi suất') || str_contains($lower, 'vay')) {
             return [
-                $this->quickReply('Tính trả góp'),
-                $this->quickReply('Hồ sơ cần gì'),
-                $this->quickReply('Lãi suất'),
-                $this->quickReply('Để lại SĐT'),
+                $this->quickReply('Tính góp giúp anh'),
+                $this->quickReply('Cần giấy tờ gì?'),
+                $this->quickReply('Lãi suất sao em?'),
+                $this->quickReply('Anh gửi SĐT nhé'),
             ];
         }
 
         if (str_contains($lower, 'lái thử') || str_contains($lower, 'dat lich') || str_contains($lower, 'đặt lịch')) {
             return [
-                $this->quickReply('Đặt lịch lái thử'),
-                $this->quickReply('Hôm nay'),
-                $this->quickReply('Ngày mai'),
-                $this->quickReply('Để lại SĐT'),
+                $this->quickReply('Lái thử hôm nay'),
+                $this->quickReply('Mai còn lịch không?'),
+                $this->quickReply('Cần mang gì em?'),
+                $this->quickReply('Anh gửi SĐT nhé'),
             ];
         }
 
         if (str_contains($lower, 'giá') || str_contains($lower, 'khuyến mãi') || str_contains($lower, 'ưu đãi')) {
             return [
-                $this->quickReply('Báo giá'),
-                $this->quickReply('Khuyến mãi'),
-                $this->quickReply('Trả góp'),
-                $this->quickReply('Để lại SĐT'),
+                $this->quickReply('Lăn bánh bao nhiêu?'),
+                $this->quickReply('Có ưu đãi gì?'),
+                $this->quickReply('Trả góp sao em?'),
+                $this->quickReply('Anh gửi SĐT nhé'),
             ];
         }
 
         return [
-            $this->quickReply('Báo giá'),
-            $this->quickReply('Trả góp'),
-            $this->quickReply('Lái thử'),
-            $this->quickReply('Để lại SĐT'),
+            $this->quickReply('Tư vấn mẫu phù hợp'),
+            $this->quickReply('Xin giá lăn bánh'),
+            $this->quickReply('Xem ưu đãi'),
+            $this->quickReply('Anh muốn lái thử'),
         ];
     }
 
