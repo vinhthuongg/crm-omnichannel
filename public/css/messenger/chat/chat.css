@@ -760,10 +760,36 @@ body.messenger-page .conversation-assign-form button {
 }
 
 body.messenger-page .conversation-claim-bar {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     border-bottom: 1px solid var(--chat-line);
     border-top: 0;
     background: #fff8e6;
     color: #8a5a00;
+    padding: 8px 18px;
+    font-size: 12px;
+}
+
+body.messenger-page .conversation-claim-bar.is-hidden {
+    display: none;
+}
+
+body.messenger-page .conversation-claim-bar button {
+    min-height: 30px;
+    border: 1px solid #f5c451;
+    border-radius: 8px;
+    background: #fff;
+    color: #7a4d00;
+    padding: 0 12px;
+    cursor: pointer;
+}
+
+body.messenger-page .conversation-claim-bar button:disabled {
+    cursor: not-allowed;
+    opacity: .5;
 }
 
 body.messenger-page .messenger-timeline {

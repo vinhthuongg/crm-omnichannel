@@ -13,9 +13,6 @@
 @php($inboxLastMessageId = $conversations->map(fn ($conversation) => (int) ($conversation->messages->first()?->id ?? 0))->max() ?? 0)
 @php($tagManager = $tagManager ?? ['index_url' => route('crm.conversation-tags.index'), 'store_url' => route('crm.conversation-tags.store')])
 @php($activeSection = 'conversations')
-@push('styles')
-<link rel="stylesheet" href="{{ asset('css/crm/messenger.css') }}?v={{ filemtime(public_path('css/crm/messenger.css')) }}">
-@endpush
 @push('late_styles')
 <link rel="stylesheet" href="{{ asset('css/messenger/chat/chat.css') }}?v={{ filemtime(public_path('css/messenger/chat/chat.css')) }}">
 @endpush
