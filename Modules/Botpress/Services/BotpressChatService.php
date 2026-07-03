@@ -159,7 +159,7 @@ class BotpressChatService
             'type' => 'metadata',
             'name' => 'botpress_callback',
             'payload' => $payload,
-        ]);
+        ], $payload);
     }
 
     private function ensureLink(Conversation $conversation): BotpressConversationLink
@@ -294,11 +294,11 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => [[
+                'attachments' => $this->botAttachments($content, [
                     'type' => 'metadata',
                     'name' => 'botpress',
                     'payload' => ['message' => $reply],
-                ]],
+                ], $reply),
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -389,13 +389,13 @@ class BotpressChatService
         ]);
     }
 
-    private function storeExternalBotReply(Conversation $conversation, string $content, string $clientMessageId, array $metadata): ?Message
+    private function storeExternalBotReply(Conversation $conversation, string $content, string $clientMessageId, array $metadata, array $payload = []): ?Message
     {
         if (Message::query()->where('client_message_id', $clientMessageId)->exists()) {
             return null;
         }
 
-        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata): Message {
+        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata, $payload): Message {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
@@ -403,7 +403,7 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => [$metadata],
+                'attachments' => $this->botAttachments($content, $metadata, $payload),
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -424,6 +424,110 @@ class BotpressChatService
         SendOutboundMessageJob::dispatch($message->id);
 
         return $message;
+    }
+
+    private function botAttachments(string $content, array $metadata, array $payload = []): array
+    {
+        $quickReplies = $this->quickRepliesForBotMessage($content, $payload);
+
+        if ($quickReplies === []) {
+            return [$metadata];
+        }
+
+        return [
+            $metadata,
+            [
+                'type' => 'quick_reply',
+                'quick_replies' => $quickReplies,
+            ],
+        ];
+    }
+
+    private function quickRepliesForBotMessage(string $content, array $payload = []): array
+    {
+        $custom = data_get($payload, 'quick_replies')
+            ?: data_get($payload, 'quickReplies')
+            ?: data_get($payload, 'suggestions')
+            ?: data_get($payload, 'buttons')
+            ?: data_get($payload, 'payload.quick_replies')
+            ?: data_get($payload, 'payload.quickReplies');
+
+        $items = is_array($custom) && $custom !== []
+            ? $this->normalizeQuickReplies($custom)
+            : $this->defaultQuickReplies($content);
+
+        return array_values(array_slice($items, 0, 11));
+    }
+
+    private function normalizeQuickReplies(array $items): array
+    {
+        return collect($items)
+            ->map(function (mixed $item): ?array {
+                $title = is_array($item)
+                    ? (string) (data_get($item, 'title') ?: data_get($item, 'text') ?: data_get($item, 'label') ?: data_get($item, 'name'))
+                    : (string) $item;
+
+                $title = trim($title);
+
+                if ($title === '') {
+                    return null;
+                }
+
+                return $this->quickReply($title, is_array($item) ? (string) (data_get($item, 'payload') ?: $title) : $title);
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function defaultQuickReplies(string $content): array
+    {
+        $lower = mb_strtolower($content);
+
+        if (str_contains($lower, 'trả góp') || str_contains($lower, 'lai suat') || str_contains($lower, 'lãi suất') || str_contains($lower, 'vay')) {
+            return [
+                $this->quickReply('Tính trả góp'),
+                $this->quickReply('Hồ sơ cần gì'),
+                $this->quickReply('Lãi suất'),
+                $this->quickReply('Để lại SĐT'),
+            ];
+        }
+
+        if (str_contains($lower, 'lái thử') || str_contains($lower, 'dat lich') || str_contains($lower, 'đặt lịch')) {
+            return [
+                $this->quickReply('Đặt lịch lái thử'),
+                $this->quickReply('Hôm nay'),
+                $this->quickReply('Ngày mai'),
+                $this->quickReply('Để lại SĐT'),
+            ];
+        }
+
+        if (str_contains($lower, 'giá') || str_contains($lower, 'khuyến mãi') || str_contains($lower, 'ưu đãi')) {
+            return [
+                $this->quickReply('Báo giá'),
+                $this->quickReply('Khuyến mãi'),
+                $this->quickReply('Trả góp'),
+                $this->quickReply('Để lại SĐT'),
+            ];
+        }
+
+        return [
+            $this->quickReply('Báo giá'),
+            $this->quickReply('Trả góp'),
+            $this->quickReply('Lái thử'),
+            $this->quickReply('Để lại SĐT'),
+        ];
+    }
+
+    private function quickReply(string $title, ?string $payload = null): array
+    {
+        $title = mb_substr(trim($title), 0, 20);
+
+        return [
+            'content_type' => 'text',
+            'title' => $title,
+            'payload' => mb_substr(trim($payload ?: $title), 0, 1000),
+        ];
     }
 
     private function extractReplyText(mixed $payload): ?string
