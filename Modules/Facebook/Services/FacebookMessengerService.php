@@ -119,7 +119,7 @@ class FacebookMessengerService
     private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken = null): array
     {
         if (! empty($message['quick_replies'])) {
-            Log::info('Facebook text payload includes quick replies', [
+            Log::warning('Facebook text payload includes quick replies', [
                 'recipient_id' => $recipientId,
                 'quick_replies_count' => count((array) $message['quick_replies']),
                 'quick_replies' => $message['quick_replies'],

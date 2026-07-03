@@ -136,6 +136,13 @@ class BotpressChatService
         $conversationId = $this->extractCrmConversationId($payload);
         $content = $this->extractReplyText($payload);
 
+        if (is_string($content) && stripos($content, 'QUICK_REPLIES') !== false) {
+            Log::warning('Botpress callback contains inline quick replies block', [
+                'conversation_id' => $conversationId,
+                'content_preview' => mb_substr($content, 0, 1000),
+            ]);
+        }
+
         if (! $conversationId || ! $content) {
             Log::warning('Botpress callback ignored because payload is missing conversation or text', [
                 'conversation_id' => $conversationId,
@@ -432,7 +439,7 @@ class BotpressChatService
             $payload['quick_replies'] = $inlineQuickReplies['quick_replies'];
             $metadata['payload']['inline_quick_replies'] = $inlineQuickReplies['quick_replies'];
 
-            Log::info('Botpress inline quick replies parsed', [
+            Log::warning('Botpress inline quick replies parsed', [
                 'conversation_id' => $conversation->id,
                 'client_message_id' => $clientMessageId,
                 'count' => count($inlineQuickReplies['quick_replies']),
@@ -537,7 +544,7 @@ class BotpressChatService
         }
 
         if (! (bool) config('services.botpress.fallback_quick_replies', false)) {
-            Log::info('Botpress quick replies skipped because callback payload did not include custom replies', [
+            Log::warning('Botpress quick replies skipped because callback payload did not include custom replies', [
                 'payload_keys' => array_keys($payload),
                 'data_payload_keys' => is_array(data_get($payload, 'data.payload')) ? array_keys(data_get($payload, 'data.payload')) : [],
             ]);
