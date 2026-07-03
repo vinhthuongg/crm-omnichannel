@@ -404,9 +404,6 @@
                     <article class="today-panel today-line-panel">
                         <header>
                             <h3>Hội thoại theo thời gian</h3>
-                            <button type="button" aria-label="Tuy chon">
-                                <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
-                            </button>
                         </header>
                         <div id="today-conversation-line" class="today-line-chart" aria-label="Hoi thoai theo thoi gian"></div>
                     </article>

@@ -59,7 +59,7 @@
         const container = getElement(id);
 
         if (!container || typeof window.Chart === 'undefined') {
-            showEmpty(container, 'Khong tai duoc thu vien bieu do');
+            showEmpty(container, 'Không Thể Tải');
             return;
         }
 
@@ -144,7 +144,7 @@
             data: {
                 labels: rows.map((row) => row.label),
                 datasets: [{
-                    label: options?.label || 'Hoi thoai',
+                    label: options?.label || 'Hội Thoại',
                     data: rows.map((row) => row.value),
                     borderColor: color,
                     backgroundColor: fill ? 'rgba(15, 86, 179, .14)' : 'rgba(15, 86, 179, .04)',
@@ -179,7 +179,7 @@
     }
 
     function renderBarChart(id, series) {
-        const rows = normalizeSeries(series, 'Chua co');
+        const rows = normalizeSeries(series, 'Chưa Có');
 
         renderChart(id, {
             type: 'bar',
@@ -209,14 +209,14 @@
         const rows = Array.isArray(series) ? series.filter((row) => Number(row.value || 0) > 0) : [];
 
         if (!rows.length) {
-            showEmpty(getElement(id), 'Chua co du lieu nguon hoi thoai');
+            showEmpty(getElement(id), 'Chưa Có Dữ Liệu');
             return;
         }
 
         renderChart(id, {
             type: 'doughnut',
             data: {
-                labels: rows.map((row) => String(row.label || 'Khac')),
+                labels: rows.map((row) => String(row.label || 'Khác')),
                 datasets: [{
                     data: rows.map((row) => Number(row.value || 0)),
                     backgroundColor: rows.map((_, index) => sourcePalette[index % sourcePalette.length]),
@@ -252,7 +252,7 @@
         renderLineChart('agent-response-line', dashboardData.agentLine || [], {
             color: '#0052cc',
             fill: false,
-            label: 'Phut',
+            label: 'Phút',
         });
 
         if (dashboardData.activeSection === 'dashboard' || dashboardData.activeSection === 'reports') {
@@ -260,7 +260,7 @@
                 color: '#0f56b3',
                 fill: true,
                 legend: true,
-                label: 'So hoi thoai',
+                label: 'Số Hội Thoại',
             });
             renderDonutChart('today-source-donut', dashboardData.todaySources || []);
         }
