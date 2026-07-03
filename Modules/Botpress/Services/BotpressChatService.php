@@ -135,16 +135,25 @@ class BotpressChatService
             $userKey = (string) data_get($userResponse, 'key', $userKey);
         }
 
+        if ($userKey === '') {
+            throw new \RuntimeException('Botpress user response did not include key: '.json_encode($userResponse));
+        }
+
         $conversationResponse = $this->client($userKey)->post('/conversations/get-or-create', [
             'id' => 'crm_conversation_'.$conversation->id,
         ])->throw()->json();
+        $botpressConversationId = (string) data_get($conversationResponse, 'conversation.id', '');
+
+        if ($botpressConversationId === '') {
+            throw new \RuntimeException('Botpress conversation response did not include conversation.id: '.json_encode($conversationResponse));
+        }
 
         return BotpressConversationLink::query()->updateOrCreate(
             ['conversation_id' => $conversation->id],
             [
                 'botpress_user_id' => $botpressUserId,
                 'botpress_user_key' => $userKey,
-                'botpress_conversation_id' => (string) data_get($conversationResponse, 'conversation.id'),
+                'botpress_conversation_id' => $botpressConversationId,
                 'last_payload' => [
                     'source' => 'ensure_link',
                     'user' => data_get($userResponse, 'user'),
