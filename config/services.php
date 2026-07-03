@@ -29,6 +29,7 @@ return [
         'base_url' => env('BOTPRESS_BASE_URL', 'https://chat.botpress.cloud'),
         'encryption_key' => env('BOTPRESS_ENCRYPTION_KEY'),
         'callback_secret' => env('BOTPRESS_CALLBACK_SECRET'),
+        'prefer_callback' => env('BOTPRESS_PREFER_CALLBACK', true),
         'response_poll_attempts' => (int) env('BOTPRESS_RESPONSE_POLL_ATTEMPTS', 8),
         'response_poll_delay_ms' => (int) env('BOTPRESS_RESPONSE_POLL_DELAY_MS', 700),
     ],

@@ -88,6 +88,17 @@ class BotpressChatService
             ];
 
             $this->client($link->botpress_user_key)->post('/messages', $sendPayload)->throw();
+
+            if ($this->preferCallback()) {
+                Log::info('Botpress relay sent and waiting for callback', [
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $inbound->id,
+                    'botpress_conversation_id' => $link->botpress_conversation_id,
+                ]);
+
+                return;
+            }
+
             $reply = $this->waitForBotReply($link, $beforeMessageId);
 
             if (! $reply) {
@@ -505,36 +516,36 @@ class BotpressChatService
 
         if ($this->containsAny($lower, ['tra gop', 'trả góp', 'lai suat', 'lãi suất', 'vay'])) {
             return [
-                $this->quickReply('Tính góp xe này'),
-                $this->quickReply('Hồ sơ mua góp?'),
-                $this->quickReply('Lãi suất hiện tại?'),
-                $this->quickReply('Gửi số để tư vấn'),
+                $this->quickReply('Tính góp xe này', 'Khách muốn tính phương án trả góp cho mẫu xe đang được tư vấn trong cuộc trò chuyện hiện tại.'),
+                $this->quickReply('Hồ sơ mua góp?', 'Khách muốn biết hồ sơ và giấy tờ cần chuẩn bị để mua mẫu xe đang tư vấn theo hình thức trả góp.'),
+                $this->quickReply('Lãi suất hiện tại?', 'Khách muốn hỏi lãi suất trả góp hiện tại cho mẫu xe đang được tư vấn.'),
+                $this->quickReply('Gửi số để tư vấn', 'Khách muốn để lại số điện thoại để nhân viên Toyota Kiên Giang gọi tư vấn chi tiết.'),
             ];
         }
 
         if ($this->containsAny($lower, ['lai thu', 'lái thử', 'dat lich', 'đặt lịch'])) {
             return [
-                $this->quickReply('Đặt lịch lái thử'),
-                $this->quickReply('Mai còn lịch không?'),
-                $this->quickReply('Lái thử cần gì?'),
-                $this->quickReply('Gửi số giữ lịch'),
+                $this->quickReply('Đặt lịch lái thử', 'Khách muốn đặt lịch lái thử mẫu xe đang được tư vấn trong cuộc trò chuyện hiện tại.'),
+                $this->quickReply('Mai còn lịch không?', 'Khách muốn hỏi ngày mai còn lịch lái thử mẫu xe đang quan tâm không.'),
+                $this->quickReply('Lái thử cần gì?', 'Khách muốn biết khi đi lái thử cần chuẩn bị giấy tờ gì.'),
+                $this->quickReply('Gửi số giữ lịch', 'Khách muốn để lại số điện thoại để nhân viên giữ lịch lái thử.'),
             ];
         }
 
         if ($this->containsAny($lower, ['gia', 'giá', 'khuyen mai', 'khuyến mãi', 'uu dai', 'ưu đãi'])) {
             return [
-                $this->quickReply('Giá lăn bánh xe'),
-                $this->quickReply('Ưu đãi xe này?'),
-                $this->quickReply('Trả góp xe này?'),
-                $this->quickReply('Gửi số nhận giá'),
+                $this->quickReply('Giá lăn bánh xe', 'Khách muốn hỏi giá lăn bánh cho mẫu xe đang được tư vấn trong cuộc trò chuyện hiện tại.'),
+                $this->quickReply('Ưu đãi xe này?', 'Khách muốn hỏi ưu đãi và khuyến mãi hiện tại cho mẫu xe đang được tư vấn.'),
+                $this->quickReply('Trả góp xe này?', 'Khách muốn hỏi phương án trả góp cho mẫu xe đang được tư vấn.'),
+                $this->quickReply('Gửi số nhận giá', 'Khách muốn để lại số điện thoại để nhận báo giá chi tiết từ Toyota Kiên Giang.'),
             ];
         }
 
         return [
-            $this->quickReply('Tư vấn xe phù hợp'),
-            $this->quickReply('Xin giá lăn bánh'),
-            $this->quickReply('Xem ưu đãi xe'),
-            $this->quickReply('Đặt lịch lái thử'),
+            $this->quickReply('Tư vấn xe phù hợp', 'Khách muốn được tư vấn mẫu Toyota phù hợp với nhu cầu sử dụng và ngân sách.'),
+            $this->quickReply('Xin giá lăn bánh', 'Khách muốn xin giá lăn bánh chi tiết cho mẫu xe đang quan tâm trong cuộc trò chuyện.'),
+            $this->quickReply('Xem ưu đãi xe', 'Khách muốn xem ưu đãi và khuyến mãi hiện tại của mẫu xe đang được tư vấn.'),
+            $this->quickReply('Đặt lịch lái thử', 'Khách muốn đặt lịch lái thử mẫu xe đang quan tâm.'),
         ];
     }
 
@@ -637,6 +648,12 @@ class BotpressChatService
 
     private function messageText(Message $message): string
     {
+        $quickReplyPayload = trim((string) data_get($message->attachments, '0.payload.raw.message.quick_reply.payload', ''));
+
+        if ($quickReplyPayload !== '') {
+            return $quickReplyPayload;
+        }
+
         $content = trim((string) $message->content);
         $attachments = collect($message->attachments ?? [])
             ->reject(fn (array $attachment): bool => ($attachment['type'] ?? '') === 'metadata')
@@ -723,6 +740,11 @@ class BotpressChatService
         $url = trim((string) config('services.botpress.webhook_url', ''));
 
         return str_contains($url, 'webhook.botpress.cloud');
+    }
+
+    private function preferCallback(): bool
+    {
+        return (bool) config('services.botpress.prefer_callback', true);
     }
 
     private function callbackUrl(): string
