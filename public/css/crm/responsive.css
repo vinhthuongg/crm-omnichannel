@@ -1,12 +1,9 @@
 @media (max-width: 1180px) {
-    .crm-shell,
-    body.messenger-page .messenger-crm-shell {
+    .crm-shell {
         grid-template-columns: 220px minmax(0, 1fr) !important;
     }
 
-    .crm-sidebar,
-    body.messenger-page .crm-sidebar,
-    body.messenger-page .crm-logo {
+    .crm-sidebar {
         width: 220px !important;
         min-width: 220px !important;
     }
@@ -23,58 +20,6 @@
     .customers-filter-card form {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
-
-    body.messenger-page .messenger-shell {
-        grid-template-columns: 330px minmax(0, 1fr) !important;
-    }
-
-    body.messenger-page .messenger-profile-panel {
-        position: fixed !important;
-        top: 0 !important;
-        right: 0 !important;
-        z-index: 70 !important;
-        width: min(360px, 92vw) !important;
-        height: 100dvh !important;
-        display: block !important;
-        border-left: 1px solid var(--crm-line, #e5e7eb) !important;
-        box-shadow: -18px 0 40px rgba(15, 23, 42, .14) !important;
-        transform: translateX(104%) !important;
-        transition: transform .2s ease !important;
-    }
-
-    body.messenger-page .messenger-shell.is-profile-open .messenger-profile-panel {
-        transform: translateX(0) !important;
-    }
-
-    body.messenger-page .messenger-shell.is-profile-open .messenger-drawer-backdrop {
-        display: block !important;
-    }
-
-    body.messenger-page .messenger-drawer-backdrop {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 60 !important;
-        border: 0 !important;
-        background: rgba(15, 23, 42, .34) !important;
-        padding: 0 !important;
-    }
-
-    body.messenger-page .messenger-mobile-toggle[data-messenger-drawer-toggle="profile"],
-    body.messenger-page .messenger-profile-panel > .messenger-panel-close {
-        display: grid !important;
-    }
-
-    body.messenger-page .messenger-mobile-toggle[data-messenger-drawer-toggle="list"],
-    body.messenger-page .messenger-list > .messenger-panel-close {
-        display: none !important;
-    }
-
-    body.messenger-page .messenger-panel-close {
-        position: absolute !important;
-        top: 10px !important;
-        right: 10px !important;
-        z-index: 5 !important;
-    }
 }
 
 @media (max-width: 920px) {
@@ -82,16 +27,14 @@
         overflow-x: hidden;
     }
 
-    .crm-shell,
-    body.messenger-page .messenger-crm-shell {
+    .crm-shell {
         min-height: 100vh !important;
         display: grid !important;
         grid-template-columns: 1fr !important;
         grid-template-rows: auto minmax(0, 1fr) !important;
     }
 
-    .crm-sidebar,
-    body.messenger-page .crm-sidebar {
+    .crm-sidebar {
         position: sticky !important;
         top: 0 !important;
         z-index: 30 !important;
@@ -109,8 +52,7 @@
         overflow-x: auto !important;
     }
 
-    .crm-logo,
-    body.messenger-page .crm-logo {
+    .crm-logo {
         position: static !important;
         width: auto !important;
         min-width: max-content !important;
@@ -121,8 +63,7 @@
         white-space: nowrap !important;
     }
 
-    .side-nav,
-    body.messenger-page .side-nav {
+    .side-nav {
         display: flex !important;
         align-items: center !important;
         gap: 6px !important;
@@ -131,13 +72,11 @@
         scrollbar-width: none;
     }
 
-    .side-nav::-webkit-scrollbar,
-    body.messenger-page .side-nav::-webkit-scrollbar {
+    .side-nav::-webkit-scrollbar {
         display: none;
     }
 
-    .side-nav a,
-    body.messenger-page .side-nav a {
+    .side-nav a {
         min-width: max-content !important;
         min-height: 36px !important;
         display: inline-flex !important;
@@ -149,33 +88,28 @@
         white-space: nowrap !important;
     }
 
-    .side-nav a.active,
-    body.messenger-page .side-nav a.active {
+    .side-nav a.active {
         border-bottom-color: var(--crm-primary, #c8102e) !important;
     }
 
-    .side-nav a > span:not(.material-symbols-outlined),
-    body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
+    .side-nav a > span:not(.material-symbols-outlined) {
         display: inline !important;
         overflow: visible !important;
         text-overflow: clip !important;
     }
 
-    .team-switcher,
-    body.messenger-page .team-switcher {
+    .team-switcher {
         display: none !important;
     }
 
-    .crm-main,
-    body.messenger-page .messenger-crm-main {
+    .crm-main {
         width: 100% !important;
         min-width: 0 !important;
         overflow-x: hidden !important;
         grid-template-rows: auto minmax(0, 1fr) !important;
     }
 
-    .crm-topbar,
-    body.messenger-page .crm-topbar {
+    .crm-topbar {
         position: static !important;
         min-height: auto !important;
         flex-wrap: wrap !important;
@@ -187,8 +121,7 @@
         min-width: 0 !important;
     }
 
-    .topbar-global-search,
-    body.messenger-page .topbar-global-search {
+    .topbar-global-search {
         width: 100% !important;
         order: 5 !important;
         margin: 0 !important;
@@ -272,122 +205,6 @@
 }
 
 @media (max-width: 760px) {
-    body.messenger-page .messenger-shell {
-        height: auto !important;
-        min-height: calc(100vh - 96px) !important;
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        grid-template-rows: minmax(64vh, auto) !important;
-    }
-
-    body.messenger-page .messenger-chat {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: none !important;
-    }
-
-    body.messenger-page .messenger-list {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        z-index: 70 !important;
-        width: min(360px, 92vw) !important;
-        height: 100dvh !important;
-        min-width: 0 !important;
-        max-width: none !important;
-        border-right: 1px solid var(--crm-line, #e5e7eb) !important;
-        box-shadow: 18px 0 40px rgba(15, 23, 42, .14) !important;
-        transform: translateX(-104%) !important;
-        transition: transform .2s ease !important;
-    }
-
-    body.messenger-page .messenger-shell.is-list-open .messenger-list {
-        transform: translateX(0) !important;
-    }
-
-    body.messenger-page .messenger-mobile-toggle[data-messenger-drawer-toggle="list"],
-    body.messenger-page .messenger-list > .messenger-panel-close {
-        display: grid !important;
-    }
-
-    body.messenger-page .messenger-shell.is-list-open .messenger-drawer-backdrop,
-    body.messenger-page .messenger-shell.is-profile-open .messenger-drawer-backdrop {
-        display: block !important;
-    }
-
-    body.messenger-page .messenger-profile-panel {
-        width: min(360px, 92vw) !important;
-        max-width: none !important;
-    }
-
-    body.messenger-page .messenger-thread-list {
-        max-height: 42vh !important;
-        overflow-y: auto !important;
-    }
-
-    body.messenger-page .messenger-chat-head,
-    body.messenger-page .messenger-composer {
-        padding-left: 10px !important;
-        padding-right: 10px !important;
-    }
-
-    body.messenger-page .messenger-chat-head {
-        display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto !important;
-        align-items: center !important;
-        gap: 10px !important;
-    }
-
-    body.messenger-page .chat-contact {
-        min-width: 0 !important;
-    }
-
-    body.messenger-page .conversation-assign-form {
-        grid-column: 1 / -1 !important;
-        width: 100% !important;
-        grid-template-columns: 1fr auto !important;
-    }
-
-    body.messenger-page .conversation-assign-form label,
-    body.messenger-page .conversation-assign-form small {
-        grid-column: 1 / -1 !important;
-    }
-
-    body.messenger-page .conversation-assign-form select,
-    body.messenger-page .conversation-assign-form button {
-        width: 100% !important;
-    }
-
-    body.messenger-page .chat-timeline {
-        min-height: 56vh !important;
-        max-height: none !important;
-        padding-left: 12px !important;
-        padding-right: 12px !important;
-    }
-
-    body.messenger-page .message-bubble {
-        max-width: 86vw !important;
-    }
-
-    body.messenger-page .message-attachment img,
-    body.messenger-page .message-attachment video {
-        max-width: 82vw !important;
-        height: auto !important;
-    }
-
-    body.messenger-page .composer-row,
-    body.messenger-page .composer-actions {
-        grid-template-columns: 1fr !important;
-    }
-
-    body.messenger-page .composer-actions {
-        justify-items: stretch !important;
-    }
-
-    body.messenger-page .composer-actions :is(button, label) {
-        width: 100% !important;
-    }
-
     .connection-page,
     .activity-log-page,
     .settings-page,
@@ -409,13 +226,11 @@
 }
 
 @media (max-width: 640px) {
-    .crm-logo,
-    body.messenger-page .crm-logo {
+    .crm-logo {
         font-size: 14px !important;
     }
 
-    .side-nav a,
-    body.messenger-page .side-nav a {
+    .side-nav a {
         font-size: 12px !important;
     }
 
@@ -441,25 +256,21 @@
 }
 
 @media (max-width: 520px) {
-    .crm-sidebar,
-    body.messenger-page .crm-sidebar {
+    .crm-sidebar {
         grid-template-columns: 1fr !important;
     }
 
-    .crm-logo,
-    body.messenger-page .crm-logo {
+    .crm-logo {
         justify-content: center !important;
         width: 100% !important;
     }
 
-    .side-nav,
-    body.messenger-page .side-nav {
+    .side-nav {
         width: 100% !important;
         justify-content: flex-start !important;
     }
 
-    .crm-topbar,
-    body.messenger-page .crm-topbar {
+    .crm-topbar {
         padding: 8px 10px !important;
     }
 
@@ -474,40 +285,21 @@
     .activity-log-card {
         padding: 14px !important;
     }
-
-    .messenger-list-head,
-    body.messenger-page .messenger-list-head {
-        padding: 12px 10px !important;
-    }
-
-    body.messenger-page .thread-item {
-        grid-template-columns: 44px minmax(0, 1fr) !important;
-        gap: 9px !important;
-    }
-
-    body.messenger-page .thread-meta {
-        grid-column: 2 !important;
-        justify-self: start !important;
-    }
 }
 
 @media (min-width: 921px) {
-    .crm-shell:not(.sidebar-collapsed),
-    body.messenger-page .messenger-crm-shell:not(.sidebar-collapsed),
-    body.messenger-page .crm-shell:not(.sidebar-collapsed) {
+    .crm-shell:not(.sidebar-collapsed) {
         grid-template-columns: 260px minmax(0, 1fr) !important;
     }
 
-    .crm-sidebar,
-    body.messenger-page .crm-sidebar {
+    .crm-sidebar {
         width: 260px !important;
         min-width: 260px !important;
         display: flex !important;
         overflow: visible !important;
     }
 
-    .crm-logo,
-    body.messenger-page .crm-logo {
+    .crm-logo {
         width: 260px !important;
         min-width: 260px !important;
         justify-content: flex-start !important;
@@ -515,13 +307,7 @@
         font-size: 18px !important;
         white-space: nowrap !important;
     }
-
-    body.messenger-page .crm-logo::first-letter {
-        font-size: inherit !important;
-    }
-
-    .side-nav,
-    body.messenger-page .side-nav {
+    .side-nav {
         display: grid !important;
         width: 100% !important;
         gap: 4px !important;
@@ -529,8 +315,7 @@
         overflow: visible !important;
     }
 
-    .side-nav a,
-    body.messenger-page .side-nav a {
+    .side-nav a {
         min-height: 42px !important;
         width: 100% !important;
         display: grid !important;
@@ -544,8 +329,7 @@
         white-space: normal !important;
     }
 
-    .side-nav a > span:not(.material-symbols-outlined),
-    body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
+    .side-nav a > span:not(.material-symbols-outlined) {
         display: block !important;
         width: auto !important;
         min-width: 0 !important;
@@ -555,22 +339,16 @@
         white-space: normal !important;
     }
 
-    .side-nav a .nav-material-icon,
-    body.messenger-page .side-nav a .nav-material-icon {
+    .side-nav a .nav-material-icon {
         width: 24px !important;
         min-width: 24px !important;
         font-size: 20px !important;
     }
 
-    .team-switcher,
-    body.messenger-page .team-switcher {
+    .team-switcher {
         width: auto !important;
         display: grid !important;
         grid-template-columns: 36px minmax(0, 1fr) 30px !important;
         margin: auto 12px 12px !important;
-    }
-
-    body.messenger-page .messenger-channel-tabs {
-        left: 260px !important;
     }
 }

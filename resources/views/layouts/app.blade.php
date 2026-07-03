@@ -16,6 +16,7 @@
     @if($useUi ?? true)
         <link rel="stylesheet" href="{{ asset('css/crm/responsive.css') }}?v={{ filemtime(public_path('css/crm/responsive.css')) }}">
     @endif
+    @stack('late_styles')
 </head>
 <body class="{{ $bodyClass ?? '' }}">
     @yield('content')
