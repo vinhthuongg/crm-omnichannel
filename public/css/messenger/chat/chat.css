@@ -747,21 +747,20 @@ body.messenger-page .messenger-chat {
 body.messenger-page .messenger-chat-head {
     grid-row: 1;
     min-height: 54px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    display: flex;
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--chat-line);
-    padding: 0 28px 0 24px;
+    padding: 0 8px 0 34px;
     background: #fff;
 }
 
 body.messenger-page .chat-contact {
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-left: 4px;
 }
 
 body.messenger-page .chat-contact h2 {
@@ -783,6 +782,7 @@ body.messenger-page .chat-customer-phone {
 }
 
 body.messenger-page .conversation-assign-form {
+    flex: 0 0 auto;
     min-width: 190px;
     display: grid;
     grid-template-columns: minmax(110px, 1fr) auto;
