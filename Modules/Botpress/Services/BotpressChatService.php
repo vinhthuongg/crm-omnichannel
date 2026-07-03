@@ -156,8 +156,18 @@ class BotpressChatService
             return null;
         }
 
+        if ($this->recentBotCallbackExists($conversation)) {
+            Log::info('Botpress callback ignored because another bot reply was just queued', [
+                'conversation_id' => $conversationId,
+                'content' => mb_substr($content, 0, 160),
+            ]);
+
+            return null;
+        }
+
         $sourceId = (string) (
             data_get($payload, 'id')
+            ?: data_get($payload, 'data.id')
             ?: data_get($payload, 'message.id')
             ?: data_get($payload, 'event.id')
             ?: data_get($payload, 'metadata.message_id')
@@ -493,39 +503,50 @@ class BotpressChatService
     {
         $lower = mb_strtolower($content);
 
-        if (str_contains($lower, 'trả góp') || str_contains($lower, 'lai suat') || str_contains($lower, 'lãi suất') || str_contains($lower, 'vay')) {
+        if ($this->containsAny($lower, ['tra gop', 'trả góp', 'lai suat', 'lãi suất', 'vay'])) {
             return [
-                $this->quickReply('Tính góp giúp anh'),
-                $this->quickReply('Cần giấy tờ gì?'),
-                $this->quickReply('Lãi suất sao em?'),
-                $this->quickReply('Anh gửi SĐT nhé'),
+                $this->quickReply('Tính góp xe này'),
+                $this->quickReply('Hồ sơ mua góp?'),
+                $this->quickReply('Lãi suất hiện tại?'),
+                $this->quickReply('Gửi số để tư vấn'),
             ];
         }
 
-        if (str_contains($lower, 'lái thử') || str_contains($lower, 'dat lich') || str_contains($lower, 'đặt lịch')) {
+        if ($this->containsAny($lower, ['lai thu', 'lái thử', 'dat lich', 'đặt lịch'])) {
             return [
-                $this->quickReply('Lái thử hôm nay'),
+                $this->quickReply('Đặt lịch lái thử'),
                 $this->quickReply('Mai còn lịch không?'),
-                $this->quickReply('Cần mang gì em?'),
-                $this->quickReply('Anh gửi SĐT nhé'),
+                $this->quickReply('Lái thử cần gì?'),
+                $this->quickReply('Gửi số giữ lịch'),
             ];
         }
 
-        if (str_contains($lower, 'giá') || str_contains($lower, 'khuyến mãi') || str_contains($lower, 'ưu đãi')) {
+        if ($this->containsAny($lower, ['gia', 'giá', 'khuyen mai', 'khuyến mãi', 'uu dai', 'ưu đãi'])) {
             return [
-                $this->quickReply('Lăn bánh bao nhiêu?'),
-                $this->quickReply('Có ưu đãi gì?'),
-                $this->quickReply('Trả góp sao em?'),
-                $this->quickReply('Anh gửi SĐT nhé'),
+                $this->quickReply('Giá lăn bánh xe'),
+                $this->quickReply('Ưu đãi xe này?'),
+                $this->quickReply('Trả góp xe này?'),
+                $this->quickReply('Gửi số nhận giá'),
             ];
         }
 
         return [
-            $this->quickReply('Tư vấn mẫu phù hợp'),
+            $this->quickReply('Tư vấn xe phù hợp'),
             $this->quickReply('Xin giá lăn bánh'),
-            $this->quickReply('Xem ưu đãi'),
-            $this->quickReply('Anh muốn lái thử'),
+            $this->quickReply('Xem ưu đãi xe'),
+            $this->quickReply('Đặt lịch lái thử'),
         ];
+    }
+
+    private function containsAny(string $haystack, array $needles): bool
+    {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function quickReply(string $title, ?string $payload = null): array
@@ -624,6 +645,17 @@ class BotpressChatService
             ->implode("\n");
 
         return trim($content."\n".$attachments) ?: '[Tin nhan khong co noi dung]';
+    }
+
+    private function recentBotCallbackExists(Conversation $conversation): bool
+    {
+        return Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('sender_type', 'system')
+            ->where('channel', 'facebook')
+            ->where('client_message_id', 'like', 'botpress_callback_%')
+            ->where('created_at', '>=', now()->subSeconds(8))
+            ->exists();
     }
 
     private function client(?string $userKey = null): \Illuminate\Http\Client\PendingRequest
