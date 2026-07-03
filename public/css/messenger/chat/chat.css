@@ -1330,7 +1330,7 @@ body.messenger-page .messenger-composer textarea:focus {
 body.messenger-page .composer-bottom-row {
     position: absolute;
     right: 22px;
-    bottom: 34px;
+    bottom: 56px;
     z-index: 5;
     min-height: 0;
     display: flex;
