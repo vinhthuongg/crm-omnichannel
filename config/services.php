@@ -39,4 +39,11 @@ return [
         'model' => env('NVIDIA_NIM_CHAT_MODEL', 'meta/llama-3.1-70b-instruct'),
         'timeout' => (int) env('NVIDIA_NIM_TIMEOUT', 12),
     ],
+    'google_ai' => [
+        'enabled' => env('GOOGLE_AI_QUICK_REPLIES_ENABLED', false),
+        'api_key' => env('GOOGLE_AI_API_KEY', env('GEMINI_API_KEY')),
+        'base_url' => env('GOOGLE_AI_BASE_URL', 'https://generativelanguage.googleapis.com'),
+        'model' => env('GOOGLE_AI_MODEL', 'gemini-2.0-flash'),
+        'timeout' => (int) env('GOOGLE_AI_TIMEOUT', 8),
+    ],
 ];
