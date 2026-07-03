@@ -113,6 +113,15 @@ class BotpressChatService
 
     public function receiveWebhookReply(array $payload): ?Message
     {
+        if ($this->isCustomerEchoCallback($payload)) {
+            Log::info('Botpress callback ignored because it is the relayed customer message', [
+                'botpress_message_id' => data_get($payload, 'data.id'),
+                'conversation_id' => data_get($payload, 'data.conversationId'),
+            ]);
+
+            return null;
+        }
+
         $conversationId = $this->extractCrmConversationId($payload);
         $content = $this->extractReplyText($payload);
 
@@ -540,7 +549,7 @@ class BotpressChatService
             return null;
         }
 
-        foreach (['text', 'reply', 'message', 'response.text', 'output.text', 'data.text'] as $path) {
+        foreach (['text', 'reply', 'message', 'response.text', 'output.text', 'data.text', 'data.payload.text', 'payload.text'] as $path) {
             $value = data_get($payload, $path);
 
             if (is_scalar($value) && trim((string) $value) !== '') {
@@ -576,7 +585,9 @@ class BotpressChatService
             ?: data_get($payload, 'conversation.crm_conversation_id')
             ?: data_get($payload, 'conversationId')
             ?: data_get($payload, 'conversation.id')
-            ?: data_get($payload, 'conversation_id');
+            ?: data_get($payload, 'conversation_id')
+            ?: data_get($payload, 'data.conversationId')
+            ?: data_get($payload, 'data.conversation.id');
 
         if (is_numeric($value)) {
             return (int) $value;
@@ -587,6 +598,15 @@ class BotpressChatService
         }
 
         return null;
+    }
+
+    private function isCustomerEchoCallback(array $payload): bool
+    {
+        if ((string) data_get($payload, 'type') !== 'message_created') {
+            return false;
+        }
+
+        return data_get($payload, 'data.isBot') === false;
     }
 
     private function botIsPaused(Conversation $conversation): bool
