@@ -983,11 +983,6 @@ body.messenger-page .composer-tag-add {
 }
 
 body.messenger-page .composer-suggestions {
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: calc(100% + 8px);
-    z-index: 6;
     min-width: 0;
     display: grid;
     gap: 6px;
@@ -995,6 +990,7 @@ body.messenger-page .composer-suggestions {
     border-radius: 10px;
     background: #f8fbff;
     padding: 7px 9px;
+    overflow: hidden;
 }
 
 body.messenger-page .composer-suggestions.is-empty {
@@ -1024,12 +1020,24 @@ body.messenger-page .composer-suggestion-list {
     align-items: center;
     gap: 7px;
     min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
+    -ms-overflow-style: none;
+    cursor: grab;
+    scroll-behavior: smooth;
+    touch-action: pan-x;
+    user-select: none;
 }
 
 body.messenger-page .composer-suggestion-list::-webkit-scrollbar {
     display: none;
+}
+
+body.messenger-page .composer-suggestion-list.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
 }
 
 body.messenger-page .composer-suggestion-button {

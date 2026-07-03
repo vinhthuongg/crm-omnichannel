@@ -3084,8 +3084,14 @@
 
     document.querySelector('[data-reply-suggestion-list]')?.addEventListener('click', function (event) {
         const button = event.target.closest('[data-reply-suggestion]');
+        const list = event.currentTarget;
 
         if (!button) {
+            return;
+        }
+
+        if (list?.dataset.dragged === '1') {
+            event.preventDefault();
             return;
         }
 
@@ -3218,6 +3224,69 @@
 
             event.preventDefault();
             tabs.scrollLeft += event.deltaY;
+        }, {passive: false});
+    });
+
+    document.querySelectorAll('[data-reply-suggestion-list]').forEach(function (list) {
+        let dragging = false;
+        let startX = 0;
+        let startScrollLeft = 0;
+        let moved = false;
+
+        list.addEventListener('pointerdown', function (event) {
+            if (event.button !== 0) {
+                return;
+            }
+
+            dragging = true;
+            moved = false;
+            startX = event.clientX;
+            startScrollLeft = list.scrollLeft;
+            list.classList.add('is-dragging');
+            list.setPointerCapture?.(event.pointerId);
+        });
+
+        list.addEventListener('pointermove', function (event) {
+            if (!dragging) {
+                return;
+            }
+
+            const delta = event.clientX - startX;
+
+            if (Math.abs(delta) > 4) {
+                moved = true;
+                list.dataset.dragged = '1';
+                event.preventDefault();
+            }
+
+            list.scrollLeft = startScrollLeft - delta;
+        });
+
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (eventName) {
+            list.addEventListener(eventName, function (event) {
+                if (!dragging) {
+                    return;
+                }
+
+                dragging = false;
+                list.classList.remove('is-dragging');
+                list.releasePointerCapture?.(event.pointerId);
+
+                if (moved) {
+                    window.setTimeout(function () {
+                        delete list.dataset.dragged;
+                    }, 0);
+                }
+            });
+        });
+
+        list.addEventListener('wheel', function (event) {
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+                return;
+            }
+
+            event.preventDefault();
+            list.scrollLeft += event.deltaY;
         }, {passive: false});
     });
 
