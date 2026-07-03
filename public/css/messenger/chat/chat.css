@@ -1812,6 +1812,49 @@ body.messenger-page .profile-contact-full .profile-section {
     box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
 }
 
+body.messenger-page .profile-note-list.is-full {
+    min-height: 0;
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    overflow-y: auto;
+    background: var(--chat-bg);
+    padding: 14px;
+}
+
+body.messenger-page .profile-note-list.is-full article {
+    display: grid;
+    gap: 8px;
+    border: 1px solid var(--chat-line);
+    border-radius: 8px;
+    background: var(--chat-card);
+    box-shadow: var(--chat-shadow);
+    padding: 12px;
+}
+
+body.messenger-page .profile-note-list.is-full p {
+    margin: 0;
+    color: var(--chat-ink);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+body.messenger-page .profile-note-list.is-full time {
+    color: var(--chat-muted);
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+body.messenger-page .profile-note-list.is-full .profile-empty {
+    margin: 0;
+    border: 1px solid var(--chat-line);
+    border-radius: 8px;
+    background: var(--chat-card);
+    color: var(--chat-muted);
+    padding: 12px;
+}
+
 body.messenger-page .profile-detail-list {
     display: grid;
     grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
