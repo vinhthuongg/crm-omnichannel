@@ -482,7 +482,7 @@ class BotpressChatService
                 continue;
             }
 
-            $items = $this->normalizeQuickReplies($custom);
+            $items = $this->normalizeQuickReplies($this->quickReplyItems($custom));
 
             if ($items !== []) {
                 Log::info('Botpress custom quick replies applied', [
@@ -493,6 +493,15 @@ class BotpressChatService
 
                 return array_values(array_slice($items, 0, 11));
             }
+        }
+
+        if (! (bool) config('services.botpress.fallback_quick_replies', false)) {
+            Log::info('Botpress quick replies skipped because callback payload did not include custom replies', [
+                'payload_keys' => array_keys($payload),
+                'data_payload_keys' => is_array(data_get($payload, 'data.payload')) ? array_keys(data_get($payload, 'data.payload')) : [],
+            ]);
+
+            return [];
         }
 
         $items = $this->defaultQuickReplies($content);
@@ -511,15 +520,32 @@ class BotpressChatService
             'choices',
             'actions',
             'items',
+            'replies',
+            'quick_reply',
+            'quickReply',
         ];
 
         $prefixes = [
             '',
             'payload.',
+            'payload.metadata.',
+            'payload.meta.',
+            'payload.custom.',
+            'payload.extra.',
+            'payload.data.',
+            'payload.card.',
             'data.',
             'data.payload.',
+            'data.payload.metadata.',
+            'data.payload.meta.',
+            'data.payload.custom.',
+            'data.payload.extra.',
+            'data.payload.data.',
+            'data.payload.card.',
             'message.',
             'message.payload.',
+            'message.payload.metadata.',
+            'message.payload.custom.',
             'response.',
             'response.payload.',
             'output.',
@@ -535,6 +561,34 @@ class BotpressChatService
         }
 
         return $paths;
+    }
+
+    private function quickReplyItems(array $custom): array
+    {
+        if ($this->looksLikeSingleQuickReply($custom)) {
+            return [$custom];
+        }
+
+        foreach (['items', 'options', 'choices', 'buttons', 'actions', 'replies', 'quickReplies', 'quick_replies'] as $key) {
+            $items = $custom[$key] ?? null;
+
+            if (is_array($items) && $items !== []) {
+                return $this->looksLikeSingleQuickReply($items) ? [$items] : $items;
+            }
+        }
+
+        return $custom;
+    }
+
+    private function looksLikeSingleQuickReply(array $item): bool
+    {
+        foreach (['title', 'label', 'text', 'name', 'value', 'displayText', 'display_text', 'message', 'payload'] as $key) {
+            if (array_key_exists($key, $item)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeQuickReplies(array $items): array
