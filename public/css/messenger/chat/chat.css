@@ -1753,6 +1753,12 @@ body.messenger-page .profile-contact-full {
     color: var(--chat-ink);
 }
 
+body.messenger-page .profile-notes-full[hidden],
+body.messenger-page .profile-contact-full[hidden],
+body.messenger-page .profile-panel-main[hidden] {
+    display: none !important;
+}
+
 body.messenger-page .profile-notes-full header,
 body.messenger-page .profile-contact-full header {
     min-height: 54px;
