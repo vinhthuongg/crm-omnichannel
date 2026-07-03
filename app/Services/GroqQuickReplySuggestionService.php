@@ -5,7 +5,7 @@ namespace App\Services;
 use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Support\Facades\Log;
 
-class GoogleQuickReplySuggestionService
+class GroqQuickReplySuggestionService
 {
     public function __construct(private readonly Http $http)
     {
@@ -13,8 +13,8 @@ class GoogleQuickReplySuggestionService
 
     public function enabled(): bool
     {
-        return (bool) config('services.google_ai.enabled', false)
-            && trim((string) config('services.google_ai.api_key', '')) !== '';
+        return (bool) config('services.groq.enabled', false)
+            && trim((string) config('services.groq.api_key', '')) !== '';
     }
 
     public function forBotMessage(string $botMessage): array
@@ -27,28 +27,30 @@ class GoogleQuickReplySuggestionService
 
         try {
             $response = $this->http
-                ->baseUrl(rtrim((string) config('services.google_ai.base_url'), '/'))
+                ->baseUrl(rtrim((string) config('services.groq.base_url'), '/'))
                 ->acceptJson()
                 ->asJson()
-                ->timeout((int) config('services.google_ai.timeout', 8))
-                ->post('/v1beta/models/'.trim((string) config('services.google_ai.model')).':generateContent?key='.rawurlencode(trim((string) config('services.google_ai.api_key'))), [
-                    'contents' => [
+                ->withToken(trim((string) config('services.groq.api_key')))
+                ->timeout((int) config('services.groq.timeout', 8))
+                ->post('/chat/completions', [
+                    'model' => trim((string) config('services.groq.model')),
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => $this->systemPrompt(),
+                        ],
                         [
                             'role' => 'user',
-                            'parts' => [
-                                ['text' => $this->prompt($botMessage)],
-                            ],
+                            'content' => "Tin nhan gan nhat cua bot:\n".$botMessage,
                         ],
                     ],
-                    'generationConfig' => [
-                        'temperature' => 0.45,
-                        'maxOutputTokens' => 450,
-                        'responseMimeType' => 'application/json',
-                    ],
+                    'temperature' => 0.45,
+                    'max_completion_tokens' => 450,
+                    'response_format' => ['type' => 'json_object'],
                 ]);
 
             if ($response->failed()) {
-                Log::warning('Google AI quick reply generation failed', [
+                Log::warning('Groq quick reply generation failed', [
                     'status' => $response->status(),
                     'body' => mb_substr($response->body(), 0, 1200),
                 ]);
@@ -56,25 +58,25 @@ class GoogleQuickReplySuggestionService
                 return [];
             }
 
-            $text = trim((string) data_get($response->json(), 'candidates.0.content.parts.0.text', ''));
+            $text = trim((string) data_get($response->json(), 'choices.0.message.content', ''));
             $items = $this->decodeItems($text);
 
             if ($items === []) {
-                Log::warning('Google AI quick reply generation returned empty payload', [
+                Log::warning('Groq quick reply generation returned empty payload', [
                     'text' => mb_substr($text, 0, 1200),
                 ]);
 
                 return [];
             }
 
-            Log::warning('Google AI quick replies generated', [
+            Log::warning('Groq quick replies generated', [
                 'count' => count($items),
                 'titles' => array_column($items, 'title'),
             ]);
 
             return $items;
         } catch (\Throwable $exception) {
-            Log::warning('Google AI quick reply generation exception', [
+            Log::warning('Groq quick reply generation exception', [
                 'error' => $exception->getMessage(),
             ]);
 
@@ -82,30 +84,28 @@ class GoogleQuickReplySuggestionService
         }
     }
 
-    private function prompt(string $botMessage): string
+    private function systemPrompt(): string
     {
-        return <<<PROMPT
+        return <<<'PROMPT'
 Ban la tro ly goi y quick reply cho CRM Toyota Kien Giang.
 
-Hay doc tin nhan gan nhat cua bot ben duoi va tao 3 den 4 nut quick reply that tu nhien de khach bam tiep.
+Nhiem vu: doc tin nhan gan nhat cua bot va tao 3 den 4 quick replies that tu nhien de khach bam tiep.
 
-Yeu cau:
-- Chi tra ve JSON array, khong markdown, khong giai thich.
-- Moi phan tu co dung 2 field: title va payload.
-- title la cau ngan de hien tren nut Messenger, toi da 20 ky tu.
-- payload la y dinh day du cua khach khi bam nut, de bot tiep tuc hoi/tra loi dung ngu canh.
-- Nut phai theo dung noi dung bot vua noi, khong dua hang muc cung neu khong lien quan.
-- Khong bia so lieu gia, lai suat, uu dai. Neu can so lieu, payload hay hoi tiep/y yeu cau tu van chi tiet.
+Chi tra ve JSON object dung format:
+{
+  "quick_replies": [
+    {"title": "Toi da 20 ky tu", "payload": "Y dinh day du cua khach khi bam nut"}
+  ]
+}
+
+Quy tac:
+- title ngan, de bam tren Messenger, toi da 20 ky tu.
+- payload ro y dinh khach, giu dung ngu canh tin nhan bot vua noi.
+- Khong lap lai cung mot bo nut cho moi cau.
+- Khong dua hang muc cung neu khong lien quan.
+- Khong bia gia, uu dai, lai suat. Neu can so lieu, payload nen hoi tiep hoac yeu cau tu van chi tiet.
+- Gioi han 3-4 nut.
 - Giong dieu lich su, tu nhien, phu hop tu van xe Toyota.
-
-Vi du output:
-[
-  {"title":"Xem ban tu dong","payload":"Khach muon xem thong tin phien ban Vios so tu dong."},
-  {"title":"Tinh tra gop","payload":"Khach muon tinh phuong an tra gop cho mau xe dang duoc tu van."}
-]
-
-Tin nhan gan nhat cua bot:
-{$botMessage}
 PROMPT;
     }
 
@@ -113,7 +113,7 @@ PROMPT;
     {
         $decoded = json_decode($text, true);
 
-        if (! is_array($decoded) && preg_match('/\[[\s\S]*\]/', $text, $matches)) {
+        if (! is_array($decoded) && preg_match('/\{[\s\S]*\}/', $text, $matches)) {
             $decoded = json_decode($matches[0], true);
         }
 
@@ -121,7 +121,13 @@ PROMPT;
             return [];
         }
 
-        return collect($decoded)
+        $items = $decoded['quick_replies'] ?? $decoded['quickReplies'] ?? $decoded['items'] ?? $decoded;
+
+        if (! is_array($items)) {
+            return [];
+        }
+
+        return collect($items)
             ->map(function (mixed $item): ?array {
                 if (! is_array($item)) {
                     return null;

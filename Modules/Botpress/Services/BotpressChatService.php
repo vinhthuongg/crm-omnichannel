@@ -2,7 +2,7 @@
 
 namespace Modules\Botpress\Services;
 
-use App\Services\GoogleQuickReplySuggestionService;
+use App\Services\GroqQuickReplySuggestionService;
 use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +17,7 @@ class BotpressChatService
 {
     public function __construct(
         private readonly Http $http,
-        private readonly GoogleQuickReplySuggestionService $googleQuickReplies,
+        private readonly GroqQuickReplySuggestionService $groqQuickReplies,
     )
     {
     }
@@ -519,7 +519,7 @@ class BotpressChatService
 
     private function quickRepliesForBotMessage(string $content, array $payload = []): array
     {
-        $items = $this->googleQuickReplies->forBotMessage($content);
+        $items = $this->groqQuickReplies->forBotMessage($content);
 
         if ($items !== []) {
             return array_values(array_slice($items, 0, 11));
