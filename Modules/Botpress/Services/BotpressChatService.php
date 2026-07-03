@@ -425,6 +425,21 @@ class BotpressChatService
             return null;
         }
 
+        $inlineQuickReplies = $this->extractInlineQuickReplies($content);
+
+        if ($inlineQuickReplies['quick_replies'] !== []) {
+            $content = $inlineQuickReplies['content'];
+            $payload['quick_replies'] = $inlineQuickReplies['quick_replies'];
+            $metadata['payload']['inline_quick_replies'] = $inlineQuickReplies['quick_replies'];
+
+            Log::info('Botpress inline quick replies parsed', [
+                'conversation_id' => $conversation->id,
+                'client_message_id' => $clientMessageId,
+                'count' => count($inlineQuickReplies['quick_replies']),
+                'titles' => array_column($inlineQuickReplies['quick_replies'], 'title'),
+            ]);
+        }
+
         $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata, $payload): Message {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
@@ -454,6 +469,32 @@ class BotpressChatService
         SendOutboundMessageJob::dispatch($message->id);
 
         return $message;
+    }
+
+    private function extractInlineQuickReplies(string $content): array
+    {
+        if (! preg_match('/<QUICK_REPLIES>(.*?)<\/QUICK_REPLIES>/is', $content, $matches)) {
+            return [
+                'content' => trim($content),
+                'quick_replies' => [],
+            ];
+        }
+
+        $replyBlock = trim((string) ($matches[1] ?? ''));
+        $cleanContent = trim((string) preg_replace('/<QUICK_REPLIES>.*?<\/QUICK_REPLIES>/is', '', $content));
+        $quickReplies = collect(preg_split('/\R+/', $replyBlock) ?: [])
+            ->map(fn (string $line): string => trim(preg_replace('/^\s*[-*•\d.)]+\s*/u', '', $line) ?: ''))
+            ->filter()
+            ->unique()
+            ->take(11)
+            ->map(fn (string $title): array => $this->quickReply($title, $title))
+            ->values()
+            ->all();
+
+        return [
+            'content' => $cleanContent,
+            'quick_replies' => $quickReplies,
+        ];
     }
 
     private function botAttachments(string $content, array $metadata, array $payload = []): array
