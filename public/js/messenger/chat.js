@@ -758,7 +758,7 @@
             }).join('')}</div>`
             : '';
         const textBubble = message.is_recalled
-            ? `<div class="message-bubble is-recalled"><p>Tin nhan da duoc thu hoi</p></div>`
+            ? `<div class="message-bubble is-recalled"><p>Tin nhắn đã được thu hồi</p></div>`
             : content
             ? `<div class="message-bubble ${isWhisper ? 'is-whisper' : ''}">
                     <span class="message-sender">${escapeHtml(isWhisper ? `Thì thầm - ${message.sender_name || 'Nhân viên'}` : (message.sender_name || 'Unknown'))}</span>
@@ -2121,7 +2121,7 @@
         }
 
         if (type === 'image' || mime.startsWith('image/') || payload.image_data?.url) {
-            return '[Hinh anh]';
+            return '[Hình ảnh]';
         }
 
         if (type === 'video' || mime.startsWith('video/') || payload.video_data?.url) {
@@ -2132,7 +2132,7 @@
             return '[Audio]';
         }
 
-        return '[Tep dinh kem]';
+        return '[Tệp đính kèm]';
     }
 
     function messagePreviewText(message) {
@@ -2147,18 +2147,18 @@
         }
 
         if (message?.is_recalled) {
-            content = 'Tin nhan da duoc thu hoi';
+            content = 'Tin nhắn đã được thu hồi';
         }
 
         if (message?.message_type === 'whisper' || message?.channel === 'internal') {
-            return `Thi tham: ${content}`;
+            return `Thì Thầm: ${content}`;
         }
 
         if (message?.sender_type === 'user') {
-            return `Ban: ${content}`;
+            return `Bạn: ${content}`;
         }
 
-        return content;
+        return `Khách Hàng: ${content}`;
     }
 
     function updateThreadPreview(message) {

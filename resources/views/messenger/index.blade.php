@@ -246,11 +246,11 @@
                         <div class="message-stack">
                             @if(! empty($message['is_recalled']))
                                 <div class="message-bubble is-recalled">
-                                    <p>Tin nhan da duoc thu hoi</p>
+                                    <p>Tin nhắn đã được thu hồi</p>
                                 </div>
                             @elseif(filled($message['content']))
                                 <div class="message-bubble {{ $isWhisper ? 'is-whisper' : '' }}">
-                                    <span class="message-sender">{{ $isWhisper ? 'Thi tham - '.$message['sender_name'] : $message['sender_name'] }}</span>
+                                    <span class="message-sender">{{ $isWhisper ? 'Thì thầm - '.$message['sender_name'] : $message['sender_name'] }}</span>
                                     <p>{{ $message['content'] }}</p>
                                 </div>
                             @endif

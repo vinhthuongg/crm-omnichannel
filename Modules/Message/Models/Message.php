@@ -49,19 +49,23 @@ class Message extends Model
         $content = trim((string) $this->content);
 
         if ($content === '') {
-            $content = $this->attachmentPreviewText() ?? 'Chua co tin nhan';
+            $content = $this->attachmentPreviewText() ?? 'Chưa có tin nhắn';
         }
 
         if ($this->recalled_at) {
-            $content = 'Tin nhan da duoc thu hoi';
+            $content = 'Tin nhắn đã được thu hồi';
         }
 
         if ($this->message_type === 'whisper' || $this->channel === 'internal') {
-            return 'Thi tham: '.$content;
+            return 'Thì Thầm: '.$content;
         }
 
         if ($this->sender_type === 'user') {
-            return 'Ban: '.$content;
+            return 'Bạn: '.$content;
+        }
+
+        if ($this->sender_type === 'customer') {
+            return 'Khách Hàng: '.$content;
         }
 
         return $content;
@@ -84,7 +88,7 @@ class Message extends Model
         }
 
         if ($type === 'image' || substr($mimeType, 0, 6) === 'image/' || filled(data_get($payload, 'image_data.url'))) {
-            return '[Hinh anh]';
+            return '[Hình ảnh]';
         }
 
         if ($type === 'video' || substr($mimeType, 0, 6) === 'video/' || filled(data_get($payload, 'video_data.url'))) {
@@ -95,6 +99,6 @@ class Message extends Model
             return '[Audio]';
         }
 
-        return '[Tep dinh kem]';
+        return '[Tệp đính kèm]';
     }
 }
