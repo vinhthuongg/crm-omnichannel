@@ -111,6 +111,57 @@ class BotpressChatService
         }
     }
 
+    public function receiveWebhookReply(array $payload): ?Message
+    {
+        $conversationId = $this->extractCrmConversationId($payload);
+        $content = $this->extractReplyText($payload);
+
+        if (! $conversationId || ! $content) {
+            Log::warning('Botpress callback ignored because payload is missing conversation or text', [
+                'conversation_id' => $conversationId,
+                'has_text' => filled($content),
+                'payload' => mb_substr(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', 0, 2000),
+            ]);
+
+            return null;
+        }
+
+        $conversation = Conversation::query()
+            ->with('customer.channels')
+            ->find($conversationId);
+
+        if (! $conversation) {
+            Log::warning('Botpress callback ignored because CRM conversation was not found', [
+                'conversation_id' => $conversationId,
+            ]);
+
+            return null;
+        }
+
+        if ($this->botIsPaused($conversation)) {
+            Log::warning('Botpress callback ignored because automation is paused', [
+                'conversation_id' => $conversationId,
+                'automation_state' => $conversation->automation_state,
+            ]);
+
+            return null;
+        }
+
+        $sourceId = (string) (
+            data_get($payload, 'id')
+            ?: data_get($payload, 'message.id')
+            ?: data_get($payload, 'event.id')
+            ?: data_get($payload, 'metadata.message_id')
+            ?: sha1($conversationId.'|'.$content.'|'.json_encode($payload))
+        );
+
+        return $this->storeExternalBotReply($conversation, $content, 'botpress_callback_'.$sourceId, [
+            'type' => 'metadata',
+            'name' => 'botpress_callback',
+            'payload' => $payload,
+        ]);
+    }
+
     private function ensureLink(Conversation $conversation): BotpressConversationLink
     {
         $link = BotpressConversationLink::query()->where('conversation_id', $conversation->id)->first();
@@ -328,9 +379,20 @@ class BotpressChatService
 
     private function storeDirectWebhookReply(Conversation $conversation, string $content): void
     {
-        $clientMessageId = 'botpress_direct_'.sha1($conversation->id.'|'.$content.'|'.now()->timestamp);
+        $this->storeExternalBotReply($conversation, $content, 'botpress_direct_'.sha1($conversation->id.'|'.$content.'|'.now()->timestamp), [
+            'type' => 'metadata',
+            'name' => 'botpress_direct_webhook',
+            'payload' => ['source' => 'direct_webhook'],
+        ]);
+    }
 
-        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId): Message {
+    private function storeExternalBotReply(Conversation $conversation, string $content, string $clientMessageId, array $metadata): ?Message
+    {
+        if (Message::query()->where('client_message_id', $clientMessageId)->exists()) {
+            return null;
+        }
+
+        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata): Message {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
@@ -338,11 +400,7 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => [[
-                    'type' => 'metadata',
-                    'name' => 'botpress_direct_webhook',
-                    'payload' => ['source' => 'direct_webhook'],
-                ]],
+                'attachments' => [$metadata],
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -361,6 +419,8 @@ class BotpressChatService
         }
 
         SendOutboundMessageJob::dispatch($message->id);
+
+        return $message;
     }
 
     private function extractReplyText(mixed $payload): ?string
@@ -397,6 +457,26 @@ class BotpressChatService
                     return trim((string) $value);
                 }
             }
+        }
+
+        return null;
+    }
+
+    private function extractCrmConversationId(array $payload): ?int
+    {
+        $value = data_get($payload, 'metadata.crm_conversation_id')
+            ?: data_get($payload, 'crm_conversation_id')
+            ?: data_get($payload, 'conversation.crm_conversation_id')
+            ?: data_get($payload, 'conversationId')
+            ?: data_get($payload, 'conversation.id')
+            ?: data_get($payload, 'conversation_id');
+
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        if (is_string($value) && preg_match('/crm_conversation_(\d+)/', $value, $matches)) {
+            return (int) $matches[1];
         }
 
         return null;

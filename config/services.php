@@ -28,6 +28,7 @@ return [
         'webhook_id' => env('BOTPRESS_WEBHOOK_ID'),
         'base_url' => env('BOTPRESS_BASE_URL', 'https://chat.botpress.cloud'),
         'encryption_key' => env('BOTPRESS_ENCRYPTION_KEY'),
+        'callback_secret' => env('BOTPRESS_CALLBACK_SECRET'),
         'response_poll_attempts' => (int) env('BOTPRESS_RESPONSE_POLL_ATTEMPTS', 8),
         'response_poll_delay_ms' => (int) env('BOTPRESS_RESPONSE_POLL_DELAY_MS', 700),
     ],

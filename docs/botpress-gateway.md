@@ -54,6 +54,23 @@ Voi direct webhook, dien `BOTPRESS_WEBHOOK_URL=https://webhook.botpress.cloud/{i
 {"messages":[{"payload":{"text":"Noi dung bot tra loi"}}]}
 ```
 
+Neu workflow Botpress khong tra response ngay, hay cho Botpress goi nguoc ve CRM sau khi tao cau tra loi:
+
+```text
+POST https://oldthread.store/api/webhook/botpress?secret={BOTPRESS_CALLBACK_SECRET}
+```
+
+Payload toi thieu:
+
+```json
+{
+  "conversationId": "crm_conversation_1",
+  "text": "Noi dung bot tra loi"
+}
+```
+
+CRM cung chap nhan `metadata.crm_conversation_id`, `crm_conversation_id`, `reply`, `message`, hoac `messages[0].payload.text`.
+
 Sau khi sua env:
 
 ```bash
