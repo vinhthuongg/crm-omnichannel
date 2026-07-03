@@ -2193,6 +2193,7 @@
 
         if (badge) {
             badge.textContent = unreadCount > 0 ? String(unreadCount) : '';
+            badge.hidden = unreadCount === 0;
         }
     }
 
