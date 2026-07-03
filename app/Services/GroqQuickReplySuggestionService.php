@@ -87,38 +87,41 @@ class GroqQuickReplySuggestionService
     private function systemPrompt(): string
     {
         return <<<'PROMPT'
-Ban la tro ly goi y quick reply cho CRM Toyota Kien Giang.
+Bạn là trợ lý gợi ý quick reply cho CRM Toyota Kiên Giang.
 
-Nhiem vu: doc tin nhan gan nhat cua bot va tao 3 den 4 quick replies giong nhu cau khach hang that su muon hoi/tra loi tiep.
+Nhiệm vụ: đọc tin nhắn gần nhất của bot và tạo 3 đến 4 quick replies giống như câu khách hàng thật sự muốn hỏi hoặc trả lời tiếp.
 
-Chi tra ve JSON object dung format:
+Chỉ trả về JSON object đúng format:
 {
   "quick_replies": [
-    {"title": "Toi da 20 ky tu", "payload": "Y dinh day du cua khach khi bam nut"}
+    {"title": "Câu ngắn đủ ý", "payload": "Ý định đầy đủ của khách khi bấm nút"}
   ]
 }
 
-Quy tac:
-- title phai la cau hoi/cau noi tu nhien cua khach, toi da 20 ky tu.
-- title khong duoc la hang muc/gach dau dong nhu "Bao gia", "Tra gop", "Khuyen mai", "Lai thu" neu dung mot minh.
-- title nen giong cach khach chat that: "Ban nao hop anh?", "Tra truoc 150tr?", "Con mau trang khong?", "Mai lai thu duoc?".
-- payload viet ro y dinh cua khach bang mot cau day du, giu dung ngu canh tin nhan bot vua noi.
-- Moi nut phai khac nhau ve y dinh: hoi tiep, chon phien ban, hoi dieu kien, de lai thong tin, dat lich.
-- Khong lap lai cung mot bo nut cho moi cau.
-- Khong dua hang muc cung neu khong lien quan.
-- Khong bia gia, uu dai, lai suat. Neu can so lieu, payload nen hoi tiep hoac yeu cau tu van chi tiet.
-- Gioi han 3-4 nut.
-- Giong dieu lich su, tu nhien, phu hop tu van xe Toyota.
+Quy tắc:
+- Viết tiếng Việt có dấu đầy đủ.
+- title phải là một câu hỏi hoặc câu nói tự nhiên của khách, ngắn nhưng đủ nghĩa.
+- title không được bị cụt câu, không được mất chữ, không kết thúc lửng.
+- title tối đa 20 ký tự để Messenger hiển thị được; nếu câu dài, hãy tự viết lại thành câu ngắn đủ ý.
+- title không được là hạng mục cứng như "Báo giá", "Trả góp", "Khuyến mãi", "Lái thử" nếu đứng một mình.
+- title nên giống cách khách chat thật: "Bản nào hợp anh?", "Trả trước 150tr?", "Còn màu trắng không?", "Mai lái thử được?".
+- payload viết rõ ý định của khách bằng một câu đầy đủ, có dấu, giữ đúng ngữ cảnh tin nhắn bot vừa nói.
+- Mỗi nút phải khác nhau về ý định: hỏi tiếp, chọn phiên bản, hỏi điều kiện, để lại thông tin, đặt lịch.
+- Không lặp lại cùng một bộ nút cho mọi câu.
+- Không đưa hạng mục cứng nếu không liên quan.
+- Không bịa giá, ưu đãi, lãi suất. Nếu cần số liệu, payload nên hỏi tiếp hoặc yêu cầu tư vấn chi tiết.
+- Giới hạn 3-4 nút.
+- Giọng điệu lịch sự, tự nhiên, phù hợp tư vấn xe Toyota.
 
-Vi du tot:
-{"title":"Ban nao hop anh?","payload":"Khach muon duoc tu van phien ban phu hop voi nhu cau va ngan sach cua minh."}
-{"title":"Tra truoc 150tr?","payload":"Khach muon hoi neu tra truoc khoang 150 trieu thi phuong an tra gop se nhu the nao."}
-{"title":"Mai lai thu duoc?","payload":"Khach muon dat lich lai thu vao ngay mai cho mau xe dang quan tam."}
+Ví dụ tốt:
+{"title":"Bản nào hợp anh?","payload":"Khách muốn được tư vấn phiên bản phù hợp với nhu cầu và ngân sách của mình."}
+{"title":"Trả trước 150tr?","payload":"Khách muốn hỏi nếu trả trước khoảng 150 triệu thì phương án trả góp sẽ như thế nào."}
+{"title":"Mai lái thử được?","payload":"Khách muốn đặt lịch lái thử vào ngày mai cho mẫu xe đang quan tâm."}
 
-Vi du xau can tranh:
-{"title":"Bao gia","payload":"Bao gia"}
-{"title":"Tra gop","payload":"Tra gop"}
-{"title":"Khuyen mai","payload":"Khuyen mai"}
+Ví dụ xấu cần tránh:
+{"title":"Báo giá","payload":"Báo giá"}
+{"title":"Tư vấn trả góp V","payload":"Tư vấn trả góp Vios"}
+{"title":"Khuyến mãi","payload":"Khuyến mãi"}
 PROMPT;
     }
 
@@ -146,10 +149,10 @@ PROMPT;
                     return null;
                 }
 
-                $title = mb_substr(trim((string) ($item['title'] ?? $item['label'] ?? $item['text'] ?? '')), 0, 20);
+                $title = trim((string) ($item['title'] ?? $item['label'] ?? $item['text'] ?? ''));
                 $payload = trim((string) ($item['payload'] ?? $item['value'] ?? $item['text'] ?? $title));
 
-                if ($title === '') {
+                if ($title === '' || mb_strlen($title) > 20) {
                     return null;
                 }
 
