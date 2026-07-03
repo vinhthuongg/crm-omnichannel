@@ -3,6 +3,7 @@
 namespace Modules\Botpress\Services;
 
 use Illuminate\Http\Client\Factory as Http;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Botpress\Models\BotpressConversationLink;
@@ -25,14 +26,40 @@ class BotpressChatService
 
     public function relayCustomerMessage(Message $inbound): void
     {
-        if (! $this->enabled() || $inbound->sender_type !== 'customer' || $inbound->channel !== 'facebook') {
+        if (! $this->enabled()) {
+            Log::info('Botpress relay skipped because integration is disabled', [
+                'message_id' => $inbound->id,
+                'enabled' => config('services.botpress.enabled'),
+                'webhook_id' => $this->webhookId(),
+                'webhook_url_configured' => filled(config('services.botpress.webhook_url')),
+            ]);
+
+            return;
+        }
+
+        if ($inbound->sender_type !== 'customer' || $inbound->channel !== 'facebook') {
             return;
         }
 
         $inbound->loadMissing('conversation.customer.channels');
         $conversation = $inbound->conversation;
 
-        if (! $conversation?->customer || $this->botIsPaused($conversation)) {
+        if (! $conversation?->customer) {
+            Log::info('Botpress relay skipped because conversation or customer is missing', [
+                'message_id' => $inbound->id,
+                'conversation_id' => $inbound->conversation_id,
+            ]);
+
+            return;
+        }
+
+        if ($this->botIsPaused($conversation)) {
+            Log::info('Botpress relay skipped because automation is paused', [
+                'message_id' => $inbound->id,
+                'conversation_id' => $conversation->id,
+                'automation_state' => $conversation->automation_state,
+            ]);
+
             return;
         }
 
@@ -52,6 +79,13 @@ class BotpressChatService
             $reply = $this->waitForBotReply($link, $beforeMessageId);
 
             if (! $reply) {
+                Log::info('Botpress relay finished without bot reply', [
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $inbound->id,
+                    'botpress_conversation_id' => $link->botpress_conversation_id,
+                    'last_botpress_message_id' => $link->last_botpress_message_id,
+                ]);
+
                 return;
             }
 
@@ -60,7 +94,7 @@ class BotpressChatService
             Log::warning('Botpress relay failed', [
                 'conversation_id' => $conversation->id,
                 'message_id' => $inbound->id,
-                'error' => $exception->getMessage(),
+                ...$this->exceptionContext($exception),
             ]);
         }
     }
@@ -309,5 +343,18 @@ class BotpressChatService
     private function base64Url(string $value): string
     {
         return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    private function exceptionContext(\Throwable $exception): array
+    {
+        if ($exception instanceof RequestException && $exception->response) {
+            return [
+                'error' => $exception->getMessage(),
+                'status' => $exception->response->status(),
+                'body' => mb_substr($exception->response->body(), 0, 2000),
+            ];
+        }
+
+        return ['error' => $exception->getMessage()];
     }
 }
