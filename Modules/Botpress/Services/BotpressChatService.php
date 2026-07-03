@@ -136,13 +136,6 @@ class BotpressChatService
         $conversationId = $this->extractCrmConversationId($payload);
         $content = $this->extractReplyText($payload);
 
-        if (is_string($content) && stripos($content, 'QUICK_REPLIES') !== false) {
-            Log::warning('Botpress callback contains inline quick replies block', [
-                'conversation_id' => $conversationId,
-                'content_preview' => mb_substr($content, 0, 1000),
-            ]);
-        }
-
         if (! $conversationId || ! $content) {
             Log::warning('Botpress callback ignored because payload is missing conversation or text', [
                 'conversation_id' => $conversationId,
@@ -436,10 +429,9 @@ class BotpressChatService
 
         if ($inlineQuickReplies['quick_replies'] !== []) {
             $content = $inlineQuickReplies['content'];
-            $payload['quick_replies'] = $inlineQuickReplies['quick_replies'];
-            $metadata['payload']['inline_quick_replies'] = $inlineQuickReplies['quick_replies'];
+            $metadata['payload']['ignored_inline_quick_replies'] = $inlineQuickReplies['quick_replies'];
 
-            Log::warning('Botpress inline quick replies parsed', [
+            Log::info('Botpress inline quick replies stripped before CRM-generated suggestions', [
                 'conversation_id' => $conversation->id,
                 'client_message_id' => $clientMessageId,
                 'count' => count($inlineQuickReplies['quick_replies']),
@@ -523,209 +515,7 @@ class BotpressChatService
 
     private function quickRepliesForBotMessage(string $content, array $payload = []): array
     {
-        foreach ($this->quickReplyPayloadPaths() as $path) {
-            $custom = data_get($payload, $path);
-
-            if (! is_array($custom) || $custom === []) {
-                continue;
-            }
-
-            $items = $this->normalizeQuickReplies($this->quickReplyItems($custom));
-
-            if ($items !== []) {
-                Log::info('Botpress custom quick replies applied', [
-                    'path' => $path,
-                    'count' => count($items),
-                    'titles' => array_column($items, 'title'),
-                ]);
-
-                return array_values(array_slice($items, 0, 11));
-            }
-        }
-
-        if (! (bool) config('services.botpress.fallback_quick_replies', false)) {
-            Log::warning('Botpress quick replies skipped because callback payload did not include custom replies', [
-                'payload_keys' => array_keys($payload),
-                'data_payload_keys' => is_array(data_get($payload, 'data.payload')) ? array_keys(data_get($payload, 'data.payload')) : [],
-            ]);
-
-            return [];
-        }
-
-        $items = $this->defaultQuickReplies($content);
-
-        return array_values(array_slice($items, 0, 11));
-    }
-
-    private function quickReplyPayloadPaths(): array
-    {
-        $keys = [
-            'quick_replies',
-            'quickReplies',
-            'suggestions',
-            'buttons',
-            'options',
-            'choices',
-            'actions',
-            'items',
-            'replies',
-            'quick_reply',
-            'quickReply',
-        ];
-
-        $prefixes = [
-            '',
-            'payload.',
-            'payload.metadata.',
-            'payload.meta.',
-            'payload.custom.',
-            'payload.extra.',
-            'payload.data.',
-            'payload.card.',
-            'data.',
-            'data.payload.',
-            'data.payload.metadata.',
-            'data.payload.meta.',
-            'data.payload.custom.',
-            'data.payload.extra.',
-            'data.payload.data.',
-            'data.payload.card.',
-            'message.',
-            'message.payload.',
-            'message.payload.metadata.',
-            'message.payload.custom.',
-            'response.',
-            'response.payload.',
-            'output.',
-            'output.payload.',
-        ];
-
-        $paths = [];
-
-        foreach ($prefixes as $prefix) {
-            foreach ($keys as $key) {
-                $paths[] = $prefix.$key;
-            }
-        }
-
-        return $paths;
-    }
-
-    private function quickReplyItems(array $custom): array
-    {
-        if ($this->looksLikeSingleQuickReply($custom)) {
-            return [$custom];
-        }
-
-        foreach (['items', 'options', 'choices', 'buttons', 'actions', 'replies', 'quickReplies', 'quick_replies'] as $key) {
-            $items = $custom[$key] ?? null;
-
-            if (is_array($items) && $items !== []) {
-                return $this->looksLikeSingleQuickReply($items) ? [$items] : $items;
-            }
-        }
-
-        return $custom;
-    }
-
-    private function looksLikeSingleQuickReply(array $item): bool
-    {
-        foreach (['title', 'label', 'text', 'name', 'value', 'displayText', 'display_text', 'message', 'payload'] as $key) {
-            if (array_key_exists($key, $item)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function normalizeQuickReplies(array $items): array
-    {
-        return collect($items)
-            ->map(function (mixed $item): ?array {
-                $title = is_array($item)
-                    ? $this->firstQuickReplyScalar($item, [
-                        'title',
-                        'label',
-                        'text',
-                        'name',
-                        'value',
-                        'displayText',
-                        'display_text',
-                        'message',
-                        'payload.title',
-                        'payload.label',
-                        'payload.text',
-                    ])
-                    : (string) $item;
-
-                $title = trim((string) $title);
-
-                if ($title === '') {
-                    return null;
-                }
-
-                $replyPayload = is_array($item)
-                    ? $this->firstQuickReplyScalar($item, [
-                        'payload',
-                        'value',
-                        'text',
-                        'message',
-                        'query',
-                        'intent',
-                        'id',
-                        'payload.payload',
-                        'payload.value',
-                        'payload.text',
-                        'payload.label',
-                        'payload.title',
-                    ])
-                    : $title;
-
-                return $this->quickReply($title, $replyPayload ?: $title);
-            })
-            ->filter()
-            ->values()
-            ->all();
-    }
-
-    private function firstQuickReplyScalar(array $item, array $paths): ?string
-    {
-        foreach ($paths as $path) {
-            $value = data_get($item, $path);
-            $scalar = $this->quickReplyScalar($value);
-
-            if ($scalar !== null) {
-                return $scalar;
-            }
-        }
-
-        return null;
-    }
-
-    private function quickReplyScalar(mixed $value): ?string
-    {
-        if (is_scalar($value)) {
-            $value = trim((string) $value);
-
-            return $value === '' ? null : $value;
-        }
-
-        if (! is_array($value)) {
-            return null;
-        }
-
-        foreach (['text', 'title', 'label', 'value', 'message', 'payload'] as $key) {
-            $scalar = $this->quickReplyScalar($value[$key] ?? null);
-
-            if ($scalar !== null) {
-                return $scalar;
-            }
-        }
-
-        $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        return is_string($encoded) && $encoded !== '[]' ? $encoded : null;
+        return array_values(array_slice($this->defaultQuickReplies($content), 0, 11));
     }
 
     private function defaultQuickReplies(string $content): array
