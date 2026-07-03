@@ -83,13 +83,13 @@
                 <table class="customers-table">
                     <thead>
                         <tr>
-                            <th>Khach hang</th>
-                            <th>Lien he</th>
-                            <th>Xe quan tam</th>
-                            <th>Hoat dong cuoi</th>
-                            <th>Nhan vien</th>
-                            <th>Trang thai</th>
-                            <th>Thao tac</th>
+                            <th>Khách Hàng</th>
+                            <th>Liên Hệ</th>
+                            <th>Xe Quan Tâm</th>
+                            <th>Hoạt Động Cuối</th>
+                            <th>Nhân Viên</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -97,8 +97,8 @@
                             <tr>
                                 <td colspan="7">
                                     <div class="customers-empty">
-                                        <h2>Chua co khach hang phu hop</h2>
-                                        <p>Khach hang se xuat hien tai day sau khi nhan tin vao kenh dang ket noi.</p>
+                                        <h2>Chưa Có Khách Hàng Phù Hợp</h2>
+                                        <p>Khách hàng sẽ xuất hiện tại đây sau khi gửi tin nhắn đến kênh đang được kết nối</p>
                                     </div>
                                 </td>
                             </tr>
@@ -134,7 +134,7 @@
                                             @endforeach
                                         </div>
                                     @else
-                                        <span class="customer-muted">Chua co du lieu</span>
+                                        <span class="customer-muted">Chưa có dữ liệu</span>
                                     @endif
                                 </td>
                                 <td>

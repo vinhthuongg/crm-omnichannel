@@ -388,7 +388,7 @@
                     @endforeach
 
                     @foreach($dashboardOverview['intentCards'] as $intent)
-                        <article class="today-kpi-card today-intent-card">
+                        <article class="today-kpi-card">
                             <b>
                                 <span class="material-symbols-outlined" aria-hidden="true">{{ $intent['icon'] }}</span>
                             </b>
@@ -439,5 +439,6 @@
         todaySources: @json($dashboardOverview['sources'] ?? []),
     };
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
 <script src="{{ asset('js/crm/dashboard/dashboard.js') }}?v={{ filemtime(public_path('js/crm/dashboard/dashboard.js')) }}" defer></script>
 @endsection

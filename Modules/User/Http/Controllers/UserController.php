@@ -3,6 +3,7 @@
 namespace Modules\User\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Modules\Shared\Http\Controllers\ApiController;
 use Modules\User\Actions\CreateUserAction;
@@ -23,6 +24,15 @@ class UserController extends ApiController
     public function store(StoreUserRequest $request, CreateUserAction $action): UserResource
     {
         return new UserResource($action->execute($request->validated()));
+    }
+
+    public function storeWeb(StoreUserRequest $request, CreateUserAction $action): RedirectResponse
+    {
+        $user = $action->execute($request->validated());
+
+        return redirect()
+            ->route('crm.agents')
+            ->with('status', "Da tao tai khoan {$user->email}.");
     }
 
     public function show(Request $request, User $user): UserResource

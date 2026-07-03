@@ -283,11 +283,13 @@
 .today-line-chart,
 .agent-chart {
     width: 100%;
+    height: 238px;
     min-height: 238px;
 }
 
 .today-donut-chart {
     width: 100%;
+    height: 238px;
     min-height: 238px;
 }
 
@@ -306,6 +308,13 @@
     height: auto;
     display: block;
     overflow: visible;
+}
+
+.today-line-chart canvas,
+.today-donut-chart canvas,
+.agent-chart canvas {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .crm-svg-chart text {
@@ -571,6 +580,7 @@
     .today-line-chart,
     .agent-chart,
     .today-donut-chart {
+        height: 230px;
         min-height: 230px;
     }
 }
