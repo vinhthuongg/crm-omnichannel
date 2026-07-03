@@ -63,10 +63,22 @@ class BotpressChatService
             return;
         }
 
-        $link = $this->ensureLink($conversation);
-        $beforeMessageId = $link->last_botpress_message_id;
-
         try {
+            if ($this->usesDirectWebhook()) {
+                $reply = $this->sendDirectWebhook($conversation, $inbound);
+
+                if (! $reply) {
+                    return;
+                }
+
+                $this->storeDirectWebhookReply($conversation, $reply);
+
+                return;
+            }
+
+            $link = $this->ensureLink($conversation);
+            $beforeMessageId = $link->last_botpress_message_id;
+
             $sendPayload = [
                 'conversationId' => $link->botpress_conversation_id,
                 'payload' => [
@@ -112,17 +124,18 @@ class BotpressChatService
         $userKey = $link?->botpress_user_key ?: $this->userKeyFor($userId);
 
         if ($this->usesManualAuth()) {
-            $userResponse = $this->client($userKey)->post('/users/get-or-create', [
+            $response = $this->client($userKey)->post('/users/get-or-create', [
                 'name' => (string) ($customer->name ?: $userId),
                 'pictureUrl' => (string) ($customer->avatar ?: ''),
                 'profile' => json_encode([
                     'crm_customer_id' => $customer->id,
                     'facebook_page_id' => $conversation->facebook_page_id,
                 ], JSON_UNESCAPED_SLASHES),
-            ])->throw()->json();
+            ])->throw();
+            $userResponse = $response->json();
             $botpressUserId = (string) data_get($userResponse, 'user.id', $userId);
         } else {
-            $userResponse = $this->client()->post('/users', [
+            $response = $this->client()->post('/users', [
                 'id' => $userId,
                 'name' => (string) ($customer->name ?: $userId),
                 'pictureUrl' => (string) ($customer->avatar ?: ''),
@@ -130,22 +143,24 @@ class BotpressChatService
                     'crm_customer_id' => $customer->id,
                     'facebook_page_id' => $conversation->facebook_page_id,
                 ], JSON_UNESCAPED_SLASHES),
-            ])->throw()->json();
+            ])->throw();
+            $userResponse = $response->json();
             $botpressUserId = (string) data_get($userResponse, 'user.id', $userId);
             $userKey = (string) data_get($userResponse, 'key', $userKey);
         }
 
         if ($userKey === '') {
-            throw new \RuntimeException('Botpress user response did not include key: '.json_encode($userResponse));
+            throw new \RuntimeException('Botpress user response did not include key: status='.$response->status().' body='.$response->body());
         }
 
-        $conversationResponse = $this->client($userKey)->post('/conversations/get-or-create', [
+        $conversationHttpResponse = $this->client($userKey)->post('/conversations/get-or-create', [
             'id' => 'crm_conversation_'.$conversation->id,
-        ])->throw()->json();
+        ])->throw();
+        $conversationResponse = $conversationHttpResponse->json();
         $botpressConversationId = (string) data_get($conversationResponse, 'conversation.id', '');
 
         if ($botpressConversationId === '') {
-            throw new \RuntimeException('Botpress conversation response did not include conversation.id: '.json_encode($conversationResponse));
+            throw new \RuntimeException('Botpress conversation response did not include conversation.id: status='.$conversationHttpResponse->status().' body='.$conversationHttpResponse->body());
         }
 
         return BotpressConversationLink::query()->updateOrCreate(
@@ -258,6 +273,135 @@ class BotpressChatService
         SendOutboundMessageJob::dispatch($message->id);
     }
 
+    private function sendDirectWebhook(Conversation $conversation, Message $message): ?string
+    {
+        $url = trim((string) config('services.botpress.webhook_url', ''));
+
+        if ($url === '') {
+            return null;
+        }
+
+        $response = $this->http
+            ->acceptJson()
+            ->asJson()
+            ->withToken(trim((string) config('services.botpress.api_key', '')))
+            ->timeout(30)
+            ->post($url, [
+                'type' => 'message',
+                'source' => 'crm',
+                'conversationId' => 'crm_conversation_'.$conversation->id,
+                'userId' => 'crm_conversation_'.$conversation->id.'_customer_'.$conversation->customer_id,
+                'text' => $this->messageText($message),
+                'message' => [
+                    'id' => $message->id,
+                    'text' => $this->messageText($message),
+                    'created_at' => $message->created_at?->toISOString(),
+                ],
+                'customer' => [
+                    'id' => $conversation->customer_id,
+                    'name' => $conversation->customer?->name,
+                    'avatar' => $conversation->customer?->avatar,
+                ],
+                'metadata' => [
+                    'facebook_page_id' => $conversation->facebook_page_id,
+                    'crm_conversation_id' => $conversation->id,
+                ],
+            ]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('Botpress direct webhook failed: status='.$response->status().' body='.$response->body());
+        }
+
+        $reply = $this->extractReplyText($response->json());
+
+        if ($reply === null) {
+            Log::warning('Botpress direct webhook returned no reply text', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'status' => $response->status(),
+                'body' => mb_substr($response->body(), 0, 2000),
+            ]);
+        }
+
+        return $reply;
+    }
+
+    private function storeDirectWebhookReply(Conversation $conversation, string $content): void
+    {
+        $clientMessageId = 'botpress_direct_'.sha1($conversation->id.'|'.$content.'|'.now()->timestamp);
+
+        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId): Message {
+            $message = Message::query()->create([
+                'conversation_id' => $conversation->id,
+                'sender_type' => 'system',
+                'sender_id' => null,
+                'channel' => 'facebook',
+                'content' => $content,
+                'message_type' => 'text',
+                'attachments' => [[
+                    'type' => 'metadata',
+                    'name' => 'botpress_direct_webhook',
+                    'payload' => ['source' => 'direct_webhook'],
+                ]],
+                'client_message_id' => $clientMessageId,
+                'outbound_status' => 'queued',
+            ]);
+
+            $conversation->forceFill([
+                'last_message_at' => $message->created_at,
+                'first_response_at' => $conversation->first_response_at ?: now(),
+            ])->save();
+
+            return $message->load(['conversation.customer.channels', 'sender']);
+        });
+
+        try {
+            event(new NewMessageEvent($message));
+        } catch (\Throwable) {
+        }
+
+        SendOutboundMessageJob::dispatch($message->id);
+    }
+
+    private function extractReplyText(mixed $payload): ?string
+    {
+        if (is_string($payload) && trim($payload) !== '') {
+            return trim($payload);
+        }
+
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        foreach (['text', 'reply', 'message', 'response.text', 'output.text', 'data.text'] as $path) {
+            $value = data_get($payload, $path);
+
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        foreach (['messages', 'responses', 'output.messages'] as $path) {
+            $items = data_get($payload, $path, []);
+
+            if (! is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                $value = data_get($item, 'payload.text')
+                    ?: data_get($item, 'text')
+                    ?: data_get($item, 'message');
+
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    return trim((string) $value);
+                }
+            }
+        }
+
+        return null;
+    }
+
     private function botIsPaused(Conversation $conversation): bool
     {
         return filled(data_get($conversation->automation_state ?? [], 'paused_by_user_at'));
@@ -333,6 +477,13 @@ class BotpressChatService
     private function usesManualAuth(): bool
     {
         return trim((string) config('services.botpress.encryption_key', '')) !== '';
+    }
+
+    private function usesDirectWebhook(): bool
+    {
+        $url = trim((string) config('services.botpress.webhook_url', ''));
+
+        return str_contains($url, 'webhook.botpress.cloud');
     }
 
     private function jwt(array $payload, string $secret): string

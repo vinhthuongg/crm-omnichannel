@@ -15,13 +15,15 @@ Khong ket noi truc tiep Botpress voi Facebook Page. Cach nay giu CRM la nguon du
 
 ## Cau hinh Botpress
 
-Trong Botpress, cai Chat integration cho bot va lay Webhook ID tu URL:
+Trong Botpress, uu tien cai Chat integration cho bot va lay Webhook ID tu URL:
 
 ```text
 https://chat.botpress.cloud/{BOTPRESS_WEBHOOK_ID}
 ```
 
 Neu muon bao mat hon, dat Encryption Key trong Chat integration va dien cung key vao `.env`.
+
+Neu ban chi co URL dang `https://webhook.botpress.cloud/...`, CRM se goi truc tiep URL do. Mode nay chi gui duoc reply ve Messenger khi workflow Botpress tra ve JSON response ngay trong request, vi day khong phai Chat API message polling.
 
 ## .env
 
@@ -36,7 +38,21 @@ BOTPRESS_RESPONSE_POLL_ATTEMPTS=8
 BOTPRESS_RESPONSE_POLL_DELAY_MS=700
 ```
 
-`BOTPRESS_WEBHOOK_URL` hoac `BOTPRESS_WEBHOOK_ID` deu duoc. Neu dien full URL `https://webhook.botpress.cloud/...`, CRM se tu lay ID cuoi URL va goi Chat API qua `https://chat.botpress.cloud/{id}`.
+Voi Chat integration, dien `BOTPRESS_WEBHOOK_ID` hoac `BOTPRESS_WEBHOOK_URL=https://chat.botpress.cloud/{id}`.
+
+Voi direct webhook, dien `BOTPRESS_WEBHOOK_URL=https://webhook.botpress.cloud/{id}`. Workflow Botpress can response mot trong cac dang sau:
+
+```json
+{"text":"Noi dung bot tra loi"}
+```
+
+```json
+{"reply":"Noi dung bot tra loi"}
+```
+
+```json
+{"messages":[{"payload":{"text":"Noi dung bot tra loi"}}]}
+```
 
 Sau khi sua env:
 
