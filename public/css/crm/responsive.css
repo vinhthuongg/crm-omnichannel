@@ -15,13 +15,6 @@
         width: min(460px, 50vw) !important;
     }
 
-    .today-kpi-grid,
-    .agent-kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
-
-    .today-chart-grid,
-    .agent-chart-grid,
     .settings-grid,
     .connection-grid {
         grid-template-columns: 1fr !important;
@@ -201,8 +194,6 @@
         margin: 0 !important;
     }
 
-    .today-dashboard-page,
-    .agent-report-page,
     .connection-page,
     .activity-log-page,
     .settings-page,
@@ -215,13 +206,10 @@
         padding-right: 12px !important;
     }
 
-    .today-dashboard-header,
-    .agent-page-header,
     .connection-header,
     .settings-page-header,
     .customers-hero,
     .customers-board-header,
-    .agent-table-panel header,
     .activity-page-header,
     .facebook-pages-header {
         flex-direction: column !important;
@@ -229,9 +217,6 @@
         gap: 12px !important;
     }
 
-    .today-kpi-grid,
-    .today-intent-grid,
-    .agent-kpi-grid,
     .customers-filter-card form,
     .activity-filter-panel,
     .facebook-pages-grid {
@@ -403,8 +388,6 @@
         width: 100% !important;
     }
 
-    .today-dashboard-page,
-    .agent-report-page,
     .connection-page,
     .activity-log-page,
     .settings-page,
@@ -414,7 +397,6 @@
         padding-bottom: 20px !important;
     }
 
-    .today-dashboard-actions,
     .agent-filter-panel,
     .activity-filter-bar,
     .customers-pagination,
@@ -437,9 +419,6 @@
         font-size: 12px !important;
     }
 
-    .today-kpi-card,
-    .today-intent-card,
-    .agent-kpi-card,
     .connection-card,
     .settings-card,
     .activity-card,
@@ -488,13 +467,6 @@
         display: none !important;
     }
 
-    .today-kpi-card h2,
-    .agent-kpi-card h2 {
-        font-size: 30px !important;
-    }
-
-    .today-chart-card,
-    .agent-chart-card,
     .customers-board,
     .customers-filter-card,
     .connection-card,

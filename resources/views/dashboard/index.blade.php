@@ -1,15 +1,13 @@
 @extends('layouts.app', ['title' => $sectionTitle . ' - CRM'])
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('css/crm/dashboard.css') }}?v={{ filemtime(public_path('css/crm/dashboard.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/crm/channels.css') }}?v={{ filemtime(public_path('css/crm/channels.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/crm/agents.css') }}?v={{ filemtime(public_path('css/crm/agents.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/crm/activity-settings.css') }}?v={{ filemtime(public_path('css/crm/activity-settings.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/crm/dashboard/dashboard.css') }}?v={{ filemtime(public_path('css/crm/dashboard/dashboard.css')) }}">
 @endpush
 
 @section('content')
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css">
-
 <div class="crm-shell" data-crm-shell>
     @include('partials.crm.chrome')
 
@@ -365,9 +363,14 @@
             <section class="today-dashboard-page">
                 <header class="today-dashboard-header">
                     <div>
+                        <span class="today-dashboard-eyebrow">Dashboard</span>
                         <h1>{{ $dashboardOverview['header']['title'] }}</h1>
                         <p>{{ $dashboardOverview['header']['subtitle'] }}</p>
                     </div>
+                    <span class="today-dashboard-status">
+                        <i></i>
+                        Dang cap nhat theo du lieu that
+                    </span>
                 </header>
 
                 <section class="today-kpi-grid">
@@ -429,95 +432,14 @@
     </main>
 </div>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js"></script>
 <script>
-    document.querySelector('[data-sidebar-toggle]')?.addEventListener('click', function () {
-        document.querySelector('[data-crm-shell]')?.classList.toggle('sidebar-collapsed');
-    });
-
-    $(function () {
-        var activeSection = @json($activeSection ?? 'dashboard');
-        var agentBarData = @json($agentDashboard['bar'] ?? []);
-        var agentLineData = @json($agentDashboard['responseLine'] ?? []);
-        var todayLineData = @json($dashboardOverview['timeSeries'] ?? []);
-        var todaySourceData = @json($dashboardOverview['sources'] ?? []);
-
-        if (document.getElementById('agent-handled-bar') && document.getElementById('agent-response-line')) {
-            Morris.Bar({
-                element: 'agent-handled-bar',
-                data: agentBarData.length ? agentBarData : [{agent: 'Chua co', value: 0}],
-                xkey: 'agent',
-                ykeys: ['value'],
-                labels: ['Hoi thoai'],
-                barColors: ['#d70616'],
-                gridTextColor: '#6f6f6f',
-                gridLineColor: '#ececec',
-                resize: true,
-                hideHover: 'auto'
-            });
-
-            Morris.Line({
-                element: 'agent-response-line',
-                data: agentLineData.length ? agentLineData : [{hour: '08:00', value: 0}],
-                xkey: 'hour',
-                ykeys: ['value'],
-                labels: ['Phut'],
-                parseTime: false,
-                lineColors: ['#0f62fe'],
-                pointFillColors: ['#ffffff'],
-                pointStrokeColors: ['#0f62fe'],
-                gridTextColor: '#6f6f6f',
-                gridLineColor: '#ececec',
-                resize: true,
-                hideHover: 'auto'
-            });
-        }
-
-        if (activeSection === 'channels') {
-            return;
-        }
-
-        if (activeSection !== 'dashboard' && activeSection !== 'reports') {
-            return;
-        }
-
-        if (!todayLineData.length) {
-            todayLineData = [{hour: '08:00', value: 0}];
-        }
-
-        Morris.Area({
-            element: 'today-conversation-line',
-            data: todayLineData,
-            xkey: 'hour',
-            ykeys: ['value'],
-            labels: ['Hoi thoai'],
-            parseTime: false,
-            lineColors: ['#d70616'],
-            pointFillColors: ['#ffffff'],
-            pointStrokeColors: ['#d70616'],
-            fillOpacity: 0.14,
-            behaveLikeLine: true,
-            gridTextColor: '#6f6f6f',
-            gridLineColor: '#e5e7eb',
-            resize: true,
-            hideHover: 'auto'
-        });
-
-        if (todaySourceData.length) {
-            Morris.Donut({
-                element: 'today-source-donut',
-                data: todaySourceData,
-                colors: ['#2581ee', '#0f62fe'],
-                resize: true,
-                formatter: function (value) {
-                    return value;
-                }
-            });
-        } else {
-            document.getElementById('today-source-donut').textContent = 'No conversation source data';
-        }
-    });
+    window.CrmDashboardData = {
+        activeSection: @json($activeSection ?? 'dashboard'),
+        agentBar: @json($agentDashboard['bar'] ?? []),
+        agentLine: @json($agentDashboard['responseLine'] ?? []),
+        todayLine: @json($dashboardOverview['timeSeries'] ?? []),
+        todaySources: @json($dashboardOverview['sources'] ?? []),
+    };
 </script>
+<script src="{{ asset('js/crm/dashboard/dashboard.js') }}?v={{ filemtime(public_path('js/crm/dashboard/dashboard.js')) }}" defer></script>
 @endsection

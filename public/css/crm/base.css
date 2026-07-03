@@ -864,31 +864,6 @@ kbd {
 }
 
 @media (max-width: 1180px) {
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard-side-column {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .agent-kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .agent-chart-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .today-kpi-grid,
-    .today-intent-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .today-chart-grid {
-        grid-template-columns: 1fr;
-    }
-
     .connection-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         max-width: none;
@@ -909,8 +884,7 @@ kbd {
     .crm-shell,
     .messenger-shell,
     .top-card-grid,
-    .bottom-card-grid,
-    .dashboard-side-column {
+    .bottom-card-grid {
         grid-template-columns: 1fr;
     }
 
@@ -941,9 +915,7 @@ kbd {
         padding: 16px;
     }
 
-    .page-title,
-    .dashboard-grid,
-    .agent-report-page {
+    .page-title {
         padding-left: 16px;
         padding-right: 16px;
     }
@@ -954,16 +926,6 @@ kbd {
 
     .agent-filter-bar button {
         margin-left: 0;
-    }
-
-    .today-dashboard-header {
-        flex-direction: column;
-    }
-
-    .today-dashboard-actions {
-        width: 100%;
-        justify-content: flex-start;
-        flex-wrap: wrap;
     }
 
     .connection-grid {
@@ -986,24 +948,6 @@ kbd {
         padding: 20px;
     }
 
-    .dashboard-grid {
-        padding-top: 16px;
-    }
-
-    .agent-report-page {
-        padding-top: 16px;
-    }
-
-    .agent-kpi-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .today-dashboard-page {
-        padding: 16px;
-    }
-
-    .today-kpi-grid,
-    .today-intent-grid,
     .activity-summary-grid {
         grid-template-columns: 1fr;
         gap: 14px;
@@ -1016,23 +960,6 @@ kbd {
     .settings-note-card h2,
     .settings-note-card p {
         grid-column: 1;
-    }
-
-    .today-kpi-card {
-        min-height: 156px;
-    }
-
-    .today-kpi-card h2 {
-        margin-top: 34px;
-        font-size: 38px;
-    }
-
-    .today-panel {
-        padding: 20px;
-    }
-
-    .today-line-chart {
-        height: 300px;
     }
 
     .connection-page {

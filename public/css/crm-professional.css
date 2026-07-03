@@ -364,10 +364,6 @@ svg text {
 }
 
 @media (max-width: 900px) {
-    .today-kpi-grid,
-    .today-intent-grid,
-    .agent-kpi-grid,
-    .agent-chart-grid,
     .connection-grid,
     .settings-grid {
         grid-template-columns: 1fr !important;
