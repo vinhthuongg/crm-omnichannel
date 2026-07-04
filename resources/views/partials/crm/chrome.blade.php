@@ -12,7 +12,9 @@
 ])
 
 <aside class="crm-sidebar">
-    <a class="crm-logo" href="{{ route('dashboard') }}">Toyota CRM</a>
+    <a class="crm-logo" href="{{ route('dashboard') }}" aria-label="Toyota CRM">
+        <img src="{{ asset('assets/logo.png') }}" alt="Toyota CRM">
+    </a>
 
     <nav class="side-nav" aria-label="CRM navigation">
         @foreach($navItems as $item)
