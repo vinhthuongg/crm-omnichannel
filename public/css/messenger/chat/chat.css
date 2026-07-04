@@ -2360,12 +2360,17 @@ body.messenger-page :where(
 }
 
 @media (min-width: 921px) {
+    body.messenger-page {
+        --crm-nav-height: 52px;
+        --crm-logo-slot: 74px;
+    }
+
     body.messenger-page .messenger-crm-shell,
     body.messenger-page .messenger-crm-shell.sidebar-collapsed,
     body.messenger-page .messenger-crm-shell:not(.sidebar-collapsed),
     body.messenger-page .crm-shell:not(.sidebar-collapsed) {
         grid-template-columns: minmax(0, 1fr) !important;
-        grid-template-rows: var(--topbar-height) minmax(0, 1fr) !important;
+        grid-template-rows: var(--crm-nav-height) minmax(0, 1fr) !important;
     }
 
     body.messenger-page .crm-sidebar {
@@ -2374,10 +2379,10 @@ body.messenger-page :where(
         z-index: 80 !important;
         width: 100% !important;
         min-width: 0 !important;
-        min-height: var(--topbar-height) !important;
-        height: var(--topbar-height) !important;
+        min-height: var(--crm-nav-height) !important;
+        height: var(--crm-nav-height) !important;
         display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto !important;
+        grid-template-columns: var(--crm-logo-slot) minmax(0, 1fr) auto !important;
         align-items: center !important;
         gap: 14px !important;
         padding: 0 16px !important;
@@ -2389,11 +2394,11 @@ body.messenger-page :where(
 
     body.messenger-page .crm-logo {
         position: static !important;
-        width: auto !important;
-        min-width: max-content !important;
-        height: var(--topbar-height) !important;
-        justify-content: flex-start !important;
-        padding: 0 6px !important;
+        width: var(--crm-logo-slot) !important;
+        min-width: var(--crm-logo-slot) !important;
+        height: var(--crm-nav-height) !important;
+        justify-content: center !important;
+        padding: 0 !important;
         border: 0 !important;
         font-size: 18px !important;
         white-space: nowrap !important;
@@ -2431,6 +2436,7 @@ body.messenger-page :where(
         gap: 7px !important;
         border-left: 0 !important;
         border-bottom: 2px solid transparent !important;
+        border-radius: 8px !important;
         padding: 0 12px !important;
         font-size: 14px !important;
         line-height: 1 !important;
@@ -2456,6 +2462,8 @@ body.messenger-page :where(
     body.messenger-page .side-nav a.active {
         border-left-color: transparent !important;
         border-bottom-color: var(--chat-red) !important;
+        background: #fff1f3 !important;
+        color: var(--chat-red) !important;
     }
 
     body.messenger-page .team-switcher {
@@ -2483,8 +2491,8 @@ body.messenger-page :where(
     }
 
     body.messenger-page .messenger-crm-main {
-        height: calc(100vh - var(--topbar-height)) !important;
-        height: calc(100dvh - var(--topbar-height)) !important;
+        height: calc(100vh - var(--crm-nav-height)) !important;
+        height: calc(100dvh - var(--crm-nav-height)) !important;
         min-height: 0 !important;
         grid-template-rows: var(--topbar-height) minmax(0, 1fr) !important;
     }

@@ -354,11 +354,16 @@
 }
 
 @media (min-width: 921px) {
+    body:not(.login-page) {
+        --crm-nav-height: 52px;
+        --crm-logo-slot: 74px;
+    }
+
     body:not(.login-page) .crm-shell,
     body:not(.login-page) .crm-shell:not(.sidebar-collapsed),
     body:not(.login-page) .crm-shell.sidebar-collapsed {
         grid-template-columns: minmax(0, 1fr) !important;
-        grid-template-rows: 52px minmax(0, 1fr) !important;
+        grid-template-rows: var(--crm-nav-height) minmax(0, 1fr) !important;
     }
 
     body:not(.login-page) .crm-shell.sidebar-collapsed .crm-sidebar {
@@ -371,10 +376,10 @@
         z-index: 80 !important;
         width: 100% !important;
         min-width: 0 !important;
-        min-height: 52px !important;
-        height: 52px !important;
+        min-height: var(--crm-nav-height) !important;
+        height: var(--crm-nav-height) !important;
         display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto !important;
+        grid-template-columns: var(--crm-logo-slot) minmax(0, 1fr) auto !important;
         align-items: center !important;
         gap: 14px !important;
         padding: 0 16px !important;
@@ -386,11 +391,11 @@
 
     body:not(.login-page) .crm-logo {
         position: static !important;
-        width: auto !important;
-        min-width: max-content !important;
-        height: 52px !important;
-        justify-content: flex-start !important;
-        padding: 0 6px !important;
+        width: var(--crm-logo-slot) !important;
+        min-width: var(--crm-logo-slot) !important;
+        height: var(--crm-nav-height) !important;
+        justify-content: center !important;
+        padding: 0 !important;
         border: 0 !important;
         font-size: 18px !important;
         white-space: nowrap !important;
