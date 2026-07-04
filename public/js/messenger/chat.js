@@ -3103,6 +3103,11 @@
             return;
         }
 
+        if (button.dataset.appliedAt && Date.now() - Number(button.dataset.appliedAt) < 500) {
+            event.preventDefault();
+            return;
+        }
+
         event.preventDefault();
         applyReplySuggestion(button.dataset.replySuggestion || button.textContent || '');
     });
@@ -3240,6 +3245,7 @@
         let startX = 0;
         let startScrollLeft = 0;
         let moved = false;
+        let pointerStartButton = null;
 
         list.addEventListener('pointerdown', function (event) {
             if (event.button !== 0) {
@@ -3248,9 +3254,9 @@
 
             dragging = true;
             moved = false;
+            pointerStartButton = event.target.closest('[data-reply-suggestion]');
             startX = event.clientX;
             startScrollLeft = list.scrollLeft;
-            list.classList.add('is-dragging');
             list.setPointerCapture?.(event.pointerId);
         });
 
@@ -3261,13 +3267,16 @@
 
             const delta = event.clientX - startX;
 
-            if (Math.abs(delta) > 4) {
+            if (Math.abs(delta) > 10) {
                 moved = true;
                 list.dataset.dragged = '1';
+                list.classList.add('is-dragging');
                 event.preventDefault();
             }
 
-            list.scrollLeft = startScrollLeft - delta;
+            if (moved) {
+                list.scrollLeft = startScrollLeft - delta;
+            }
         });
 
         ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (eventName) {
@@ -3280,10 +3289,18 @@
                 list.classList.remove('is-dragging');
                 list.releasePointerCapture?.(event.pointerId);
 
+                if (!moved && eventName === 'pointerup' && pointerStartButton) {
+                    event.preventDefault();
+                    pointerStartButton.dataset.appliedAt = String(Date.now());
+                    applyReplySuggestion(pointerStartButton.dataset.replySuggestion || pointerStartButton.textContent || '');
+                }
+
+                pointerStartButton = null;
+
                 if (moved) {
                     window.setTimeout(function () {
                         delete list.dataset.dragged;
-                    }, 0);
+                    }, 80);
                 }
             });
         });
