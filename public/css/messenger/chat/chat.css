@@ -175,10 +175,13 @@ body.messenger-page .messenger-crm-main {
     height: 100dvh;
     display: grid;
     grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 14px 14px;
     overflow: hidden;
 }
 
 body.messenger-page .crm-topbar {
+    margin: 0 -14px;
     position: sticky;
     top: 0;
     z-index: 15;
@@ -288,7 +291,8 @@ body.messenger-page .messenger-shell {
     grid-template-columns: var(--inbox-width) minmax(0, 1fr) var(--profile-width);
     grid-template-rows: 0 minmax(0, 1fr);
     overflow: hidden;
-    border: 0;
+    border: 1px solid var(--chat-line);
+    border-radius: 10px;
     background: var(--chat-card);
 }
 
@@ -2180,10 +2184,13 @@ body.messenger-page :where(
         min-width: 0 !important;
         overflow-x: hidden !important;
         grid-template-rows: auto minmax(0, 1fr) !important;
+        gap: 0 !important;
+        padding: 0 !important;
     }
 
     body.messenger-page .crm-topbar {
         position: static !important;
+        margin: 0 !important;
         min-height: auto !important;
         flex-wrap: wrap !important;
         gap: 8px !important;
