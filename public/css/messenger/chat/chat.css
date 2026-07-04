@@ -921,20 +921,20 @@ body.messenger-page .message-row.mine .message-bubble {
 }
 
 body.messenger-page .message-bubble.is-whisper {
-    border-color: #c4b5fd;
-    background: #f3efff;
-    color: #3b2775;
-    box-shadow: 0 8px 20px rgba(91, 33, 182, .08);
+    border-color: #6d28d9;
+    background: #6d28d9;
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(91, 33, 182, .18);
 }
 
 body.messenger-page .message-row.mine .message-bubble.is-whisper {
-    border-color: #a78bfa;
-    background: #ede9fe;
-    color: #312061;
+    border-color: #5b21b6;
+    background: #5b21b6;
+    color: #fff;
 }
 
 body.messenger-page .message-bubble.is-whisper .message-sender {
-    color: #6d28d9;
+    color: #ede9fe;
     opacity: 1;
 }
 
