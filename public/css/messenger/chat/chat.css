@@ -920,6 +920,18 @@ body.messenger-page .message-row.mine .message-bubble {
     color: #17345e;
 }
 
+body.messenger-page .message-bubble.is-whisper {
+    border-color: #f6d88a;
+    background: #fff7df;
+    color: #5f3f0d;
+}
+
+body.messenger-page .message-row.mine .message-bubble.is-whisper {
+    border-color: #efc45f;
+    background: #ffefbf;
+    color: #553407;
+}
+
 body.messenger-page .message-sender {
     display: block;
     margin-bottom: 4px;
