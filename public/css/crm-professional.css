@@ -1,9 +1,10 @@
 :root {
-    --crm-page: #f7f8fb;
+    --crm-page: #f3f4f6;
     --crm-surface: #ffffff;
-    --crm-surface-soft: #f9fafb;
-    --crm-line: #e5e7eb;
-    --crm-line-strong: #d1d5db;
+    --crm-surface-soft: #f8fafc;
+    --crm-panel: #fbfcfe;
+    --crm-line: #dfe3ea;
+    --crm-line-strong: #cbd3df;
     --crm-text: #1f2937;
     --crm-muted: #6b7280;
     --crm-primary: #c8102e;
@@ -97,14 +98,14 @@ a {
 
 .crm-sidebar,
 body.messenger-page .crm-sidebar {
-    background: #ffffff !important;
+    background: var(--crm-surface) !important;
     border-right: 1px solid var(--crm-line) !important;
 }
 
 .crm-logo,
 body.messenger-page .crm-logo {
     color: var(--crm-primary) !important;
-    background: #ffffff !important;
+    background: var(--crm-surface) !important;
     border-color: var(--crm-line) !important;
     font-size: 18px !important;
 }
@@ -146,7 +147,7 @@ body.messenger-page .side-nav a.active .nav-material-icon {
 .crm-topbar,
 body.messenger-page .crm-topbar {
     min-height: 44px !important;
-    background: #ffffff !important;
+    background: var(--crm-surface) !important;
     border-bottom: 1px solid var(--crm-line) !important;
     box-shadow: none !important;
 }
@@ -168,7 +169,7 @@ body.messenger-page .topbar-global-search input,
 .conversation-assign-form select {
     border: 1px solid var(--crm-line-strong) !important;
     border-radius: var(--crm-radius) !important;
-    background: #ffffff !important;
+    background: var(--crm-panel) !important;
     box-shadow: none !important;
 }
 
@@ -212,7 +213,7 @@ body.messenger-page .messenger-inbox,
 body.messenger-page .messenger-profile {
     border: 1px solid var(--crm-line) !important;
     border-radius: var(--crm-radius) !important;
-    background: var(--crm-surface) !important;
+    background: var(--crm-panel) !important;
     box-shadow: var(--crm-shadow) !important;
 }
 
@@ -270,7 +271,7 @@ body.messenger-page .composer-upload-button,
 body.messenger-page .composer-attach-button {
     border: 1px solid var(--crm-line-strong) !important;
     border-radius: var(--crm-radius) !important;
-    background: #ffffff !important;
+    background: var(--crm-panel) !important;
     color: var(--crm-text) !important;
     box-shadow: none !important;
 }
@@ -311,7 +312,7 @@ body.messenger-page .messenger-thread.active {
 body.messenger-page .messenger-chat-body,
 .chat-timeline,
 body.messenger-page .chat-timeline {
-    background-color: #ffffff !important;
+    background-color: #f7f8fb !important;
     background-image: none !important;
 }
 

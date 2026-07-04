@@ -4,11 +4,11 @@ body.messenger-page {
     --profile-width: 320px;
     --topbar-height: 42px;
     --chat-header-height: 54px;
-    --chat-bg: #fbf9ff;
-    --chat-card: #fbfaff;
-    --chat-soft: #f3f2fb;
-    --chat-line: #cfd3e6;
-    --chat-line-strong: #bfc3dc;
+    --chat-bg: #f3f4f6;
+    --chat-card: #fbfcfe;
+    --chat-soft: #f8fafc;
+    --chat-line: #dfe3ea;
+    --chat-line-strong: #cbd3df;
     --chat-ink: #070a18;
     --chat-muted: #6e7288;
     --chat-red: #c0182f;
