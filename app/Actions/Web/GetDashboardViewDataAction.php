@@ -128,18 +128,18 @@ class GetDashboardViewDataAction
     {
         $items = [
             ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'dashboard'],
-            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'forum'],
-            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'contacts'],
-            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'hub'],
-            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'history'],
-            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'notifications'],
-            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'settings'],
+            ['section' => 'conversations', 'label' => 'Hội thoại', 'route' => 'crm.conversations', 'icon' => 'forum'],
+            ['section' => 'customers', 'label' => 'Khách hàng', 'route' => 'crm.customers', 'icon' => 'contacts'],
+            ['section' => 'channels', 'label' => 'Kết nối kênh', 'route' => 'crm.channels', 'icon' => 'hub'],
+            ['section' => 'activity', 'label' => 'Hoạt động', 'route' => 'crm.activity', 'icon' => 'history'],
+            ['section' => 'notifications', 'label' => 'Thông báo', 'route' => 'crm.notifications', 'icon' => 'notifications'],
+            ['section' => 'settings', 'label' => 'Cài đặt', 'route' => 'crm.settings', 'icon' => 'settings'],
         ];
 
         if ($user->can('user.manage')) {
             array_splice($items, 4, 0, [[
                 'section' => 'work_shifts',
-                'label' => 'Shifts',
+                'label' => 'Ca trực',
                 'route' => 'work-shifts.index',
                 'icon' => 'schedule',
             ]]);
@@ -228,25 +228,9 @@ class GetDashboardViewDataAction
             'sources' => $this->dashboardSources($user),
         ];
     }
-
     private function dashboardIntentCards(User $user): array
     {
         return $this->dashboardIntentCardsV2($user);
-
-        return collect([
-            ['label' => 'Khách YC Báo Giá', 'icon' => 'request_quote', 'keywords' => ['bao gia', 'báo giá', 'gia xe', 'giá xe', 'lan banh', 'lăn bánh']],
-            ['label' => 'Yêu cầu Lái thử', 'icon' => 'directions_car', 'keywords' => ['lai thu', 'lái thử', 'test drive', 'chay thu', 'chạy thử']],
-            ['label' => 'Quan tâm Trả góp', 'icon' => 'account_balance', 'keywords' => ['tra gop', 'trả góp', 'vay', 'ngan hang', 'ngân hàng']],
-            ['label' => 'Đặt lịch Bảo dưỡng', 'icon' => 'build', 'keywords' => ['bao duong', 'bảo dưỡng', 'bao tri', 'bảo trì', 'lich hen', 'lịch hẹn']],
-        ])->map(function (array $item) use ($user): array {
-            $count = $this->keywordConversationCount($user, $item['keywords']);
-
-            return [
-                'label' => $item['label'],
-                'icon' => $item['icon'],
-                'value' => $count,
-            ];
-        })->all();
     }
 
     private function keywordConversationCount(User $user, array $keywords): int
@@ -266,18 +250,17 @@ class GetDashboardViewDataAction
     private function dashboardIntentCardsV2(User $user): array
     {
         return collect([
-            ['label' => 'Khach YC Bao Gia', 'icon' => 'request_quote', 'tag' => ConversationIntentService::TAG_QUOTE, 'keywords' => ['bao gia', 'gia xe', 'lan banh']],
-            ['label' => 'Yeu cau Lai thu', 'icon' => 'directions_car', 'tag' => ConversationIntentService::TAG_TEST_DRIVE, 'keywords' => ['lai thu', 'test drive', 'chay thu']],
-            ['label' => 'Quan tam Tra gop', 'icon' => 'account_balance', 'tag' => ConversationIntentService::TAG_INSTALLMENT, 'keywords' => ['tra gop', 'vay', 'ngan hang', 'lai suat']],
-            ['label' => 'Khach Dat Lich', 'icon' => 'event_available', 'tag' => ConversationIntentService::TAG_APPOINTMENT, 'keywords' => ['dat lich', 'lich hen', 'ghe showroom']],
-            ['label' => 'Dat lich Bao duong', 'icon' => 'build', 'tag' => ConversationIntentService::TAG_MAINTENANCE, 'keywords' => ['bao duong', 'bao tri', 'xuong dich vu']],
+            ['label' => 'Khách yêu cầu báo giá', 'icon' => 'request_quote', 'tag' => ConversationIntentService::TAG_QUOTE, 'keywords' => ['bao gia', 'gia xe', 'lan banh']],
+            ['label' => 'Yêu cầu lái thử', 'icon' => 'directions_car', 'tag' => ConversationIntentService::TAG_TEST_DRIVE, 'keywords' => ['lai thu', 'test drive', 'chay thu']],
+            ['label' => 'Quan tâm trả góp', 'icon' => 'account_balance', 'tag' => ConversationIntentService::TAG_INSTALLMENT, 'keywords' => ['tra gop', 'vay', 'ngan hang', 'lai suat']],
+            ['label' => 'Khách đặt lịch', 'icon' => 'event_available', 'tag' => ConversationIntentService::TAG_APPOINTMENT, 'keywords' => ['dat lich', 'lich hen', 'ghe showroom']],
+            ['label' => 'Đặt lịch bảo dưỡng', 'icon' => 'build', 'tag' => ConversationIntentService::TAG_MAINTENANCE, 'keywords' => ['bao duong', 'bao tri', 'xuong dich vu']],
         ])->map(fn (array $item): array => [
             'label' => $item['label'],
             'icon' => $item['icon'],
             'value' => $this->intentConversationCount($user, $item['tag'], $item['keywords']),
         ])->all();
     }
-
     private function intentConversationCount(User $user, string $tagName, array $keywords): int
     {
         return (clone $this->visibleConversations($user))
@@ -595,7 +578,6 @@ class GetDashboardViewDataAction
             ],
         ];
     }
-
     private function lastChannelSync(string $channel): ?string
     {
         $syncedAt = $this->applyConversationChannelFilter(Conversation::query(), $channel)
@@ -661,34 +643,34 @@ class GetDashboardViewDataAction
         return [
             'cards' => [
                 [
-                    'label' => 'Tong hoi thoai xu ly',
+                    'label' => 'Tổng hội thoại xử lý',
                     'value' => number_format($totalHandled),
                     'suffix' => '',
-                    'change' => number_format($processed).' da xu ly',
+                    'change' => number_format($processed).' đã xử lý',
                     'tone' => 'good',
                     'icon' => 'forum',
                 ],
                 [
-                    'label' => 'TG phan hoi TB',
+                    'label' => 'TG phản hồi TB',
                     'value' => number_format($avgResponse, 1),
-                    'suffix' => 'phut',
-                    'change' => 'Tinh tu hoi thoai co phan hoi',
+                    'suffix' => 'phút',
+                    'change' => 'Tính từ hội thoại có phản hồi',
                     'tone' => 'good',
                     'icon' => 'timer',
                 ],
                 [
-                    'label' => 'Ty le thu thap SDT',
+                    'label' => 'Tỷ lệ thu thập SĐT',
                     'value' => $phoneRate,
                     'suffix' => '%',
-                    'change' => number_format($phoneCollected).' so dien thoai',
+                    'change' => number_format($phoneCollected).' số điện thoại',
                     'tone' => 'good',
                     'icon' => 'contact_phone',
                 ],
                 [
-                    'label' => 'Khach hang moi',
+                    'label' => 'Khách hàng mới',
                     'value' => number_format($newCustomers),
                     'suffix' => '',
-                    'change' => ($this->percentageChange($newCustomers, $previousNewCustomers) >= 0 ? '+' : '').$this->percentageChange($newCustomers, $previousNewCustomers).'% so voi tuan truoc',
+                    'change' => ($this->percentageChange($newCustomers, $previousNewCustomers) >= 0 ? '+' : '').$this->percentageChange($newCustomers, $previousNewCustomers).'% so với tuần trước',
                     'tone' => $newCustomers >= $previousNewCustomers ? 'good' : 'bad',
                     'icon' => 'person_add',
                 ],
@@ -701,7 +683,6 @@ class GetDashboardViewDataAction
             'rows' => $agents,
         ];
     }
-
     private function agentRows(User $user): Collection
     {
         $users = $user->can('user.manage')
@@ -781,16 +762,15 @@ class GetDashboardViewDataAction
     private function agentRating(int $total, int $processed, float $avgResponse): string
     {
         if ($total > 0 && $processed / max(1, $total) >= 0.85 && ($avgResponse === 0.0 || $avgResponse <= 4)) {
-            return 'Xuat sac';
+            return 'Xuất sắc';
         }
 
         if ($total > 0 && $processed / max(1, $total) >= 0.65) {
-            return 'Tot';
+            return 'Tốt';
         }
 
-        return 'Trung binh';
+        return 'Trung bình';
     }
-
     private function activityLogs(User $user): Collection
     {
         return ActivityLog::query()
@@ -812,7 +792,7 @@ class GetDashboardViewDataAction
 
         if (! $customer) {
             return [
-                'name' => 'No Customer',
+                'name' => 'Chưa có khách hàng',
                 'subtitle' => 'CRM',
                 'initial' => 'N',
                 'activities' => 0,
@@ -831,7 +811,7 @@ class GetDashboardViewDataAction
 
         return [
             'name' => $customer->name,
-            'subtitle' => $customer->email ? 'Customer Account' : 'CRM Contact',
+            'subtitle' => $customer->email ? 'Tài khoản khách hàng' : 'Liên hệ CRM',
             'initial' => strtoupper(substr($customer->name, 0, 1)),
             'activities' => $activities,
             'bars' => $daily->map(fn (int $value): array => [

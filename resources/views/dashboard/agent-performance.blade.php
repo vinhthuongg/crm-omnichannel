@@ -25,7 +25,7 @@
         <article class="agent-panel">
             <header>
                 <h3>Hội thoại xử lý theo nhân viên</h3>
-                <button type="button" aria-label="Tuy chon">
+                <button type="button" aria-label="Tùy chọn">
                     <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
                 </button>
             </header>
@@ -78,7 +78,7 @@
                             <td>{{ number_format($agent['total_conversations']) }}</td>
                             <td><a href="{{ route('crm.conversations', ['status' => 'mine']) }}">{{ number_format($agent['processed_conversations']) }}</a></td>
                             <td>{{ number_format($agent['active_conversations']) }}</td>
-                            <td>{{ number_format($agent['avg_response_minutes'], 1) }} p</td>
+                            <td>{{ number_format($agent['avg_response_minutes'], 1) }} phút</td>
                             <td>{{ number_format($agent['phone_collected']) }}</td>
                             <td><span class="agent-rating">{{ $agent['rating'] }}</span></td>
                         </tr>

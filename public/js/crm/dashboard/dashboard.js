@@ -29,7 +29,7 @@
         const rows = Array.isArray(series) ? series : [];
 
         if (!rows.length) {
-            return [{ label: fallbackLabel || 'Chua co', value: 0 }];
+            return [{ label: fallbackLabel || 'Chưa có', value: 0 }];
         }
 
         return rows.map((row) => ({
@@ -59,7 +59,7 @@
         const container = getElement(id);
 
         if (!container || typeof window.Chart === 'undefined') {
-            showEmpty(container, 'Không Thể Tải');
+            showEmpty(container, 'Không thể tải');
             return;
         }
 
@@ -144,7 +144,7 @@
             data: {
                 labels: rows.map((row) => row.label),
                 datasets: [{
-                    label: options?.label || 'Hội Thoại',
+                    label: options?.label || 'Hội thoại',
                     data: rows.map((row) => row.value),
                     borderColor: color,
                     backgroundColor: fill ? 'rgba(15, 86, 179, .14)' : 'rgba(15, 86, 179, .04)',
@@ -179,14 +179,14 @@
     }
 
     function renderBarChart(id, series) {
-        const rows = normalizeSeries(series, 'Chưa Có');
+        const rows = normalizeSeries(series, 'Chưa có');
 
         renderChart(id, {
             type: 'bar',
             data: {
                 labels: rows.map((row) => row.label),
                 datasets: [{
-                    label: 'Hoi thoai',
+                    label: 'Hội thoại',
                     data: rows.map((row) => row.value),
                     backgroundColor: '#c0182f',
                     borderRadius: 4,
@@ -209,7 +209,7 @@
         const rows = Array.isArray(series) ? series.filter((row) => Number(row.value || 0) > 0) : [];
 
         if (!rows.length) {
-            showEmpty(getElement(id), 'Chưa Có Dữ Liệu');
+            showEmpty(getElement(id), 'Chưa có dữ liệu');
             return;
         }
 
@@ -260,7 +260,7 @@
                 color: '#0f56b3',
                 fill: true,
                 legend: true,
-                label: 'Số Hội Thoại',
+                label: 'Số hội thoại',
             });
             renderDonutChart('today-source-donut', dashboardData.todaySources || []);
         }

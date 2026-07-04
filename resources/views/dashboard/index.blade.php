@@ -39,7 +39,7 @@
                                     </p>
                                 </div>
                                 @if($channel['menu'])
-                                    <button type="button" aria-label="Tuy chon">
+                                    <button type="button" aria-label="Tùy chọn">
                                         <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
                                     </button>
                                 @endif
@@ -94,7 +94,7 @@
             <section class="agent-report-page">
                 <header class="agent-page-header">
                     <div>
-                        <h1>Hiệu Suất Nhân Viên</h1>
+                        <h1>Hiệu suất nhân viên</h1>
                         <p>Dữ liệu được tổng hợp từ các cuộc hội thoại hiện có trong hệ thống</p>
                     </div>
                 </header>
@@ -117,42 +117,42 @@
                 <section class="agent-chart-grid">
                     <article class="agent-panel">
                         <header>
-                            <h3>Hội Thoại Xử Lí Theo Nhân Viên</h3>
-                            <button type="button" aria-label="Tuy chon">
+                            <h3>Hội thoại xử lý theo nhân viên</h3>
+                            <button type="button" aria-label="Tùy chọn">
                                 <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
                             </button>
                         </header>
-                        <div id="agent-handled-bar" class="agent-chart" aria-label="Hội Thoại Xử Lí Theo Nhân Viên"></div>
+                        <div id="agent-handled-bar" class="agent-chart" aria-label="Hội thoại xử lý theo nhân viên"></div>
                     </article>
 
                     <article class="agent-panel">
                         <header>
-                            <h3>Tốc Độ Phản Hồi Trung Bình (Phút)</h3>
-                            <span class="agent-chart-legend"><i></i>Toàn Đội</span>
+                            <h3>Tốc độ phản hồi trung bình (phút)</h3>
+                            <span class="agent-chart-legend"><i></i>Toàn đội</span>
                         </header>
-                        <div id="agent-response-line" class="agent-chart" aria-label="Tốc Độ Phản Hồi Trung Bình"></div>
+                        <div id="agent-response-line" class="agent-chart" aria-label="Tốc độ phản hồi trung bình"></div>
                     </article>
                 </section>
 
                 <section class="agent-table-panel">
                     <header>
-                        <h3>Chi Tiết Hiệu Suất Nhân Viên</h3>
+                        <h3>Chi tiết hiệu suất nhân viên</h3>
                         <label>
-                            <span class="material-symbols-outlined" aria-hidden="true">Search</span>
-                            <input type="search" placeholder="Tìm Nhân Viên">
+                            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                            <input type="search" placeholder="Tìm nhân viên">
                         </label>
                     </header>
                     <div class="agent-table-wrap">
                         <table class="agent-performance-table">
                             <thead>
                                 <tr>
-                                    <th>Nhân Viên</th>
-                                    <th>Tổng Hội Thoại</th>
-                                    <th>Đã Xử Lí</th>
-                                    <th>Đang Xử Lí</th>
-                                    <th>TG Phản Hồi Trung Bình</th>
-                                    <th>SDT Thu Nhập</th>
-                                    <th>Đánh Giá</th>
+                                    <th>Nhân viên</th>
+                                    <th>Tổng hội thoại</th>
+                                    <th>Đã xử lý</th>
+                                    <th>Đang xử lý</th>
+                                    <th>TG phản hồi trung bình</th>
+                                    <th>SĐT thu thập</th>
+                                    <th>Đánh giá</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -171,7 +171,7 @@
                                         <td>{{ number_format($agent['total_conversations']) }}</td>
                                         <td><a href="{{ route('crm.conversations', ['status' => 'mine']) }}">{{ number_format($agent['processed_conversations']) }}</a></td>
                                         <td>{{ number_format($agent['active_conversations']) }}</td>
-                                        <td>{{ number_format($agent['avg_response_minutes'], 1) }} p</td>
+                                        <td>{{ number_format($agent['avg_response_minutes'], 1) }} phút</td>
                                         <td>{{ number_format($agent['phone_collected']) }}</td>
                                         <td><span class="agent-rating">{{ $agent['rating'] }}</span></td>
                                     </tr>
@@ -180,7 +180,7 @@
                         </table>
                     </div>
                     <footer>
-                        <span>Hien thi {{ count($agentDashboard['rows']) }} Nhân Viên</span>
+                        <span>Hiển thị {{ count($agentDashboard['rows']) }} nhân viên</span>
                     </footer>
                 </section>
             </section>
@@ -194,29 +194,29 @@
             <section class="activity-log-page">
                 <header class="activity-page-header">
                     <div>
-                        <h1>Activity Log</h1>
-                        <span>Track all system actions, assignments, and customer interactions.</span>
+                        <h1>Nhật ký hoạt động</h1>
+                        <span>Theo dõi thao tác hệ thống, phân công và tương tác khách hàng.</span>
                     </div>
                 </header>
 
-                <section class="activity-filter-panel" aria-label="Activity filters">
+                <section class="activity-filter-panel" aria-label="Bộ lọc hoạt động">
                     <article>
-                        <span>Total</span>
+                        <span>Tổng</span>
                         <strong>{{ number_format($activityTotal) }}</strong>
                     </article>
                     <article>
-                        <span>Today</span>
+                        <span>Hôm nay</span>
                         <strong>{{ number_format($activityToday) }}</strong>
                     </article>
                     <article>
-                        <span>Agents</span>
+                        <span>Nhân viên</span>
                         <strong>{{ number_format($activityUsers) }}</strong>
                     </article>
                 </section>
 
                 <section class="activity-feed-panel">
                     <header>
-                        <h2>Recent Activity</h2>
+                        <h2>Hoạt động gần đây</h2>
                     </header>
 
                     <div class="activity-feed">
@@ -225,11 +225,11 @@
                                 $metadata = collect($log->metadata ?? []);
                                 $action = (string) $log->action;
                                 $actionLabel = \Illuminate\Support\Str::headline(str_replace(['.', '_', '-'], ' ', $action));
-                                $actor = $log->user?->name ?: 'System';
+                                $actor = $log->user?->name ?: 'Hệ thống';
                                 $subjectLabel = $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : 'CRM';
                                 $isSystem = ! $log->user_id || str_contains($action, 'system') || str_contains($action, 'auto');
-                                $channel = strtolower((string) ($metadata->get('channel') ?: $metadata->get('source') ?: 'System'));
-                                $badge = in_array($channel, ['facebook', 'zalo'], true) ? ucfirst($channel) : 'System';
+                                $channel = strtolower((string) ($metadata->get('channel') ?: $metadata->get('source') ?: 'system'));
+                                $badge = in_array($channel, ['facebook', 'zalo'], true) ? ucfirst($channel) : 'Hệ thống';
                                 $detail = $metadata->isNotEmpty()
                                     ? $metadata->map(fn ($value, $key) => \Illuminate\Support\Str::headline((string) $key).': '.(is_scalar($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE)))->take(1)->implode('')
                                     : '# '.$subjectLabel;
@@ -246,30 +246,30 @@
                                     <div class="activity-card-main">
                                         <p>
                                             <strong>{{ $actor }}</strong>
-                                            <span>{{ strtolower($actionLabel ?: 'updated activity') }}</span>
+                                            <span>{{ strtolower($actionLabel ?: 'cập nhật hoạt động') }}</span>
                                             <a href="{{ route('crm.activity') }}">{{ $subjectLabel }}</a>
                                         </p>
                                         <div class="activity-meta-line">
                                             <span>{{ $detail }}</span>
-                                            <b class="activity-badge {{ strtolower($badge) }}">{{ $badge }}</b>
+                                            <b class="activity-badge {{ strtolower($channel) }}">{{ $badge }}</b>
                                         </div>
                                     </div>
                                     <time>
-                                        <strong>{{ $log->created_at?->isToday() ? $log->created_at?->format('H:i A') : $log->created_at?->diffForHumans() }}</strong>
-                                        <span>{{ $log->created_at?->isToday() ? 'TODAY' : $log->created_at?->format('H:i A') }}</span>
+                                        <strong>{{ $log->created_at?->isToday() ? $log->created_at?->format('H:i') : $log->created_at?->diffForHumans() }}</strong>
+                                        <span>{{ $log->created_at?->isToday() ? 'HÔM NAY' : $log->created_at?->format('H:i') }}</span>
                                     </time>
                                 </div>
                             </article>
                         @empty
                             <div class="activity-empty">
                                 <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
-                                <p>Chưa Có Hoạt Động Nào Ghi Nhận</p>
+                                <p>Chưa có hoạt động nào ghi nhận</p>
                             </div>
                         @endforelse
                     </div>
 
                     <footer class="activity-pagination">
-                        <span>Showing {{ $activityTotal }} recent activities</span>
+                        <span>Hiển thị {{ $activityTotal }} hoạt động gần đây</span>
                     </footer>
                 </section>
             </section>
@@ -277,7 +277,7 @@
             <section class="settings-page">
                 <header class="settings-page-header">
                     <div>
-                        <p>Settings</p>
+                        <p>Cài đặt</p>
                         <h1>Cài đặt tài khoản</h1>
                         <span>Quản lý thông tin đăng nhập và bảo mật cho tài khoản CRM.</span>
                     </div>
@@ -303,7 +303,7 @@
                         <dl>
                             <div>
                                 <dt>Vai trò</dt>
-                                <dd>{{ $currentUser->getRoleNames()->implode(', ') ?: 'User' }}</dd>
+                                <dd>{{ $currentUser->getRoleNames()->implode(', ') ?: 'Người dùng' }}</dd>
                             </div>
                             <div>
                                 <dt>Trạng thái</dt>
@@ -369,7 +369,7 @@
                     </div>
                     <span class="today-dashboard-status">
                         <i></i>
-                        Dang cap nhat theo du lieu that
+                        Đang cập nhật theo dữ liệu thật
                     </span>
                 </header>
 
@@ -405,14 +405,14 @@
                         <header>
                             <h3>Hội thoại theo thời gian</h3>
                         </header>
-                        <div id="today-conversation-line" class="today-line-chart" aria-label="Hoi thoai theo thoi gian"></div>
+                        <div id="today-conversation-line" class="today-line-chart" aria-label="Hội thoại theo thời gian"></div>
                     </article>
 
                     <article class="today-panel today-source-panel">
                         <header>
                             <h3>Nguồn khách hàng</h3>
                         </header>
-                        <div id="today-source-donut" class="today-donut-chart" aria-label="Nguon khach hang"></div>
+                        <div id="today-source-donut" class="today-donut-chart" aria-label="Nguồn khách hàng"></div>
                         <div class="today-source-legend">
                             @foreach($dashboardOverview['sources'] as $source)
                                 <span>{{ $source['label'] }}</span>
