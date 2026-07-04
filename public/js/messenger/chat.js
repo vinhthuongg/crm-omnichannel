@@ -437,13 +437,20 @@
     }
 
     function applyReplySuggestion(text) {
-        const input = composer?.querySelector('[name="content"]');
+        const currentComposer = document.querySelector('[data-messenger-composer]');
+        const input = currentComposer?.querySelector('[name="content"]');
 
         if (!input) {
             return;
         }
 
+        if (input.disabled || input.readOnly) {
+            return;
+        }
+
         input.value = text;
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+        input.dispatchEvent(new Event('change', {bubbles: true}));
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
     }
@@ -3083,9 +3090,9 @@
         renderReplySuggestions({refresh: true});
     });
 
-    document.querySelector('[data-reply-suggestion-list]')?.addEventListener('click', function (event) {
+    document.addEventListener('click', function (event) {
         const button = event.target.closest('[data-reply-suggestion]');
-        const list = event.currentTarget;
+        const list = button?.closest('[data-reply-suggestion-list]');
 
         if (!button) {
             return;
