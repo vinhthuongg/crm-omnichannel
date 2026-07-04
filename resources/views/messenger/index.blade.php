@@ -506,8 +506,10 @@
             </section>
             </div>
         @else
-            <section class="profile-section is-empty">
-                <h4>Thông Tin Khách Hàng</h4>
+            <header class="profile-panel-title">
+                <h3>Thông Tin Khách Hàng</h3>
+            </header>
+            <section class="profile-empty-state">
                 <p>Chọn một hội thoại để xem chi tiết.</p>
             </section>
         @endif

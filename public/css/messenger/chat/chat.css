@@ -1496,6 +1496,22 @@ body.messenger-page .profile-panel-title button {
     cursor: pointer;
 }
 
+body.messenger-page .profile-empty-state {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    border-bottom: 1px solid var(--chat-line);
+    background: #fff;
+    color: var(--chat-muted);
+    padding: 18px 16px;
+}
+
+body.messenger-page .profile-empty-state p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 body.messenger-page .profile-card-head {
     position: relative;
     min-height: 176px;
