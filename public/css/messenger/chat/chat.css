@@ -2395,7 +2395,7 @@ body.messenger-page :where(
         padding: 0 16px !important;
         border-right: 0 !important;
         border-bottom: 1px solid var(--chat-line) !important;
-        background: var(--chat-card) !important;
+        background: var(--crm-page, var(--chat-bg)) !important;
         overflow: hidden !important;
     }
 

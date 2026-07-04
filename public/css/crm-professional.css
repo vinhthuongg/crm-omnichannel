@@ -98,14 +98,14 @@ a {
 
 .crm-sidebar,
 body.messenger-page .crm-sidebar {
-    background: var(--crm-surface) !important;
+    background: var(--crm-page) !important;
     border-right: 1px solid var(--crm-line) !important;
 }
 
 .crm-logo,
 body.messenger-page .crm-logo {
     color: var(--crm-primary) !important;
-    background: var(--crm-surface) !important;
+    background: var(--crm-page) !important;
     border-color: var(--crm-line) !important;
     font-size: 18px !important;
 }

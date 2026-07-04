@@ -385,7 +385,7 @@
         padding: 0 16px !important;
         border-right: 0 !important;
         border-bottom: 1px solid #e5e7eb !important;
-        background: #ffffff !important;
+        background: var(--crm-page, #f3f4f6) !important;
         overflow: hidden !important;
     }
 
