@@ -129,10 +129,20 @@ class HandleFacebookWebhookAction
 
     private function sendTypingOffForEcho(array $event): void
     {
+        $externalMessageId = (string) data_get($event, 'message.mid');
         $customerId = (string) data_get($event, 'recipient.id');
         $pageId = (string) data_get($event, 'sender.id');
 
-        if ($customerId === '' || $pageId === '') {
+        if ($externalMessageId === '' || $customerId === '' || $pageId === '') {
+            return;
+        }
+
+        $isBotEcho = Message::query()
+            ->where('external_message_id', $externalMessageId)
+            ->where('sender_type', 'system')
+            ->exists();
+
+        if (! $isBotEcho) {
             return;
         }
 

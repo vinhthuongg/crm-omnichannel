@@ -87,6 +87,10 @@ class SendOutboundMessageJob implements ShouldQueue
             ])->save();
             event(new MessageUpdatedEvent($message));
 
+            if ($message->sender_type === 'system') {
+                $outbound->stopTyping($message->conversation, $message->channel);
+            }
+
         } catch (\Throwable $exception) {
             $error = $this->errorMessage($exception);
 

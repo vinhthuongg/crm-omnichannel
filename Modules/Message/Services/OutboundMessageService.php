@@ -63,6 +63,26 @@ class OutboundMessageService
         return $this->send($conversation, $channel, $content);
     }
 
+    public function stopTyping(Conversation $conversation, string $channel): void
+    {
+        if ($channel !== 'facebook') {
+            return;
+        }
+
+        $customerChannel = $conversation->customer?->channels()
+            ->where('channel', $channel)
+            ->first();
+
+        if (! $customerChannel?->external_id) {
+            return;
+        }
+
+        $this->facebook->sendTypingOff(
+            $customerChannel->external_id,
+            $this->facebookPageToken($conversation),
+        );
+    }
+
     private function sendFacebook(string $recipientId, string $content, array $attachments, ?string $pageAccessToken = null): array
     {
         try {
