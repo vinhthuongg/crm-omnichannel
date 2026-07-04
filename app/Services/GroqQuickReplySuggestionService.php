@@ -20,7 +20,7 @@ class GroqQuickReplySuggestionService
             && trim((string) config('services.groq.api_key', '')) !== '';
     }
 
-    public function forBotMessage(string $botMessage): array
+    public function forBotMessage(string $botMessage, array $context = []): array
     {
         $botMessage = trim($botMessage);
 
@@ -43,8 +43,15 @@ class GroqQuickReplySuggestionService
                             'content' => $this->systemPrompt(),
                         ],
                         [
+                            'role' => 'system',
+                            'content' => $this->contextRulePrompt(),
+                        ],
+                        [
                             'role' => 'user',
-                            'content' => "Tin nhắn gần nhất của bot:\n".$botMessage,
+                            'content' => json_encode([
+                                'bot_message' => $botMessage,
+                                'conversation_context' => $context,
+                            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                         ],
                     ],
                     'temperature' => 0.7,
@@ -85,6 +92,23 @@ class GroqQuickReplySuggestionService
 
             return [];
         }
+    }
+
+    private function contextRulePrompt(): string
+    {
+        return <<<'PROMPT'
+Quy tắc bám chủ đề:
+- Phải đọc cả conversation_context, đặc biệt 6 tin cuối, để hiểu khách đang hỏi gì.
+- Quick reply phải liên quan trực tiếp đến chủ đề khách và bot vừa nói. Không tự nhảy sang chủ đề khác nếu khách chưa gợi ý.
+- Nếu khách đang hỏi kỹ thuật, lỗi xe, cứu hộ hoặc bảo dưỡng: không sinh nút hỏi mua xe, giá xe, trả góp, lái thử, trừ khi cuộc hội thoại có nhắc rõ nhu cầu mua xe.
+- Nếu khách đang hỏi một mẫu xe cụ thể, hầu hết nút phải giữ đúng mẫu xe đó.
+- Nếu khách đang hỏi giá, chỉ mở rộng sang ưu đãi, phiên bản, màu xe, trả góp, lăn bánh và thời gian giao xe của đúng mẫu xe đó.
+- Nếu khách đang hỏi trả góp, ưu tiên số tiền trả trước, kỳ hạn vay, hồ sơ, lãi suất, ngân hàng, số điện thoại.
+- Nếu khách đang hỏi đặt lịch hoặc lái thử, ưu tiên ngày giờ, địa điểm, mẫu xe, giấy tờ, số điện thoại.
+- Nút mở rộng chỉ được chiếm tối đa 3 nút trong 13 nút và vẫn phải hợp lý với ngữ cảnh.
+- Nếu không chắc chủ đề, tạo câu hỏi làm rõ nhu cầu thay vì tự đoán.
+- Payload phải diễn giải đầy đủ ý định khách hàng bằng tiếng Việt có dấu, không chỉ lặp lại title.
+PROMPT;
     }
 
     private function systemPrompt(): string

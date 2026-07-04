@@ -520,7 +520,7 @@ class BotpressChatService
 
     private function quickRepliesForBotMessage(Conversation $conversation, string $content, array $payload = []): array
     {
-        $items = $this->groqQuickReplies->forBotMessage($content);
+        $items = $this->groqQuickReplies->forBotMessage($content, $this->quickReplyContext($conversation));
         $shouldAskForPhone = $this->shouldAskForPhone($conversation, $content) || $this->quickRepliesAskForPhone($items);
 
         if ($shouldAskForPhone) {
@@ -539,6 +539,39 @@ class BotpressChatService
         }
 
         return array_values(array_slice($defaults, 0, 13));
+    }
+
+    private function quickReplyContext(Conversation $conversation): array
+    {
+        $messages = $conversation->messages()
+            ->latest('created_at')
+            ->latest('id')
+            ->limit(12)
+            ->get()
+            ->reverse()
+            ->map(function (Message $message): array {
+                return [
+                    'role' => match ($message->sender_type) {
+                        'customer' => 'customer',
+                        'system' => 'bot',
+                        'user' => $message->message_type === 'whisper' || $message->channel === 'internal' ? 'internal_note' : 'agent',
+                        default => (string) $message->sender_type,
+                    },
+                    'type' => (string) $message->message_type,
+                    'channel' => (string) $message->channel,
+                    'text' => mb_substr(trim((string) $message->content), 0, 700),
+                    'created_at' => optional($message->created_at)->toISOString(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'conversation_id' => $conversation->id,
+            'customer_name' => $conversation->customer?->name,
+            'status' => $conversation->status,
+            'messages' => $messages,
+        ];
     }
 
     private function defaultQuickReplies(string $content): array
