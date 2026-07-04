@@ -18,6 +18,7 @@ use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Support\AssignmentType;
 use Modules\Conversation\Support\ConversationAction;
 use Modules\Conversation\Support\ConversationStatus;
+use Modules\Botpress\Jobs\ResumeBotAfterIdleJob;
 use Modules\Message\Models\Message;
 
 class ConversationService
@@ -177,6 +178,10 @@ class ConversationService
             'unread_messages_count' => 0,
             'automation_state' => $automationState,
         ])->save();
+
+        if (! $isWhisper) {
+            ResumeBotAfterIdleJob::dispatchFor($message, 'agent_reply');
+        }
     }
 
     private function applyAssignment(Conversation $conversation, User $assignee, User $actor, string $type): Conversation

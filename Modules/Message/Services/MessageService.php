@@ -20,6 +20,7 @@ use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
 use Modules\Search\Services\VectorSearchService;
 use Modules\Botpress\Jobs\RelayInboundMessageToBotpressJob;
+use Modules\Botpress\Jobs\ResumeBotAfterIdleJob;
 
 class MessageService
 {
@@ -83,6 +84,11 @@ class MessageService
         $this->broadcastNewMessage($message);
         $this->queueCustomerVectorRefresh($customer);
         $this->queueReplySuggestions($conversation, $message);
+
+        if (filled(data_get($conversation->automation_state ?? [], 'paused_by_user_at'))) {
+            ResumeBotAfterIdleJob::dispatchFor($message, 'customer_message');
+        }
+
         RelayInboundMessageToBotpressJob::dispatch($message->id);
 
         return $message;
