@@ -521,9 +521,10 @@ class BotpressChatService
     private function quickRepliesForBotMessage(Conversation $conversation, string $content, array $payload = []): array
     {
         $items = $this->groqQuickReplies->forBotMessage($content);
+        $shouldAskForPhone = $this->shouldAskForPhone($conversation, $content) || $this->quickRepliesAskForPhone($items);
 
-        if ($this->shouldAskForPhone($conversation, $content)) {
-            $items = [$this->phoneShareQuickReply(), ...$items];
+        if ($shouldAskForPhone) {
+            $items = [$this->phoneShareQuickReply(), ...$this->withoutPhoneTextQuickReplies($items)];
         }
 
         if ($items !== []) {
@@ -531,9 +532,10 @@ class BotpressChatService
         }
 
         $defaults = $this->defaultQuickReplies($content);
+        $shouldAskForPhone = $shouldAskForPhone || $this->quickRepliesAskForPhone($defaults);
 
-        if ($this->shouldAskForPhone($conversation, $content)) {
-            $defaults = [$this->phoneShareQuickReply(), ...$defaults];
+        if ($shouldAskForPhone) {
+            $defaults = [$this->phoneShareQuickReply(), ...$this->withoutPhoneTextQuickReplies($defaults)];
         }
 
         return array_values(array_slice($defaults, 0, 11));
@@ -607,6 +609,47 @@ class BotpressChatService
         ];
     }
 
+    private function quickRepliesAskForPhone(array $items): bool
+    {
+        foreach ($items as $item) {
+            if ($this->isPhoneTextQuickReply($item)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function withoutPhoneTextQuickReplies(array $items): array
+    {
+        return array_values(array_filter($items, fn (array $item): bool => ! $this->isPhoneTextQuickReply($item)));
+    }
+
+    private function isPhoneTextQuickReply(array $item): bool
+    {
+        if (($item['content_type'] ?? '') !== 'text') {
+            return false;
+        }
+
+        $text = Str::of(trim(($item['title'] ?? '').' '.($item['payload'] ?? '')))
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/[^a-z0-9\s]+/', ' ')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->toString();
+
+        return $this->containsAny($text, [
+            'gui so',
+            'de lai so',
+            'cho so dien thoai',
+            'so dien thoai',
+            'sdt',
+            'goi lai',
+            'lien he',
+        ]);
+    }
+
     private function shouldAskForPhone(Conversation $conversation, string $content): bool
     {
         $conversation->loadMissing('customer');
@@ -634,6 +677,9 @@ class BotpressChatService
             'ho tro ky thuat',
             'de lai so',
             'cho em xin so',
+            'gui so',
+            'xin so',
+            'nhap so',
         ]);
     }
 
