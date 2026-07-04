@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Log;
 
 class GroqQuickReplySuggestionService
 {
+    private const MAX_REPLIES = 13;
+    private const MAX_TITLE_LENGTH = 20;
+
     public function __construct(private readonly Http $http)
     {
     }
@@ -41,11 +44,11 @@ class GroqQuickReplySuggestionService
                         ],
                         [
                             'role' => 'user',
-                            'content' => "Tin nhan gan nhat cua bot:\n".$botMessage,
+                            'content' => "Tin nhắn gần nhất của bot:\n".$botMessage,
                         ],
                     ],
-                    'temperature' => 0.45,
-                    'max_completion_tokens' => 450,
+                    'temperature' => 0.7,
+                    'max_completion_tokens' => 900,
                     'response_format' => ['type' => 'json_object'],
                 ]);
 
@@ -87,9 +90,9 @@ class GroqQuickReplySuggestionService
     private function systemPrompt(): string
     {
         return <<<'PROMPT'
-Bạn là trợ lý gợi ý quick reply cho CRM Toyota Kiên Giang.
+Bạn là trợ lý tạo quick reply cho CRM Toyota Kiên Giang.
 
-Nhiệm vụ: đọc tin nhắn gần nhất của bot và tạo 3 đến 4 quick replies giống như câu khách hàng thật sự muốn hỏi hoặc trả lời tiếp.
+Nhiệm vụ: đọc tin nhắn gần nhất của bot và tạo 8 đến 13 quick replies. Các nút phải giống câu khách hàng thật sự sẽ bấm để hỏi tiếp, không phải danh mục khô cứng.
 
 Chỉ trả về JSON object đúng format:
 {
@@ -100,27 +103,31 @@ Chỉ trả về JSON object đúng format:
 
 Quy tắc:
 - Viết tiếng Việt có dấu đầy đủ.
-- title phải là một câu hỏi hoặc câu nói tự nhiên của khách, ngắn nhưng đủ nghĩa.
-- title không được bị cụt câu, không được mất chữ, không kết thúc lửng.
-- title tối đa 20 ký tự để Messenger hiển thị được; nếu câu dài, hãy tự viết lại thành câu ngắn đủ ý.
-- title không được là hạng mục cứng như "Báo giá", "Trả góp", "Khuyến mãi", "Lái thử" nếu đứng một mình.
-- title nên giống cách khách chat thật: "Bản nào hợp anh?", "Trả trước 150tr?", "Còn màu trắng không?", "Mai lái thử được?".
-- payload viết rõ ý định của khách bằng một câu đầy đủ, có dấu, giữ đúng ngữ cảnh tin nhắn bot vừa nói.
-- Mỗi nút phải khác nhau về ý định: hỏi tiếp, chọn phiên bản, hỏi điều kiện, để lại thông tin, đặt lịch.
-- Không lặp lại cùng một bộ nút cho mọi câu.
-- Không đưa hạng mục cứng nếu không liên quan.
-- Không bịa giá, ưu đãi, lãi suất. Nếu cần số liệu, payload nên hỏi tiếp hoặc yêu cầu tư vấn chi tiết.
-- Giới hạn 3-4 nút.
-- Giọng điệu lịch sự, tự nhiên, phù hợp tư vấn xe Toyota.
+- Tạo tối đa 13 nút, tối thiểu 8 nút nếu đủ ngữ cảnh.
+- title tối đa 20 ký tự để Messenger hiển thị được. Nếu ý dài, tự viết lại thành câu ngắn tự nhiên.
+- title được phép ngắn nhưng không mất nghĩa. Không viết kiểu danh mục một từ như "Báo giá", "Trả góp", "Khuyến mãi", "Lái thử".
+- title phải là câu hỏi hoặc câu nói tự nhiên của khách, ví dụ: "Bản nào hợp anh?", "Trả trước 150tr?", "Còn màu trắng không?", "Mai lái thử được?", "Giấy tờ cần gì?".
+- payload phải là một câu đầy đủ, có dấu, nói rõ ý định của khách và giữ đúng ngữ cảnh bot vừa trả lời.
+- 60-70% nút phải bám sát nhu cầu chính trong tin nhắn bot vừa nói.
+- 30-40% nút còn lại là nhu cầu liên quan hợp lý: phiên bản, màu xe, giá lăn bánh, ưu đãi, trả góp, hồ sơ, lái thử, đặt lịch, bảo dưỡng, kỹ thuật, để lại số điện thoại.
+- Nếu bot đang nói về một mẫu xe cụ thể, payload phải giữ mẫu xe đó. Không tự đổi sang mẫu xe khác.
+- Nếu bot đang nói về kỹ thuật hoặc cứu hộ, ưu tiên các nút hỏi lỗi, đặt lịch kiểm tra, gọi kỹ thuật, gửi số điện thoại.
+- Nếu bot đang nói về giá hoặc ưu đãi, ưu tiên các nút hỏi phiên bản, màu, lăn bánh, trả góp, thời gian nhận xe.
+- Nếu bot đang hỏi xin số điện thoại, tạo một nút có ý định gửi số điện thoại để CRM có thể dùng payload chia sẻ số nếu phù hợp.
+- Không bịa giá, ưu đãi, lãi suất. Nếu cần số liệu, payload chỉ nên yêu cầu tư vấn chi tiết hoặc hỏi thêm thông tin.
+- Không lặp ý giữa các nút.
+- Giọng điệu lịch sự, tự nhiên, đúng kiểu khách chat với tư vấn viên Toyota.
 
 Ví dụ tốt:
-{"title":"Bản nào hợp anh?","payload":"Khách muốn được tư vấn phiên bản phù hợp với nhu cầu và ngân sách của mình."}
-{"title":"Trả trước 150tr?","payload":"Khách muốn hỏi nếu trả trước khoảng 150 triệu thì phương án trả góp sẽ như thế nào."}
+{"title":"Bản nào hợp anh?","payload":"Khách muốn được tư vấn phiên bản phù hợp với nhu cầu sử dụng và ngân sách của mình."}
+{"title":"Trả trước 150tr?","payload":"Khách muốn hỏi nếu trả trước khoảng 150 triệu thì phương án trả góp cho mẫu xe đang quan tâm sẽ như thế nào."}
+{"title":"Còn màu trắng không?","payload":"Khách muốn hỏi mẫu xe đang quan tâm còn màu trắng tại Toyota Kiên Giang không."}
 {"title":"Mai lái thử được?","payload":"Khách muốn đặt lịch lái thử vào ngày mai cho mẫu xe đang quan tâm."}
+{"title":"Gửi số cho em","payload":"Khách muốn gửi số điện thoại để Toyota Kiên Giang liên hệ tư vấn chi tiết."}
 
 Ví dụ xấu cần tránh:
 {"title":"Báo giá","payload":"Báo giá"}
-{"title":"Tư vấn trả góp V","payload":"Tư vấn trả góp Vios"}
+{"title":"Trả góp","payload":"Trả góp"}
 {"title":"Khuyến mãi","payload":"Khuyến mãi"}
 PROMPT;
     }
@@ -152,19 +159,19 @@ PROMPT;
                 $title = trim((string) ($item['title'] ?? $item['label'] ?? $item['text'] ?? ''));
                 $payload = trim((string) ($item['payload'] ?? $item['value'] ?? $item['text'] ?? $title));
 
-                if ($title === '' || mb_strlen($title) > 20) {
+                if ($title === '') {
                     return null;
                 }
 
                 return [
                     'content_type' => 'text',
-                    'title' => $title,
+                    'title' => mb_substr($title, 0, self::MAX_TITLE_LENGTH),
                     'payload' => mb_substr($payload !== '' ? $payload : $title, 0, 1000),
                 ];
             })
             ->filter()
             ->unique('title')
-            ->take(4)
+            ->take(self::MAX_REPLIES)
             ->values()
             ->all();
     }

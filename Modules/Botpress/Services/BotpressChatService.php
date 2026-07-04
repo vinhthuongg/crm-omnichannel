@@ -528,7 +528,7 @@ class BotpressChatService
         }
 
         if ($items !== []) {
-            return array_values(array_slice($items, 0, 11));
+            return array_values(array_slice($items, 0, 13));
         }
 
         $defaults = $this->defaultQuickReplies($content);
@@ -538,7 +538,7 @@ class BotpressChatService
             $defaults = [$this->phoneShareQuickReply(), ...$this->withoutPhoneTextQuickReplies($defaults)];
         }
 
-        return array_values(array_slice($defaults, 0, 11));
+        return array_values(array_slice($defaults, 0, 13));
     }
 
     private function defaultQuickReplies(string $content): array
