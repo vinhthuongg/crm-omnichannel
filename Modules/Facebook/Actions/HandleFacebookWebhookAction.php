@@ -4,6 +4,7 @@ namespace Modules\Facebook\Actions;
 
 use Illuminate\Support\Facades\Log;
 use Modules\Facebook\DTO\FacebookWebhookMessageData;
+use Modules\Facebook\Jobs\KeepTypingUntilBotReplyJob;
 use Modules\Facebook\Models\FacebookPage;
 use Modules\Facebook\Repositories\FacebookPageRepository;
 use Modules\Facebook\Services\FacebookMessengerService;
@@ -92,6 +93,11 @@ class HandleFacebookWebhookAction
                 $event,
                 $profile,
             ));
+
+            if ($lastMessage && $pageId !== '') {
+                KeepTypingUntilBotReplyJob::start($lastMessage->conversation, (int) $lastMessage->id, $senderId, $pageId);
+            }
+
             $stored++;
         }
 
@@ -122,9 +128,7 @@ class HandleFacebookWebhookAction
             return;
         }
 
-        app()->terminating(function () use ($senderId, $page): void {
-            $this->facebook->sendTypingOn($senderId, $page->page_access_token);
-        });
+        $this->facebook->sendTypingOn($senderId, $page->page_access_token);
     }
 
     private function sendTypingOffForEcho(array $event): void
