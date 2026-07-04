@@ -7,6 +7,7 @@ use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Botpress\Models\BotpressConversationLink;
 use Modules\Conversation\Models\Conversation;
 use Modules\Message\Events\NewMessageEvent;
@@ -451,7 +452,7 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => $this->botAttachments($content, $metadata, $payload),
+                'attachments' => $this->botAttachments($conversation, $content, $metadata, $payload),
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -500,9 +501,9 @@ class BotpressChatService
         ];
     }
 
-    private function botAttachments(string $content, array $metadata, array $payload = []): array
+    private function botAttachments(Conversation $conversation, string $content, array $metadata, array $payload = []): array
     {
-        $quickReplies = $this->quickRepliesForBotMessage($content, $payload);
+        $quickReplies = $this->quickRepliesForBotMessage($conversation, $content, $payload);
 
         if ($quickReplies === []) {
             return [$metadata];
@@ -517,15 +518,25 @@ class BotpressChatService
         ];
     }
 
-    private function quickRepliesForBotMessage(string $content, array $payload = []): array
+    private function quickRepliesForBotMessage(Conversation $conversation, string $content, array $payload = []): array
     {
         $items = $this->groqQuickReplies->forBotMessage($content);
+
+        if ($this->shouldAskForPhone($conversation, $content)) {
+            $items = [$this->phoneShareQuickReply(), ...$items];
+        }
 
         if ($items !== []) {
             return array_values(array_slice($items, 0, 11));
         }
 
-        return array_values(array_slice($this->defaultQuickReplies($content), 0, 11));
+        $defaults = $this->defaultQuickReplies($content);
+
+        if ($this->shouldAskForPhone($conversation, $content)) {
+            $defaults = [$this->phoneShareQuickReply(), ...$defaults];
+        }
+
+        return array_values(array_slice($defaults, 0, 11));
     }
 
     private function defaultQuickReplies(string $content): array
@@ -587,6 +598,43 @@ class BotpressChatService
             'title' => $title,
             'payload' => mb_substr(trim($payload ?: $title), 0, 1000),
         ];
+    }
+
+    private function phoneShareQuickReply(): array
+    {
+        return [
+            'content_type' => 'user_phone_number',
+        ];
+    }
+
+    private function shouldAskForPhone(Conversation $conversation, string $content): bool
+    {
+        $conversation->loadMissing('customer');
+
+        if (filled($conversation->customer?->phone)) {
+            return false;
+        }
+
+        $normalized = Str::of($content)
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/[^a-z0-9\s]+/', ' ')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->toString();
+
+        return $this->containsAny($normalized, [
+            'so dien thoai',
+            'sdt',
+            'lien he',
+            'goi lai',
+            'goi dien',
+            'ky thuat vien',
+            'cuu ho',
+            'ho tro ky thuat',
+            'de lai so',
+            'cho em xin so',
+        ]);
     }
 
     private function extractReplyText(mixed $payload): ?string

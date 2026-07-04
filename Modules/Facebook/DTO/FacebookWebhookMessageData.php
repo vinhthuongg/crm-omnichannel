@@ -17,11 +17,33 @@ final readonly class FacebookWebhookMessageData
         $pageId = (string) data_get($entry, 'recipient.id');
         $message = data_get($entry, 'message', []);
         $attachments = self::normalizeAttachments((array) data_get($message, 'attachments', []));
+        $quickReplyPayload = trim((string) data_get($message, 'quick_reply.payload', ''));
+        $content = data_get($message, 'text');
+
+        if (blank($content) && $quickReplyPayload !== '') {
+            $content = $quickReplyPayload;
+        }
+
         $name = trim((string) data_get($profile, 'first_name').' '.(string) data_get($profile, 'last_name'));
         $name = $name !== '' ? $name : (string) data_get($profile, 'name', '');
         $avatar = data_get($profile, 'profile_pic');
 
-        return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, data_get($message, 'text'), $attachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId]);
+        return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, $content, $attachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId, 'shared_phone_number' => self::phoneFromQuickReply($quickReplyPayload)]);
+    }
+
+    private static function phoneFromQuickReply(string $payload): ?string
+    {
+        if ($payload === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\D+/', '', $payload) ?: '';
+
+        if (str_starts_with($normalized, '84')) {
+            $normalized = '0'.substr($normalized, 2);
+        }
+
+        return preg_match('/^0\d{8,10}$/', $normalized) ? $normalized : null;
     }
 
     private static function normalizeAttachments(array $attachments): array

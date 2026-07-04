@@ -181,7 +181,11 @@ class MessageService
             $updates['avatar'] = $data->customerAvatar;
         }
 
-        if (blank($customer->phone) && $phone = $this->extractPhoneNumber((string) $data->content)) {
+        $sharedPhone = (string) data_get($data->metadata, 'shared_phone_number', '');
+
+        if ($sharedPhone !== '' && $customer->phone !== $sharedPhone) {
+            $updates['phone'] = $sharedPhone;
+        } elseif (blank($customer->phone) && $phone = $this->extractPhoneNumber((string) $data->content)) {
             $updates['phone'] = $phone;
         }
 
