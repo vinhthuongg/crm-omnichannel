@@ -921,15 +921,21 @@ body.messenger-page .message-row.mine .message-bubble {
 }
 
 body.messenger-page .message-bubble.is-whisper {
-    border-color: #f6d88a;
-    background: #fff7df;
-    color: #5f3f0d;
+    border-color: #c4b5fd;
+    background: #f3efff;
+    color: #3b2775;
+    box-shadow: 0 8px 20px rgba(91, 33, 182, .08);
 }
 
 body.messenger-page .message-row.mine .message-bubble.is-whisper {
-    border-color: #efc45f;
-    background: #ffefbf;
-    color: #553407;
+    border-color: #a78bfa;
+    background: #ede9fe;
+    color: #312061;
+}
+
+body.messenger-page .message-bubble.is-whisper .message-sender {
+    color: #6d28d9;
+    opacity: 1;
 }
 
 body.messenger-page .message-sender {
