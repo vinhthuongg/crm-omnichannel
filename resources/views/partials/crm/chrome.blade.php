@@ -34,7 +34,7 @@
 
         <div class="team-switcher-menu">
             @can('user.manage')
-                <a href="/phpmyadmin" target="_blank" rel="noopener">
+                <a href="{{ route('crm.admin.database') }}" target="_blank" rel="noopener">
                     <span class="material-symbols-outlined" aria-hidden="true">database</span>
                     <span>phpMyAdmin</span>
                 </a>

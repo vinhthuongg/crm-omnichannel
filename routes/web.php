@@ -52,6 +52,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('customers', CustomerPageController::class)->name('crm.customers');
     Route::get('agents', DashboardController::class)->defaults('section', 'agents')->name('crm.agents');
     Route::get('channels', DashboardController::class)->defaults('section', 'channels')->name('crm.channels');
+    Route::get('admin/database', function () {
+        abort_unless(request()->user()?->can('user.manage'), 403);
+
+        return redirect('/phpmyadmin');
+    })->name('crm.admin.database');
     Route::get('reports', DashboardController::class)->defaults('section', 'reports')->name('crm.reports');
     Route::get('activity', DashboardController::class)->defaults('section', 'activity')->name('crm.activity');
     Route::get('notifications', DashboardController::class)->defaults('section', 'notifications')->name('crm.notifications');
