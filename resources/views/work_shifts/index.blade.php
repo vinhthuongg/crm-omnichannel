@@ -45,13 +45,13 @@
                 <p class="work-shifts-alert is-error">{{ $errors->first() }}</p>
             @endif
 
-            <nav class="work-shifts-tabs" aria-label="Điều hướng ca trực">
-                <a class="active" href="#shift-overview">Ca trực gần nhất</a>
-                <a href="#staff-on-shift">Nhân sự trong ca</a>
-                <a href="#shift-list">Quản lý ca trực</a>
+            <nav class="work-shifts-tabs" aria-label="Điều hướng ca trực" data-work-shift-tabs>
+                <a class="active" href="#shift-overview" data-work-shift-tab="shift-overview" aria-current="page">Ca trực gần nhất</a>
+                <a href="#staff-on-shift" data-work-shift-tab="staff-on-shift">Nhân sự trong ca</a>
+                <a href="#shift-list" data-work-shift-tab="shift-list">Quản lý ca trực</a>
             </nav>
 
-            <section class="shift-overview-grid" id="shift-overview">
+            <section class="shift-overview-grid" id="shift-overview" data-work-shift-panel="shift-overview">
                 @forelse($overviewShifts as $shift)
                     @php
                         $isCurrent = $currentShift?->is($shift);
@@ -86,7 +86,7 @@
                 @endforelse
             </section>
 
-            <section class="shift-staff-panel" id="staff-on-shift">
+            <section class="shift-staff-panel" id="staff-on-shift" data-work-shift-panel="staff-on-shift" hidden>
                 <header>
                     <div>
                         <h2>Nhân sự trong ca {{ $staffShift ? '('.$staffShift->name.')' : '' }}</h2>
@@ -146,7 +146,7 @@
                 <a class="shift-view-all" href="#shift-list">Xem toàn bộ danh sách ({{ $agents->count() }} nhân viên)</a>
             </section>
 
-            <section class="work-shifts-list" id="shift-list" aria-label="Danh sách ca trực">
+            <section class="work-shifts-list" id="shift-list" aria-label="Danh sách ca trực" data-work-shift-panel="shift-list" hidden>
                 <header class="work-shifts-section-head">
                     <div>
                         <p>Quản lý</p>

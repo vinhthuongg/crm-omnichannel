@@ -67,6 +67,48 @@
         return !error;
     }
 
+    function activateTab(tabId, updateHash = true) {
+        const tabs = Array.from(document.querySelectorAll('[data-work-shift-tab]'));
+        const panels = Array.from(document.querySelectorAll('[data-work-shift-panel]'));
+
+        if (!tabs.length || !panels.length) {
+            return;
+        }
+
+        const targetId = panels.some((panel) => panel.dataset.workShiftPanel === tabId)
+            ? tabId
+            : panels[0].dataset.workShiftPanel;
+
+        tabs.forEach(function (tab) {
+            const active = tab.dataset.workShiftTab === targetId;
+            tab.classList.toggle('active', active);
+
+            if (active) {
+                tab.setAttribute('aria-current', 'page');
+            } else {
+                tab.removeAttribute('aria-current');
+            }
+        });
+
+        panels.forEach(function (panel) {
+            panel.hidden = panel.dataset.workShiftPanel !== targetId;
+        });
+
+        if (updateHash && targetId) {
+            history.replaceState(null, '', `#${targetId}`);
+        }
+    }
+
+    document.querySelectorAll('[data-work-shift-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function (event) {
+            event.preventDefault();
+            activateTab(tab.dataset.workShiftTab);
+        });
+    });
+
+    const initialTab = window.location.hash ? window.location.hash.slice(1) : 'shift-overview';
+    activateTab(initialTab, false);
+
     document.querySelectorAll('[data-shift-form]').forEach(function (form) {
         updateAgentCount(form);
         syncAgentAvailability(form);

@@ -202,6 +202,10 @@ body.work-shifts-page {
     background: #d0021b;
 }
 
+[data-work-shift-panel][hidden] {
+    display: none !important;
+}
+
 .shift-overview-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
