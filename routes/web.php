@@ -61,8 +61,23 @@ Route::middleware('auth')->group(function (): void {
             ['nonce' => (string) \Illuminate\Support\Str::uuid()]
         ));
     })->name('crm.admin.database.launch');
+    Route::get('admin/database/authorize', function () {
+        abort_unless(request()->user()?->can('user.manage'), 403);
+
+        $cookieGate = (string) request()->cookie('crm_db_gate', '');
+        $sessionGate = (string) request()->session()->get('crm_db_gate', '');
+        $expiresAt = (int) request()->session()->get('crm_db_gate_expires_at', 0);
+
+        abort_unless($cookieGate !== '' && hash_equals($sessionGate, $cookieGate), 403);
+        abort_unless($expiresAt >= now()->timestamp, 403);
+
+        return response('', 204);
+    })->name('crm.admin.database.authorize');
     Route::get('admin/database/{nonce}', function (string $nonce) {
         abort_unless(request()->user()?->can('user.manage'), 403);
+
+        request()->session()->put('crm_db_gate', $nonce);
+        request()->session()->put('crm_db_gate_expires_at', now()->addMinutes(10)->timestamp);
 
         return redirect('/phpmyadmin/?gate='.$nonce)->withCookie(cookie(
             'crm_db_gate',
