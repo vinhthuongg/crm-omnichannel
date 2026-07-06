@@ -4,6 +4,7 @@
     <link rel="stylesheet" href="{{ asset('css/crm/channels.css') }}?v={{ filemtime(public_path('css/crm/channels.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/crm/agents.css') }}?v={{ filemtime(public_path('css/crm/agents.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/crm/activity-settings.css') }}?v={{ filemtime(public_path('css/crm/activity-settings.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/crm/notifications.css') }}?v={{ filemtime(public_path('css/crm/notifications.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/crm/dashboard/dashboard.css') }}?v={{ filemtime(public_path('css/crm/dashboard/dashboard.css')) }}">
 @endpush
 
@@ -289,6 +290,8 @@
                 </section>
             </section>
             @endif
+        @elseif(($activeSection ?? 'dashboard') === 'notifications')
+            @include('dashboard.notifications')
         @elseif(($activeSection ?? 'dashboard') === 'settings')
             <section class="settings-page">
                 <header class="settings-page-header">

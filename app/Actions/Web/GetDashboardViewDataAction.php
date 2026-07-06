@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Notifications\DatabaseNotification;
 use Modules\ActivityLog\Models\ActivityLog;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
@@ -34,6 +35,11 @@ class GetDashboardViewDataAction
             'agent' => (string) ($filters['activity_agent'] ?? 'all'),
             'type' => (string) ($filters['activity_type'] ?? 'all'),
             'keyword' => trim((string) ($filters['activity_keyword'] ?? '')),
+        ];
+        $notificationFilters = [
+            'status' => (string) ($filters['notification_status'] ?? 'all'),
+            'type' => (string) ($filters['notification_type'] ?? 'all'),
+            'keyword' => trim((string) ($filters['notification_keyword'] ?? '')),
         ];
 
         $conversationQuery = $this->visibleConversations($user);
@@ -124,6 +130,7 @@ class GetDashboardViewDataAction
             'agentDashboard' => $this->agentDashboard($user),
             'activityDashboard' => $activityDashboard,
             'activityLogs' => $activityDashboard['logs'],
+            'notificationDashboard' => $this->notificationDashboard($user, $notificationFilters),
             'notificationCount' => (clone $conversationQuery)
                 ->whereIn('status', ConversationStatus::ACTIVE)
                 ->where('last_message_at', '<', now()->subHours(2))
@@ -323,6 +330,88 @@ class GetDashboardViewDataAction
     private function sectionTitle(string $section, User $user): string
     {
         return collect($this->navItems($user))->firstWhere('section', $section)['label'] ?? 'Dashboard';
+    }
+
+    private function notificationDashboard(User $user, array $filters): array
+    {
+        $baseQuery = $this->notificationBaseQuery($user);
+        $recentForTypes = (clone $baseQuery)->latest()->limit(200)->get(['data']);
+        $types = $recentForTypes
+            ->map(fn (DatabaseNotification $notification): string => (string) data_get($notification->data, 'type', 'system'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->map(fn (string $type): array => [
+                'key' => $type,
+                'label' => $this->notificationTypeLabel($type),
+            ]);
+
+        $filteredQuery = $this->applyNotificationFilters($this->notificationBaseQuery($user), $filters);
+        $notifications = (clone $filteredQuery)->latest()->limit(50)->get();
+
+        $typeCounts = $notifications
+            ->groupBy(fn (DatabaseNotification $notification): string => (string) data_get($notification->data, 'type', 'system'))
+            ->map(fn (Collection $items, string $type): array => [
+                'key' => $type,
+                'label' => $this->notificationTypeLabel($type),
+                'count' => $items->count(),
+            ])
+            ->sortByDesc('count')
+            ->values();
+
+        return [
+            'notifications' => $notifications,
+            'types' => $types,
+            'typeCounts' => $typeCounts,
+            'filters' => [
+                'status' => $filters['status'] ?: 'all',
+                'type' => $filters['type'] ?: 'all',
+                'keyword' => $filters['keyword'] ?: '',
+            ],
+            'summary' => [
+                'total' => (clone $filteredQuery)->count(),
+                'unread' => (clone $this->notificationBaseQuery($user))->whereNull('read_at')->count(),
+                'today' => (clone $filteredQuery)->whereDate('created_at', today())->count(),
+                'types' => $typeCounts->count(),
+            ],
+        ];
+    }
+
+    private function notificationBaseQuery(User $user): Builder
+    {
+        return DatabaseNotification::query()
+            ->where('notifiable_type', $user->getMorphClass())
+            ->where('notifiable_id', $user->getKey());
+    }
+
+    private function applyNotificationFilters(Builder $query, array $filters): Builder
+    {
+        $status = (string) ($filters['status'] ?? 'all');
+        $type = (string) ($filters['type'] ?? 'all');
+        $keyword = trim((string) ($filters['keyword'] ?? ''));
+
+        return $query
+            ->when($status === 'unread', fn (Builder $builder) => $builder->whereNull('read_at'))
+            ->when($status === 'read', fn (Builder $builder) => $builder->whereNotNull('read_at'))
+            ->when($type !== '' && $type !== 'all', fn (Builder $builder) => $builder->where('data->type', $type))
+            ->when($keyword !== '', function (Builder $builder) use ($keyword): void {
+                $builder->where(function (Builder $keywordQuery) use ($keyword): void {
+                    $keywordQuery->where('id', 'like', "%{$keyword}%")
+                        ->orWhere('type', 'like', "%{$keyword}%")
+                        ->orWhere('data', 'like', "%{$keyword}%");
+                });
+            });
+    }
+
+    private function notificationTypeLabel(string $type): string
+    {
+        return match ($type) {
+            'new_message' => 'Tin nhắn mới',
+            'conversation_assigned' => 'Phân công hội thoại',
+            'conversation_waiting' => 'Khách đang đợi',
+            'system' => 'Hệ thống',
+            default => str($type)->replace(['_', '-'], ' ')->headline()->toString(),
+        };
     }
 
     private function visibleConversations(User $user): Builder

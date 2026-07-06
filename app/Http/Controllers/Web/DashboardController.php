@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -23,6 +24,9 @@ class DashboardController extends Controller
             'activity_agent' => $request->string('activity_agent', 'all')->toString(),
             'activity_type' => $request->string('activity_type', 'all')->toString(),
             'activity_keyword' => $request->string('activity_keyword')->toString(),
+            'notification_status' => $request->string('notification_status', 'all')->toString(),
+            'notification_type' => $request->string('notification_type', 'all')->toString(),
+            'notification_keyword' => $request->string('notification_keyword')->toString(),
         ]));
     }
 
@@ -45,5 +49,23 @@ class DashboardController extends Controller
         ])->save();
 
         return back()->with('settings_status', 'Đã đổi mật khẩu thành công.');
+    }
+
+    public function markNotificationRead(Request $request, string $notification): RedirectResponse
+    {
+        $request->user()->notifications()->whereKey($notification)->firstOrFail()->markAsRead();
+
+        return back()->with('notification_status', 'Đã đánh dấu thông báo là đã đọc.');
+    }
+
+    public function markAllNotificationsRead(Request $request): RedirectResponse
+    {
+        DatabaseNotification::query()
+            ->where('notifiable_type', $request->user()->getMorphClass())
+            ->where('notifiable_id', $request->user()->getKey())
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return back()->with('notification_status', 'Đã đánh dấu tất cả thông báo là đã đọc.');
     }
 }

@@ -55,6 +55,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('reports', DashboardController::class)->defaults('section', 'reports')->name('crm.reports');
     Route::get('activity', DashboardController::class)->defaults('section', 'activity')->name('crm.activity');
     Route::get('notifications', DashboardController::class)->defaults('section', 'notifications')->name('crm.notifications');
+    Route::patch('notifications/read-all', [DashboardController::class, 'markAllNotificationsRead'])->name('crm.notifications.read-all');
+    Route::patch('notifications/{notification}/read', [DashboardController::class, 'markNotificationRead'])->name('crm.notifications.read');
     Route::get('settings', DashboardController::class)->defaults('section', 'settings')->name('crm.settings');
     Route::patch('settings/password', [DashboardController::class, 'updatePassword'])->name('crm.settings.password.update');
     Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
