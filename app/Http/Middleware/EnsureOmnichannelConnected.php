@@ -27,7 +27,7 @@ class EnsureOmnichannelConnected
             ]);
         }
 
-        return redirect()->route('dashboard')->withErrors([
+        return redirect()->route('crm.settings')->withErrors([
             'channels' => 'He thong chua duoc Admin ket noi Facebook Messenger hoac Zalo OA.',
         ]);
     }

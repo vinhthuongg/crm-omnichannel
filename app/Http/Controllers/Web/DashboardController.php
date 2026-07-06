@@ -15,10 +15,15 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, GetDashboardViewDataAction $action): View
+    public function __invoke(Request $request, GetDashboardViewDataAction $action): View|RedirectResponse
     {
+        $section = (string) $request->route('section', 'dashboard');
+        if (! $request->user()->can('user.manage') && ! in_array($section, ['notifications', 'settings'], true)) {
+            return redirect()->route('crm.conversations');
+        }
+
         return view('dashboard.index', $action->execute($request->user(), [
-            'section' => $request->route('section', 'dashboard'),
+            'section' => $section,
             'search' => $request->string('q')->toString(),
             'period' => $request->string('period', 'week')->toString(),
             'activity_agent' => $request->string('activity_agent', 'all')->toString(),

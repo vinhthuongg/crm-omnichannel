@@ -25,7 +25,7 @@
         @endforeach
     </nav>
 
-    <a class="team-switcher" href="{{ route('crm.agents') }}">
+    <a class="team-switcher" href="{{ route($currentUser->can('user.manage') ? 'crm.agents' : 'crm.settings') }}">
         <span>{{ substr($sidebar['team_name'], 0, 1) }}</span>
         <span>{{ $sidebar['team_name'] }}</span>
         <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
