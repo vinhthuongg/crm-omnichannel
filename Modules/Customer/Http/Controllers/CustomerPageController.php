@@ -42,6 +42,8 @@ class CustomerPageController extends Controller
         $vectorCustomerIds = $search !== ''
             ? collect($this->vectors->searchCustomers($search, (int) config('search.vector.top_k', 50)))
             : collect();
+        $useVectorSearch = $search !== '' && $vectorCustomerIds->isNotEmpty();
+        $useFallbackSearch = $search !== '' && ! $useVectorSearch;
         $visibleAgentIds = Conversation::query()
             ->whereIn('id', $visibleConversationIds)
             ->whereNotNull('assigned_to')
@@ -50,16 +52,13 @@ class CustomerPageController extends Controller
 
         $customers = Customer::query()
             ->whereHas('conversations', fn (Builder $query) => $query->whereIn('conversations.id', $filteredConversationIds))
-            ->when($search !== '', function (Builder $query) use ($search, $vectorCustomerIds): void {
-                $query->where(function (Builder $query) use ($search, $vectorCustomerIds): void {
+            ->when($useVectorSearch, fn (Builder $query) => $query->whereIn('id', $vectorCustomerIds))
+            ->when($useFallbackSearch, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $query) use ($search): void {
                     $query->where('name', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhereHas('channels', fn (Builder $channels) => $channels->where('external_id', 'like', "%{$search}%"));
-
-                    if ($vectorCustomerIds->isNotEmpty()) {
-                        $query->orWhereIn('id', $vectorCustomerIds);
-                    }
                 });
             })
             ->when(in_array($channel, ['facebook', 'zalo'], true), fn (Builder $query) => $query->whereHas('channels', fn (Builder $channels) => $channels->where('channel', $channel)))
@@ -78,7 +77,7 @@ class CustomerPageController extends Controller
                 'last_message_at'
             )
             ->when(
-                $search !== '' && $vectorCustomerIds->isNotEmpty(),
+                $useVectorSearch,
                 fn (Builder $query) => $query->orderByRaw($this->vectorOrderSql($vectorCustomerIds->all()))
             )
             ->orderByDesc('last_message_at')

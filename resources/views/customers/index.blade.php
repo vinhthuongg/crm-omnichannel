@@ -67,7 +67,7 @@
                 </label>
                 <label class="customers-search-field">
                     <span>Tìm kiếm</span>
-                    <input name="q" value="{{ $filters['q'] }}" placeholder="Tên, số điện thoại, email hoặc ID kênh">
+                    <input name="q" value="{{ $filters['q'] }}" placeholder="Tìm kiếm vector theo tên, số điện thoại, nhu cầu hoặc nội dung chat">
                 </label>
                 <div class="customers-filter-actions">
                     <button type="submit">Lọc</button>
