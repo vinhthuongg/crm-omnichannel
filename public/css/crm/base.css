@@ -214,6 +214,7 @@ a {
     padding: 6px;
 }
 
+.team-switcher-menu a,
 .team-switcher-menu button {
     width: 100%;
     min-height: 38px;
@@ -226,8 +227,10 @@ a {
     gap: 8px;
     padding: 0 10px;
     cursor: pointer;
+    text-decoration: none;
 }
 
+.team-switcher-menu a:hover,
 .team-switcher-menu button:hover {
     background: #f8fafc;
 }

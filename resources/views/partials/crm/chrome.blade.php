@@ -33,6 +33,10 @@
         </summary>
 
         <div class="team-switcher-menu">
+            <a href="{{ route('crm.settings') }}">
+                <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
+                <span>Admin</span>
+            </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit">
