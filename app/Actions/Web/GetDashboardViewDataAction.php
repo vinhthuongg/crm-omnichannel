@@ -30,6 +30,11 @@ class GetDashboardViewDataAction
         $period = in_array(($filters['period'] ?? 'week'), ['week', 'month', 'year'], true)
             ? (string) $filters['period']
             : 'week';
+        $activityFilters = [
+            'agent' => (string) ($filters['activity_agent'] ?? 'all'),
+            'type' => (string) ($filters['activity_type'] ?? 'all'),
+            'keyword' => trim((string) ($filters['activity_keyword'] ?? '')),
+        ];
 
         $conversationQuery = $this->visibleConversations($user);
         $totalConversations = (clone $conversationQuery)->count();
@@ -62,6 +67,7 @@ class GetDashboardViewDataAction
             ->latest('last_message_at')
             ->limit(6)
             ->get();
+        $activityDashboard = $this->activityDashboard($user, $activityFilters);
 
         return [
             'currentUser' => $user,
@@ -116,7 +122,8 @@ class GetDashboardViewDataAction
             'topCustomers' => $this->topCustomers($user),
             'agents' => $this->agents($user),
             'agentDashboard' => $this->agentDashboard($user),
-            'activityLogs' => $this->activityLogs($user),
+            'activityDashboard' => $activityDashboard,
+            'activityLogs' => $activityDashboard['logs'],
             'notificationCount' => (clone $conversationQuery)
                 ->whereIn('status', ConversationStatus::ACTIVE)
                 ->where('last_message_at', '<', now()->subHours(2))
@@ -789,14 +796,149 @@ class GetDashboardViewDataAction
 
         return 'Trung bình';
     }
-    private function activityLogs(User $user): Collection
+    private function activityDashboard(User $user, array $filters): array
+    {
+        $baseQuery = $this->activityBaseQuery($user);
+        $agents = User::query()
+            ->whereIn('id', (clone $baseQuery)->select('user_id')->whereNotNull('user_id'))
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $agent): array => [
+                'id' => $agent->id,
+                'name' => $agent->name,
+            ]);
+
+        $types = (clone $baseQuery)
+            ->select('action')
+            ->distinct()
+            ->pluck('action')
+            ->map(fn (string $action): string => $this->activityType($action))
+            ->unique()
+            ->values()
+            ->map(fn (string $type): array => [
+                'key' => $type,
+                'label' => $this->activityTypeLabel($type),
+            ]);
+
+        $filteredQuery = $this->applyActivityFilters($this->activityBaseQuery($user), $filters);
+        $logs = (clone $filteredQuery)
+            ->with('user')
+            ->latest()
+            ->limit(50)
+            ->get();
+
+        $typeCounts = $logs
+            ->groupBy(fn (ActivityLog $log): string => $this->activityType($log->action))
+            ->map(fn (Collection $items, string $type): array => [
+                'key' => $type,
+                'label' => $this->activityTypeLabel($type),
+                'count' => $items->count(),
+            ])
+            ->sortByDesc('count')
+            ->values();
+
+        $agentCounts = $logs
+            ->groupBy(fn (ActivityLog $log): string => $log->user?->name ?: 'Hệ thống')
+            ->map(fn (Collection $items, string $name): array => [
+                'name' => $name,
+                'initial' => mb_strtoupper(mb_substr($name, 0, 1)),
+                'count' => $items->count(),
+            ])
+            ->sortByDesc('count')
+            ->values();
+
+        return [
+            'logs' => $logs,
+            'agents' => $agents,
+            'types' => $types,
+            'typeCounts' => $typeCounts,
+            'agentCounts' => $agentCounts,
+            'filters' => [
+                'agent' => $filters['agent'] ?: 'all',
+                'type' => $filters['type'] ?: 'all',
+                'keyword' => $filters['keyword'] ?: '',
+            ],
+            'summary' => [
+                'total' => (clone $filteredQuery)->count(),
+                'today' => (clone $filteredQuery)->whereDate('created_at', today())->count(),
+                'agents' => (clone $filteredQuery)->whereNotNull('user_id')->distinct('user_id')->count('user_id'),
+                'types' => $typeCounts->count(),
+            ],
+        ];
+    }
+
+    private function activityBaseQuery(User $user): Builder
     {
         return ActivityLog::query()
-            ->with('user')
-            ->when(! $user->can('conversation.view_all'), fn (Builder $query) => $query->where('user_id', $user->id))
-            ->latest()
-            ->limit(24)
-            ->get();
+            ->when(! $user->can('conversation.view_all'), fn (Builder $query) => $query->where('user_id', $user->id));
+    }
+
+    private function applyActivityFilters(Builder $query, array $filters): Builder
+    {
+        $agent = (string) ($filters['agent'] ?? 'all');
+        $type = (string) ($filters['type'] ?? 'all');
+        $keyword = trim((string) ($filters['keyword'] ?? ''));
+
+        return $query
+            ->when($agent !== '' && $agent !== 'all', fn (Builder $builder) => $builder->where('user_id', (int) $agent))
+            ->when($type !== '' && $type !== 'all', function (Builder $builder) use ($type): void {
+                if ($type === 'system') {
+                    $builder->where(function (Builder $systemQuery): void {
+                        $systemQuery->whereNull('user_id')
+                            ->orWhere('action', 'like', 'system.%')
+                            ->orWhere('action', 'like', 'auto.%');
+                    });
+
+                    return;
+                }
+
+                $builder->where('action', 'like', $type.'.%');
+            })
+            ->when($keyword !== '', function (Builder $builder) use ($keyword): void {
+                $builder->where(function (Builder $keywordQuery) use ($keyword): void {
+                    $keywordQuery->where('action', 'like', "%{$keyword}%")
+                        ->orWhere('subject_type', 'like', "%{$keyword}%")
+                        ->orWhere('subject_id', 'like', "%{$keyword}%")
+                        ->orWhere('metadata', 'like', "%{$keyword}%")
+                        ->orWhereHas('user', fn (Builder $userQuery) => $userQuery->where('name', 'like', "%{$keyword}%"));
+                });
+            });
+    }
+
+    private function activityType(string $action): string
+    {
+        if (str_contains($action, 'system') || str_contains($action, 'auto')) {
+            return 'system';
+        }
+
+        return str_contains($action, '.') ? str($action)->before('.')->toString() : 'other';
+    }
+
+    private function activityTypeLabel(string $type): string
+    {
+        return match ($type) {
+            'conversation' => 'Hội thoại',
+            'message' => 'Tin nhắn',
+            'customer' => 'Khách hàng',
+            'facebook' => 'Facebook',
+            'system' => 'Hệ thống',
+            default => 'Khác',
+        };
+    }
+
+    private function activityActionLabel(string $action): string
+    {
+        return match ($action) {
+            'conversation.claimed' => 'nhận xử lý hội thoại',
+            'conversation.released' => 'trả hội thoại về hàng đợi',
+            'conversation.assigned' => 'phân công hội thoại',
+            'conversation.transferred' => 'chuyển hội thoại',
+            'conversation.tagged' => 'cập nhật tag hội thoại',
+            'conversation.resolved' => 'đánh dấu đã xử lý',
+            'conversation.reopened' => 'mở lại hội thoại',
+            'message.sent' => 'gửi tin nhắn',
+            default => str($action)->replace(['.', '_', '-'], ' ')->headline()->lower()->toString(),
+        };
     }
 
     private function topCustomer(User $user): array

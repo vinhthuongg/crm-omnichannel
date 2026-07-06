@@ -184,10 +184,26 @@
                 </section>
             </section>
         @elseif(($activeSection ?? 'dashboard') === 'activity')
+            @include('dashboard.activity')
+            @if(false)
             @php
-                $activityTotal = $activityLogs->count();
-                $activityToday = $activityLogs->filter(fn ($log) => $log->created_at?->isToday())->count();
-                $activityUsers = $activityLogs->pluck('user_id')->filter()->unique()->count();
+                $activityData = $activityDashboard ?? [
+                    'logs' => $activityLogs,
+                    'agents' => collect(),
+                    'types' => collect(),
+                    'agentCounts' => collect(),
+                    'typeCounts' => collect(),
+                    'summary' => [
+                        'total' => $activityLogs->count(),
+                        'today' => $activityLogs->filter(fn ($log) => $log->created_at?->isToday())->count(),
+                        'agents' => $activityLogs->pluck('user_id')->filter()->unique()->count(),
+                        'types' => 0,
+                    ],
+                    'filters' => ['agent' => 'all', 'type' => 'all', 'keyword' => ''],
+                ];
+                $activityLogs = $activityData['logs'];
+                $activitySummary = $activityData['summary'];
+                $activityFilters = $activityData['filters'];
             @endphp
 
             <section class="activity-log-page">
@@ -272,6 +288,7 @@
                     </footer>
                 </section>
             </section>
+            @endif
         @elseif(($activeSection ?? 'dashboard') === 'settings')
             <section class="settings-page">
                 <header class="settings-page-header">

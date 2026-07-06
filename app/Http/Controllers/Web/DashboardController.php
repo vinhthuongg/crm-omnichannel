@@ -20,6 +20,9 @@ class DashboardController extends Controller
             'section' => $request->route('section', 'dashboard'),
             'search' => $request->string('q')->toString(),
             'period' => $request->string('period', 'week')->toString(),
+            'activity_agent' => $request->string('activity_agent', 'all')->toString(),
+            'activity_type' => $request->string('activity_type', 'all')->toString(),
+            'activity_keyword' => $request->string('activity_keyword')->toString(),
         ]));
     }
 
