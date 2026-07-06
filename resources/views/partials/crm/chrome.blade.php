@@ -33,10 +33,12 @@
         </summary>
 
         <div class="team-switcher-menu">
-            <a href="{{ route('crm.settings') }}">
-                <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
-                <span>Admin</span>
-            </a>
+            @can('user.manage')
+                <a href="/phpmyadmin" target="_blank" rel="noopener">
+                    <span class="material-symbols-outlined" aria-hidden="true">database</span>
+                    <span>phpMyAdmin</span>
+                </a>
+            @endcan
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit">
