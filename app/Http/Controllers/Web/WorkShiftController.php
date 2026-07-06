@@ -83,7 +83,7 @@ class WorkShiftController extends Controller
         $shift = WorkShift::query()->create($this->shiftAttributes($validated, $request->boolean('is_active', true)));
         $shift->agents()->sync($validated['agent_ids']);
 
-        return back()->with('status', 'Da tao ca truc.');
+        return back()->with('status', 'Đã tạo ca trực.');
     }
 
     public function update(Request $request, WorkShift $workShift): RedirectResponse
@@ -95,7 +95,7 @@ class WorkShiftController extends Controller
         $workShift->update($this->shiftAttributes($validated, $request->boolean('is_active')));
         $workShift->agents()->sync($validated['agent_ids']);
 
-        return back()->with('status', 'Da cap nhat ca truc.');
+        return back()->with('status', 'Đã cập nhật ca trực.');
     }
 
     public function destroy(Request $request, WorkShift $workShift): RedirectResponse
@@ -104,7 +104,7 @@ class WorkShiftController extends Controller
 
         $workShift->delete();
 
-        return back()->with('status', 'Da xoa ca truc.');
+        return back()->with('status', 'Đã xóa ca trực.');
     }
 
     private function validated(Request $request): array
@@ -272,7 +272,7 @@ class WorkShiftController extends Controller
         }
 
         throw ValidationException::withMessages([
-            'agent_ids' => 'Nhan vien da nam trong ca truc dang bat. Vui long chon nhan vien khac.',
+            'agent_ids' => 'Nhân viên đã nằm trong ca trực đang bật. Vui lòng chọn nhân viên khác.',
         ]);
     }
 
@@ -280,18 +280,18 @@ class WorkShiftController extends Controller
     {
         $items = [
             ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'dashboard'],
-            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'forum'],
-            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'contacts'],
-            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'hub'],
-            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'history'],
-            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'notifications'],
-            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'settings'],
+            ['section' => 'conversations', 'label' => 'Hội thoại', 'route' => 'crm.conversations', 'icon' => 'forum'],
+            ['section' => 'customers', 'label' => 'Khách hàng', 'route' => 'crm.customers', 'icon' => 'contacts'],
+            ['section' => 'channels', 'label' => 'Kết nối kênh', 'route' => 'crm.channels', 'icon' => 'hub'],
+            ['section' => 'activity', 'label' => 'Hoạt động', 'route' => 'crm.activity', 'icon' => 'history'],
+            ['section' => 'notifications', 'label' => 'Thông báo', 'route' => 'crm.notifications', 'icon' => 'notifications'],
+            ['section' => 'settings', 'label' => 'Cài đặt', 'route' => 'crm.settings', 'icon' => 'settings'],
         ];
 
         if ($user->can('user.manage')) {
             array_splice($items, 4, 0, [[
                 'section' => 'work_shifts',
-                'label' => 'Shifts',
+                'label' => 'Ca trực',
                 'route' => 'work-shifts.index',
                 'icon' => 'schedule',
             ]]);

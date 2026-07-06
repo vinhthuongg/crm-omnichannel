@@ -47,17 +47,17 @@
         let error = '';
 
         if (agentCount < minAgents || agentCount > maxAgents) {
-            error = 'Moi ca truc can tu 1 den 2 nhan vien.';
+            error = 'Mỗi ca trực cần từ 1 đến 2 nhân viên.';
         }
 
         if (!error && (!startsAt?.value || !endsAt?.value)) {
-            error = 'Chon gio bat dau va gio ket thuc.';
+            error = 'Chọn giờ bắt đầu và giờ kết thúc.';
         }
 
         form.classList.toggle('is-invalid', Boolean(error));
 
         if (message) {
-            message.textContent = error || 'Chon 1 den 2 nhan vien cho moi ca truc.';
+            message.textContent = error || 'Chọn 1 đến 2 nhân viên cho mỗi ca trực.';
         }
 
         if (submit) {
@@ -115,7 +115,7 @@
 
     document.querySelectorAll('[data-delete-shift]').forEach(function (form) {
         form.addEventListener('submit', function (event) {
-            if (!window.confirm('Xoa ca truc nay?')) {
+            if (!window.confirm('Xóa ca trực này?')) {
                 event.preventDefault();
             }
         });
