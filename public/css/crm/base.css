@@ -166,17 +166,26 @@ a {
 .team-switcher {
     min-height: 70px;
     margin-top: auto;
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+    color: #000;
+    position: relative;
+}
+
+.team-switcher summary {
+    list-style: none;
+    cursor: pointer;
     display: grid;
     grid-template-columns: 32px minmax(0, 1fr) 18px;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
-    border-top: 1px solid var(--line);
-    color: #000;
-    text-decoration: none;
 }
 
-.team-switcher span {
+.team-switcher summary::-webkit-details-marker {
+    display: none;
+}
+
+.team-switcher-avatar {
     width: 32px;
     height: 32px;
     display: grid;
@@ -186,10 +195,46 @@ a {
     font-weight: 500;
 }
 
-.team-switcher strong {
+.team-switcher-name {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+.team-switcher-menu {
+    position: absolute;
+    right: 12px;
+    bottom: calc(100% + 8px);
+    z-index: 60;
+    min-width: 170px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, .14);
+    padding: 6px;
+}
+
+.team-switcher-menu button {
+    width: 100%;
+    min-height: 38px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+.team-switcher-menu button:hover {
+    background: #f8fafc;
+}
+
+.team-switcher-menu .material-symbols-outlined {
+    font-size: 18px;
+    color: #d0021b;
 }
 
 .crm-main {
@@ -412,13 +457,12 @@ kbd {
     padding: 18px 14px;
 }
 
-.team-switcher span {
+.team-switcher-avatar {
     border-radius: 4px;
     font-weight: 400;
 }
 
-.team-switcher strong,
-.team-switcher b {
+.team-switcher-name {
     font-weight: 400;
 }
 

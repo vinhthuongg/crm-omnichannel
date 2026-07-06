@@ -25,9 +25,21 @@
         @endforeach
     </nav>
 
-    <a class="team-switcher" href="{{ route($currentUser->can('user.manage') ? 'crm.agents' : 'crm.settings') }}">
-        <span>{{ substr($sidebar['team_name'], 0, 1) }}</span>
-        <span>{{ $sidebar['team_name'] }}</span>
-        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
-    </a>
+    <details class="team-switcher">
+        <summary>
+            <span class="team-switcher-avatar">{{ mb_strtoupper(mb_substr($currentUser->name, 0, 1)) }}</span>
+            <span class="team-switcher-name">{{ $currentUser->name }}</span>
+            <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+        </summary>
+
+        <div class="team-switcher-menu">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit">
+                    <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+                    <span>Đăng xuất</span>
+                </button>
+            </form>
+        </div>
+    </details>
 </aside>

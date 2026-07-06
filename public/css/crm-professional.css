@@ -403,17 +403,23 @@ body.messenger-page .side-nav a > span:not(.material-symbols-outlined) {
 
 .team-switcher,
 body.messenger-page .team-switcher {
+    display: block !important;
+    min-height: 54px !important;
+    margin: 22px 12px 0 !important;
+    padding: 10px !important;
+    position: relative !important;
+}
+
+.team-switcher summary,
+body.messenger-page .team-switcher summary {
     display: grid !important;
     grid-template-columns: 36px minmax(0, 1fr) 30px !important;
     align-items: center !important;
     gap: 10px !important;
-    min-height: 54px !important;
-    margin: 22px 12px 0 !important;
-    padding: 10px !important;
 }
 
-.team-switcher > span:nth-child(1),
-body.messenger-page .team-switcher > span:nth-child(1) {
+.team-switcher-avatar,
+body.messenger-page .team-switcher-avatar {
     width: 34px !important;
     height: 34px !important;
     display: grid !important;
@@ -423,21 +429,28 @@ body.messenger-page .team-switcher > span:nth-child(1) {
     color: #111827 !important;
 }
 
-.team-switcher > span:nth-child(2),
-body.messenger-page .team-switcher > span:nth-child(2) {
+.team-switcher-name,
+body.messenger-page .team-switcher-name {
     min-width: 0 !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
 }
 
-.team-switcher > .material-symbols-outlined,
-body.messenger-page .team-switcher > .material-symbols-outlined {
+.team-switcher summary > .material-symbols-outlined,
+body.messenger-page .team-switcher summary > .material-symbols-outlined {
     width: 30px !important;
     height: 30px !important;
     border-radius: 6px !important;
     background: #f3f4f6 !important;
     color: #111827 !important;
+}
+
+.team-switcher-menu,
+body.messenger-page .team-switcher-menu {
+    background: var(--crm-panel) !important;
+    border: 1px solid var(--crm-line) !important;
+    box-shadow: var(--crm-shadow) !important;
 }
 
 @media (max-width: 900px) {
