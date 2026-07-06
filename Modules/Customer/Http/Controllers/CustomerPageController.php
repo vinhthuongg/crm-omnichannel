@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\ConversationVisibilityService;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerTag;
 use Modules\Search\Services\VectorSearchService;
@@ -27,14 +28,14 @@ class CustomerPageController extends Controller
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
         $channel = strtolower(trim((string) $request->query('channel', '')));
-        $status = strtolower(trim((string) $request->query('status', '')));
+        $status = ConversationStatus::fromFilter(strtolower(trim((string) $request->query('status', '')))) ?? '';
         $agentId = (int) $request->query('agent_id', 0);
         $tagId = (int) $request->query('tag_id', 0);
         $date = trim((string) $request->query('date', ''));
         $visibleConversationIds = $this->visibility->visibleFor($user)->pluck('id');
         $filteredConversationIds = Conversation::query()
             ->whereIn('id', $visibleConversationIds)
-            ->when(in_array($status, ['open', 'pending', 'closed'], true), fn (Builder $query) => $query->where('status', $status))
+            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
             ->when($agentId > 0, fn (Builder $query) => $query->where('assigned_to', $agentId))
             ->when($date !== '', fn (Builder $query) => $query->whereDate('last_message_at', $date))
             ->pluck('id');
@@ -96,7 +97,7 @@ class CustomerPageController extends Controller
             ->map(function (Customer $customer) use ($latestConversations): array {
                 $conversation = $latestConversations->get($customer->id);
                 $primaryChannel = $customer->channels->first();
-                $status = $conversation?->status ?: 'open';
+                $status = ConversationStatus::normalize($conversation?->status);
                 $lastAt = $customer->last_message_at
                     ? \Illuminate\Support\Carbon::parse($customer->last_message_at)
                     : null;
@@ -110,26 +111,29 @@ class CustomerPageController extends Controller
 
                 return [
                     'id' => (int) $customer->id,
-                    'name' => $customer->name ?: 'Khach hang #'.$customer->id,
+                    'name' => $customer->name ?: 'Khách hàng #'.$customer->id,
                     'avatar' => $customer->avatar,
                     'initial' => strtoupper(substr($customer->name ?: 'K', 0, 1)),
-                    'phone' => $customer->phone ?: 'Chua co so dien thoai',
-                    'email' => $customer->email ?: 'Chua co email',
+                    'phone' => $customer->phone ?: 'Chưa có số điện thoại',
+                    'email' => $customer->email ?: 'Chưa có email',
                     'channel' => strtolower((string) ($primaryChannel?->channel ?: 'other')),
-                    'channel_label' => ucfirst((string) ($primaryChannel?->channel ?: 'Khac')),
+                    'channel_label' => ucfirst((string) ($primaryChannel?->channel ?: 'Khác')),
                     'tags' => $interestTags,
-                    'last_date' => $lastAt?->format('d/m/Y') ?: 'Chua co',
+                    'last_date' => $lastAt?->format('d/m/Y') ?: 'Chưa có',
                     'last_time' => $lastAt?->format('H:i') ?: '',
                     'assignee' => $conversation?->assignee?->name,
                     'assignee_initial' => $conversation?->assignee ? strtoupper(substr($conversation->assignee->name, 0, 1)) : null,
                     'status_label' => match ($status) {
-                        'pending' => 'Dang cho',
-                        'closed' => 'Da dong',
-                        default => 'Dang xu ly',
+                        ConversationStatus::WAITING => 'Khách đợi',
+                        ConversationStatus::CLOSED => 'Đã đóng',
+                        ConversationStatus::RESOLVED => 'Đã xử lý',
+                        ConversationStatus::REOPENED => 'Mở lại',
+                        default => 'Đang tư vấn',
                     },
                     'status_class' => match ($status) {
-                        'pending' => 'waiting',
-                        'closed' => 'success',
+                        ConversationStatus::WAITING => 'waiting',
+                        ConversationStatus::CLOSED,
+                        ConversationStatus::RESOLVED => 'success',
                         default => 'active',
                     },
                     'conversation_url' => $conversation ? route('crm.conversations.show', $conversation) : null,
