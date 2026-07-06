@@ -122,6 +122,12 @@
     overflow: hidden;
 }
 
+.customers-page.is-loading .customers-board,
+.customers-page.is-loading .customers-hero-metrics {
+    opacity: .62;
+    pointer-events: none;
+}
+
 .customers-table-wrap {
     overflow-x: auto;
 }

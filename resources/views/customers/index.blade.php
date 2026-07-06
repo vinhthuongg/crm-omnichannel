@@ -186,21 +186,129 @@
         document.querySelector('[data-crm-shell]')?.classList.toggle('sidebar-collapsed');
     });
 
+    const customersPage = document.querySelector('.customers-page');
     const customersFilterForm = document.querySelector('[data-customers-filter-form]');
     const customersSearchInput = document.querySelector('[data-customers-search-input]');
     let customersSearchTimer;
+    let customersFetchController;
+
+    function customersUrlFromForm() {
+        const data = new FormData(customersFilterForm);
+        const params = new URLSearchParams();
+
+        data.forEach(function (value, key) {
+            if (String(value).trim() !== '' && String(value) !== '0') {
+                params.set(key, value);
+            }
+        });
+
+        const query = params.toString();
+
+        return customersFilterForm.action + (query ? `?${query}` : '');
+    }
+
+    function syncCustomersFormFromUrl(url) {
+        const params = new URL(url, window.location.origin).searchParams;
+
+        customersFilterForm?.querySelectorAll('[name]').forEach(function (field) {
+            if (field.type === 'date' || field.tagName === 'INPUT' || field.tagName === 'SELECT') {
+                field.value = params.get(field.name) || (field.name === 'tag_id' || field.name === 'agent_id' ? '0' : '');
+            }
+        });
+    }
+
+    async function loadCustomers(url, pushState = true) {
+        if (!customersPage) {
+            window.location.href = url;
+            return;
+        }
+
+        customersFetchController?.abort();
+        customersFetchController = new AbortController();
+        customersPage.classList.add('is-loading');
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'text/html',
+                },
+                signal: customersFetchController.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error('Không tải được dữ liệu khách hàng.');
+            }
+
+            const html = await response.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nextBoard = doc.querySelector('.customers-board');
+            const nextMetrics = doc.querySelector('.customers-hero-metrics');
+            const nextActions = doc.querySelector('.customers-filter-actions');
+
+            if (nextBoard && document.querySelector('.customers-board')) {
+                document.querySelector('.customers-board').replaceWith(nextBoard);
+            }
+
+            if (nextMetrics && document.querySelector('.customers-hero-metrics')) {
+                document.querySelector('.customers-hero-metrics').replaceWith(nextMetrics);
+            }
+
+            if (nextActions && document.querySelector('.customers-filter-actions')) {
+                document.querySelector('.customers-filter-actions').replaceWith(nextActions);
+            }
+
+            if (pushState) {
+                window.history.pushState({customersUrl: url}, '', url);
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                window.location.href = url;
+            }
+        } finally {
+            customersPage.classList.remove('is-loading');
+        }
+    }
+
+    function scheduleCustomersLoad(delay = 0) {
+        clearTimeout(customersSearchTimer);
+        customersSearchTimer = setTimeout(function () {
+            loadCustomers(customersUrlFromForm());
+        }, delay);
+    }
 
     customersFilterForm?.querySelectorAll('select, input[type="date"]').forEach(function (field) {
         field.addEventListener('change', function () {
-            customersFilterForm.requestSubmit();
+            scheduleCustomersLoad();
         });
     });
 
     customersSearchInput?.addEventListener('input', function () {
-        clearTimeout(customersSearchTimer);
-        customersSearchTimer = setTimeout(function () {
-            customersFilterForm?.requestSubmit();
-        }, 450);
+        scheduleCustomersLoad(450);
+    });
+
+    customersFilterForm?.addEventListener('submit', function (event) {
+        event.preventDefault();
+        loadCustomers(customersUrlFromForm());
+    });
+
+    document.addEventListener('click', function (event) {
+        const paginationLink = event.target.closest('.customers-pagination a');
+        const clearLink = event.target.closest('.customers-filter-actions a');
+        const link = paginationLink || clearLink;
+
+        if (!link) {
+            return;
+        }
+
+        event.preventDefault();
+        syncCustomersFormFromUrl(link.href);
+        loadCustomers(link.href);
+    });
+
+    window.addEventListener('popstate', function () {
+        syncCustomersFormFromUrl(window.location.href);
+        loadCustomers(window.location.href, false);
     });
 </script>
 @endsection
