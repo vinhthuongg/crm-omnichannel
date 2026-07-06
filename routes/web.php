@@ -64,7 +64,17 @@ Route::middleware('auth')->group(function (): void {
     Route::get('admin/database/{nonce}', function (string $nonce) {
         abort_unless(request()->user()?->can('user.manage'), 403);
 
-        return redirect('/phpmyadmin');
+        return redirect('/phpmyadmin/?gate='.$nonce)->withCookie(cookie(
+            'crm_db_gate',
+            $nonce,
+            10,
+            null,
+            null,
+            request()->isSecure(),
+            true,
+            false,
+            'Strict'
+        ));
     })->middleware('signed')->name('crm.admin.database');
     Route::get('reports', DashboardController::class)->defaults('section', 'reports')->name('crm.reports');
     Route::get('activity', DashboardController::class)->defaults('section', 'activity')->name('crm.activity');
