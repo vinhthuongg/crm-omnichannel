@@ -95,6 +95,7 @@
 .customers-filter-actions {
     display: flex;
     gap: 8px;
+    align-items: end;
 }
 
 .customers-filter-actions button,

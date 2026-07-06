@@ -25,7 +25,7 @@
         </section>
 
         <section class="customers-filter-card" aria-label="Bộ lọc khách hàng">
-            <form method="GET" action="{{ route('crm.customers') }}">
+            <form method="GET" action="{{ route('crm.customers') }}" data-customers-filter-form>
                 <label>
                     <span>Nguồn khách</span>
                     <select name="channel">
@@ -67,10 +67,9 @@
                 </label>
                 <label class="customers-search-field">
                     <span>Tìm kiếm</span>
-                    <input name="q" value="{{ $filters['q'] }}" placeholder="Tìm kiếm vector theo tên, số điện thoại, nhu cầu hoặc nội dung chat">
+                    <input name="q" value="{{ $filters['q'] }}" placeholder="Tìm kiếm vector theo tên, số điện thoại, nhu cầu hoặc nội dung chat" data-customers-search-input>
                 </label>
                 <div class="customers-filter-actions">
-                    <button type="submit">Lọc</button>
                     @if($filters['q'] !== '' || $filters['channel'] !== '' || $filters['status'] !== '' || (int) $filters['agent_id'] > 0 || (int) $filters['tag_id'] > 0 || $filters['date'] !== '')
                         <a href="{{ route('crm.customers') }}">Xóa lọc</a>
                     @endif
@@ -185,6 +184,23 @@
 <script>
     document.querySelector('[data-sidebar-toggle]')?.addEventListener('click', function () {
         document.querySelector('[data-crm-shell]')?.classList.toggle('sidebar-collapsed');
+    });
+
+    const customersFilterForm = document.querySelector('[data-customers-filter-form]');
+    const customersSearchInput = document.querySelector('[data-customers-search-input]');
+    let customersSearchTimer;
+
+    customersFilterForm?.querySelectorAll('select, input[type="date"]').forEach(function (field) {
+        field.addEventListener('change', function () {
+            customersFilterForm.requestSubmit();
+        });
+    });
+
+    customersSearchInput?.addEventListener('input', function () {
+        clearTimeout(customersSearchTimer);
+        customersSearchTimer = setTimeout(function () {
+            customersFilterForm?.requestSubmit();
+        }, 450);
     });
 </script>
 @endsection
