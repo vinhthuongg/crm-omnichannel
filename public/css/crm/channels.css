@@ -1,206 +1,255 @@
-﻿.connection-page {
+.channel-connections-page {
     min-height: calc(100vh - 64px);
     display: grid;
     align-content: start;
-    gap: 28px;
-    padding: 24px 32px 32px;
-    background: #f6f7fb;
+    gap: 22px;
+    padding: 28px;
+    background: #f3f4f6;
 }
 
-.connection-header h1 {
+.channel-connections-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.channel-connections-header h1 {
     margin: 0;
-    color: #172033;
-    font-size: 30px;
-    line-height: 1.15;
+    color: #111827;
+    font-size: 28px;
+    line-height: 1.2;
     font-weight: 500;
 }
 
-.connection-header p {
-    margin: 12px 0 0;
-    color: #7a5d5d;
-    font-size: 13px;
+.channel-connections-header p {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 14px;
 }
 
-.connection-grid {
+.channel-add-button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid #c8102e;
+    border-radius: 12px;
+    background: #c8102e;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(200, 16, 46, .18);
+}
+
+.channel-add-button .material-symbols-outlined {
+    font-size: 24px;
+}
+
+.channel-connection-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 24px;
-    max-width: 980px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 360px));
+    gap: 18px;
 }
 
-.connection-card {
-    min-height: 204px;
+.channel-connection-card,
+.channel-empty-state {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, .05);
+}
+
+.channel-connection-card {
+    min-height: 238px;
     display: grid;
     grid-template-rows: auto 1fr auto;
-    gap: 14px;
-    border: 1px solid #efc9cf;
-    border-radius: 8px;
-    background: #fff;
-    padding: 24px;
+    gap: 16px;
+    padding: 18px;
 }
 
-.connection-card > header {
+.channel-connection-card > header {
     display: grid;
-    grid-template-columns: 46px minmax(0, 1fr) 28px;
+    grid-template-columns: 48px minmax(0, 1fr);
     align-items: center;
     gap: 12px;
 }
 
-.connection-card > header h2 {
+.channel-connection-icon {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: #e8f0ff;
+    color: #0f62fe;
+    font-size: 12px;
+}
+
+.channel-connection-icon .material-symbols-outlined {
+    font-size: 24px;
+}
+
+.channel-connection-card h2 {
     margin: 0;
     color: #111827;
     font-size: 16px;
     font-weight: 500;
 }
 
-.connection-card > header p {
+.channel-connection-card header p {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    margin: 6px 0 0;
-    font-size: 11px;
+    gap: 6px;
+    margin: 5px 0 0;
+    font-size: 12px;
 }
 
-.connection-card > header p i {
+.channel-connection-card header p i {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: currentColor;
 }
 
-.connection-card > header p.healthy {
-    color: #16a34a;
+.channel-connection-card .healthy {
+    color: #059669;
 }
 
-.connection-card > header p.failed {
+.channel-connection-card .failed {
     color: #dc2626;
 }
 
-.connection-card > header button {
-    width: 28px;
-    height: 28px;
+.channel-connection-card dl {
     display: grid;
-    place-items: center;
-    border: 0;
-    border-radius: 7px;
-    background: transparent;
-    color: #7a3d42;
+    gap: 12px;
+    margin: 0;
 }
 
-.connection-icon {
-    width: 42px;
-    height: 42px;
+.channel-connection-card dl div {
     display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background: #e7f0ff;
-    color: #0f62fe;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.connection-card-tiktok .connection-icon {
-    background: #f1f2f5;
-    color: #000;
-}
-
-.connection-icon .material-symbols-outlined {
-    font-size: 24px;
-}
-
-.connection-card dl {
-    display: grid;
-    gap: 15px;
-    margin: 4px 0 0;
-}
-
-.connection-card dl div {
-    display: grid;
-    grid-template-columns: minmax(92px, .9fr) minmax(0, 1fr);
+    grid-template-columns: 120px minmax(0, 1fr);
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
-.connection-card dt {
-    color: #7a5d5d;
+.channel-connection-card dt {
+    color: #6b7280;
     font-size: 12px;
 }
 
-.connection-card dd {
+.channel-connection-card dd {
+    min-width: 0;
     margin: 0;
     color: #111827;
-    font-size: 12px;
+    font-size: 13px;
     text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.connection-card-tiktok dd {
-    color: #7a5d5d;
-    font-style: italic;
-}
-
-.connection-badge {
+.channel-connection-badge {
     display: inline-flex;
     align-items: center;
-    min-height: 20px;
+    min-height: 22px;
     border-radius: 999px;
-    padding: 0 8px;
-    font-size: 10px;
-    font-weight: 500;
+    padding: 0 9px;
+    font-size: 11px;
     font-style: normal;
 }
 
-.connection-badge.healthy {
+.channel-connection-badge.healthy {
     background: #dcfce7;
-    color: #16a34a;
+    color: #047857;
 }
 
-.connection-badge.failed {
+.channel-connection-badge.failed {
     background: #fee2e2;
-    color: #dc2626;
+    color: #b91c1c;
 }
 
-.connection-card footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+.channel-connection-card footer {
+    display: flex;
+    justify-content: flex-end;
 }
 
-.connection-card footer form {
+.channel-connection-card footer form {
     margin: 0;
 }
 
-.connection-card footer button,
-.connection-card footer a {
-    width: 100%;
-    min-height: 36px;
+.channel-connection-primary {
+    min-height: 38px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    border-radius: 5px;
-    padding: 0 12px;
-    font-size: 12px;
-    font-weight: 500;
-    text-decoration: none;
-}
-
-.connection-outline {
-    border: 1px solid #0f62fe;
-    background: #fff;
-    color: #0f62fe;
-}
-
-.connection-primary {
-    border: 1px solid #c80013;
-    background: #c80013;
+    border: 1px solid #c8102e;
+    border-radius: 10px;
+    padding: 0 14px;
+    background: #c8102e;
     color: #fff;
+    font-size: 13px;
+    cursor: pointer;
 }
 
-.connection-primary .material-symbols-outlined {
-    font-size: 16px;
+.channel-connection-primary .material-symbols-outlined {
+    font-size: 17px;
 }
 
-.connection-primary.is-full {
-    grid-column: 1 / -1;
+.channel-empty-state {
+    max-width: 620px;
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+    padding: 32px;
 }
 
+.channel-empty-state > .material-symbols-outlined {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: #e8f0ff;
+    color: #0f62fe;
+    font-size: 26px;
+}
+
+.channel-empty-state h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.channel-empty-state p {
+    max-width: 460px;
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+    .channel-connections-page {
+        padding: 16px;
+    }
+
+    .channel-connections-header {
+        align-items: center;
+    }
+
+    .channel-connection-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .channel-connection-card dl div {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .channel-connection-card dd {
+        text-align: left;
+    }
+}

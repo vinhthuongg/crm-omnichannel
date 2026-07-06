@@ -15,17 +15,29 @@
         @include('partials.crm.topbar')
 
         @if(($activeSection ?? 'dashboard') === 'channels')
-            <section class="connection-page">
-                <header class="connection-header">
-                    <h1>{{ $channelManagement['title'] }}</h1>
-                    <p>{{ $channelManagement['subtitle'] }}</p>
+            <section class="channel-connections-page">
+                <header class="channel-connections-header">
+                    <div>
+                        <h1>{{ $channelManagement['title'] }}</h1>
+                        <p>{{ $channelManagement['subtitle'] }}</p>
+                    </div>
+                    <a class="channel-add-button" href="{{ $channelManagement['add_url'] }}" aria-label="Thêm kết nối" title="Thêm kết nối">
+                        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                    </a>
                 </header>
 
-                <section class="connection-grid">
+                @if($channelManagement['cards']->isEmpty())
+                    <section class="channel-empty-state">
+                        <span class="material-symbols-outlined" aria-hidden="true">hub</span>
+                        <h2>Chưa có kênh nào được kết nối</h2>
+                        <p>Nhấn nút cộng ở góc phải để kết nối Facebook Page đầu tiên cho CRM.</p>
+                    </section>
+                @else
+                <section class="channel-connection-grid">
                     @foreach($channelManagement['cards'] as $channel)
-                        <article class="connection-card connection-card-{{ $channel['key'] }}">
+                        <article class="channel-connection-card channel-connection-card-{{ $channel['key'] }}">
                             <header>
-                                <span class="connection-icon">
+                                <span class="channel-connection-icon">
                                     @if($channel['icon_label'])
                                         {{ $channel['icon_label'] }}
                                     @else
@@ -38,14 +50,13 @@
                                         <i></i>{{ $channel['status'] }}
                                     </p>
                                 </div>
-                                @if($channel['menu'])
-                                    <button type="button" aria-label="Tùy chọn">
-                                        <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
-                                    </button>
-                                @endif
                             </header>
 
                             <dl>
+                                <div>
+                                    <dt>Kênh</dt>
+                                    <dd>{{ $channel['channel'] }}</dd>
+                                </div>
                                 <div>
                                     <dt>Tài khoản</dt>
                                     <dd>{{ $channel['account'] }}</dd>
@@ -57,38 +68,26 @@
                                 <div>
                                     <dt>Webhook</dt>
                                     <dd>
-                                        <span class="connection-badge {{ $channel['webhook_tone'] }}">{{ $channel['webhook'] }}</span>
+                                        <span class="channel-connection-badge {{ $channel['webhook_tone'] }}">{{ $channel['webhook'] }}</span>
                                     </dd>
                                 </div>
                             </dl>
 
                             <footer>
-                                @if($channel['connected'])
-                                    <button type="button" class="connection-outline">Ngắt kết nối</button>
-                                    @if($channel['sync_url'])
-                                        <form method="POST" action="{{ $channel['sync_url'] }}">
-                                            @csrf
-                                            <button type="submit" class="connection-primary">
-                                                <span class="material-symbols-outlined" aria-hidden="true">sync</span>
-                                                Đồng bộ
-                                            </button>
-                                        </form>
-                                    @else
-                                        <button type="button" class="connection-primary">
+                                @if($channel['sync_url'])
+                                    <form method="POST" action="{{ $channel['sync_url'] }}">
+                                        @csrf
+                                        <button type="submit" class="channel-connection-primary">
                                             <span class="material-symbols-outlined" aria-hidden="true">sync</span>
                                             Đồng bộ
                                         </button>
-                                    @endif
-                                @else
-                                    <a class="connection-primary is-full" href="{{ $channel['connect_url'] }}">
-                                        <span class="material-symbols-outlined" aria-hidden="true">login</span>
-                                        Kết nối ngay
-                                    </a>
+                                    </form>
                                 @endif
                             </footer>
                         </article>
                     @endforeach
                 </section>
+                @endif
             </section>
         @elseif(($activeSection ?? 'dashboard') === 'agents')
             <section class="agent-report-page">

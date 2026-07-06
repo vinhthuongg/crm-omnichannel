@@ -533,51 +533,69 @@ class GetDashboardViewDataAction
 
     private function channelManagement(User $user): array
     {
-        $facebookPage = FacebookPage::query()
+        $facebookPages = FacebookPage::query()
             ->latest('updated_at')
-            ->first();
-        $facebookConnected = (bool) $facebookPage;
+            ->get();
         $zaloConnected = trim((string) config('services.zalo.access_token')) !== '';
+
+        $cards = $facebookPages->map(function (FacebookPage $page): array {
+            $tokenInvalid = ($page->token_status ?? 'valid') === 'invalid';
+            $webhookHealthy = $page->subscribed_at && ! $tokenInvalid;
+
+            return [
+                'key' => 'facebook-'.$page->getKey(),
+                'title' => $page->page_name ?: 'Facebook Page',
+                'channel' => 'Facebook',
+                'icon' => 'thumb_up',
+                'icon_label' => null,
+                'connected' => true,
+                'status' => $tokenInvalid ? 'Cần kết nối lại' : 'Đang hoạt động',
+                'status_tone' => $tokenInvalid ? 'failed' : 'healthy',
+                'account' => $page->page_id,
+                'last_sync' => $this->lastFacebookPageSync($page) ?: 'Chưa có',
+                'webhook' => $webhookHealthy ? 'Hoạt động' : 'Cần kiểm tra',
+                'webhook_tone' => $webhookHealthy ? 'healthy' : 'failed',
+                'connect_url' => route('facebook.redirect'),
+                'sync_url' => route('facebook.pages.sync-messages', $page),
+            ];
+        })->values();
+
+        if ($zaloConnected) {
+            $cards->push([
+                'key' => 'zalo',
+                'title' => (string) config('services.zalo.oa_name', 'Zalo OA'),
+                'channel' => 'Zalo',
+                'icon' => null,
+                'icon_label' => 'Zalo',
+                'connected' => true,
+                'status' => 'Đang hoạt động',
+                'status_tone' => 'healthy',
+                'account' => (string) config('services.zalo.oa_id', 'Đã cấu hình'),
+                'last_sync' => $this->lastChannelSync('zalo') ?: 'Chưa có',
+                'webhook' => 'Hoạt động',
+                'webhook_tone' => 'healthy',
+                'connect_url' => route('crm.settings', ['panel' => 'zalo']),
+                'sync_url' => null,
+            ]);
+        }
 
         return [
             'title' => 'Quản lý kết nối',
-            'subtitle' => 'Quản lý và đồng bộ các kênh giao tiếp đa phương tiện.',
-            'cards' => [
-                [
-                    'key' => 'facebook',
-                    'title' => 'Facebook Page',
-                    'icon' => 'thumb_up',
-                    'icon_label' => null,
-                    'connected' => $facebookConnected,
-                    'status' => $facebookConnected ? 'Đang hoạt động' : 'Mất kết nối',
-                    'status_tone' => $facebookConnected ? 'healthy' : 'failed',
-                    'account' => $facebookPage?->page_name ?: 'Chưa kết nối',
-                    'last_sync' => $this->lastChannelSync('facebook') ?: 'Chưa có',
-                    'webhook' => $facebookPage?->subscribed_at && ($facebookPage->token_status ?? 'valid') !== 'invalid' ? 'HEALTHY' : 'FAILED',
-                    'webhook_tone' => $facebookPage?->subscribed_at && ($facebookPage->token_status ?? 'valid') !== 'invalid' ? 'healthy' : 'failed',
-                    'connect_url' => route('facebook.redirect'),
-                    'sync_url' => $facebookPage ? route('facebook.pages.sync-messages', $facebookPage) : null,
-                    'menu' => true,
-                ],
-                [
-                    'key' => 'zalo',
-                    'title' => 'Zalo OA',
-                    'icon' => null,
-                    'icon_label' => 'Zalo',
-                    'connected' => $zaloConnected,
-                    'status' => $zaloConnected ? 'Đang hoạt động' : 'Mất kết nối',
-                    'status_tone' => $zaloConnected ? 'healthy' : 'failed',
-                    'account' => $zaloConnected ? (string) config('services.zalo.oa_name', 'Zalo OA') : 'Chưa kết nối',
-                    'last_sync' => $this->lastChannelSync('zalo') ?: 'Chưa có',
-                    'webhook' => $zaloConnected ? 'HEALTHY' : 'FAILED',
-                    'webhook_tone' => $zaloConnected ? 'healthy' : 'failed',
-                    'connect_url' => route('crm.settings', ['panel' => 'zalo']),
-                    'sync_url' => null,
-                    'menu' => false,
-                ],
-            ],
+            'subtitle' => 'Theo dõi các kênh đã kết nối thật trong hệ thống CRM.',
+            'add_url' => route('facebook.redirect'),
+            'cards' => $cards,
         ];
     }
+    private function lastFacebookPageSync(FacebookPage $page): ?string
+    {
+        $syncedAt = Conversation::query()
+            ->where('facebook_page_id', $page->page_id)
+            ->latest('last_message_at')
+            ->value('last_message_at');
+
+        return $syncedAt ? Carbon::parse($syncedAt)->format('H:i d/m/Y') : null;
+    }
+
     private function lastChannelSync(string $channel): ?string
     {
         $syncedAt = $this->applyConversationChannelFilter(Conversation::query(), $channel)
