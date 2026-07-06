@@ -52,6 +52,15 @@ Route::middleware('auth')->group(function (): void {
     Route::get('customers', CustomerPageController::class)->name('crm.customers');
     Route::get('agents', DashboardController::class)->defaults('section', 'agents')->name('crm.agents');
     Route::get('channels', DashboardController::class)->defaults('section', 'channels')->name('crm.channels');
+    Route::get('admin/database', function () {
+        abort_unless(request()->user()?->can('user.manage'), 403);
+
+        return redirect(\Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'crm.admin.database',
+            now()->addMinutes(2),
+            ['nonce' => (string) \Illuminate\Support\Str::uuid()]
+        ));
+    })->name('crm.admin.database.launch');
     Route::get('admin/database/{nonce}', function (string $nonce) {
         abort_unless(request()->user()?->can('user.manage'), 403);
 
