@@ -7,7 +7,6 @@ use App\Services\ConversationReplySuggestionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
-use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Services\ConversationIntentService;
 use Modules\Customer\Models\Customer;
@@ -306,41 +305,11 @@ class MessageService
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
     {
-        $this->syncConversationStatusTag(
-            $conversation,
-            Tag::DEFAULT_WAITING,
-            Tag::DEFAULTS[Tag::DEFAULT_WAITING],
-        );
+        $conversation->forceFill(['status' => ConversationStatus::WAITING])->save();
     }
 
     private function markConversationAsConsulting(Conversation $conversation): void
     {
-        $this->syncConversationStatusTag(
-            $conversation,
-            Tag::DEFAULT_CONSULTING,
-            Tag::DEFAULTS[Tag::DEFAULT_CONSULTING],
-        );
-    }
-
-    private function syncConversationStatusTag(Conversation $conversation, string $name, string $color): void
-    {
-        Tag::ensureDefaults();
-
-        $tag = Tag::query()->firstOrCreate(
-            ['name' => $name],
-            ['color' => $color, 'is_default' => array_key_exists($name, Tag::DEFAULTS)],
-        );
-
-        $statusTagIds = Tag::query()
-            ->whereIn('name', array_keys(Tag::DEFAULTS))
-            ->pluck('id')
-            ->all();
-
-        if ($statusTagIds) {
-            $conversation->tags()->detach($statusTagIds);
-        }
-
-        $conversation->tags()->syncWithoutDetaching([$tag->id]);
-        $conversation->load('tags');
+        $conversation->forceFill(['status' => ConversationStatus::IN_PROGRESS])->save();
     }
 }

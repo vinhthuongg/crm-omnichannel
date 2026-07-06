@@ -19,6 +19,7 @@ use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Services\WorkShiftService;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerTag;
 use Modules\Message\Events\MessageDeletedEvent;
 use Modules\Message\Events\MessageUpdatedEvent;
@@ -184,6 +185,7 @@ class MessengerController extends Controller
                 'customer_tags_url' => route('crm.conversations.customer-tags.store', $conversation),
                 'customer_notes' => $this->customerNotesPayload($conversation),
                 'customer_tags' => $this->customerTagsPayload($conversation),
+                'conversation_status' => $this->conversationStatusPayload($conversation),
                 'conversation_summary' => app(ConversationInsightSummaryService::class)->summarize($conversation),
                 'all_customer_tags' => $this->tagPayloads(),
                 'facebook_page_id' => $conversation->facebook_page_id,
@@ -220,6 +222,37 @@ class MessengerController extends Controller
                 ],
             ],
         ];
+    }
+
+    private function conversationStatusPayload(Conversation $conversation): array
+    {
+        return match (ConversationStatus::normalize($conversation->status)) {
+            ConversationStatus::IN_PROGRESS => [
+                'key' => ConversationStatus::IN_PROGRESS,
+                'name' => 'Đang tư vấn',
+                'color' => '#e11d48',
+            ],
+            ConversationStatus::RESOLVED => [
+                'key' => ConversationStatus::RESOLVED,
+                'name' => 'Đã xử lý',
+                'color' => '#16a34a',
+            ],
+            ConversationStatus::CLOSED => [
+                'key' => ConversationStatus::CLOSED,
+                'name' => 'Đã đóng',
+                'color' => '#64748b',
+            ],
+            ConversationStatus::REOPENED => [
+                'key' => ConversationStatus::REOPENED,
+                'name' => 'Mở lại',
+                'color' => '#7c3aed',
+            ],
+            default => [
+                'key' => ConversationStatus::WAITING,
+                'name' => 'Khách đợi',
+                'color' => '#f59e0b',
+            ],
+        };
     }
 
     public function messageStream(Request $request, Conversation $conversation): StreamedResponse

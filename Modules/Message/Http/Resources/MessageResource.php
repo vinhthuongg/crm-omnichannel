@@ -4,6 +4,7 @@ namespace Modules\Message\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Conversation\Support\ConversationStatus;
 
 class MessageResource extends JsonResource
 {
@@ -20,6 +21,7 @@ class MessageResource extends JsonResource
             'conversation_unread_messages_count' => (int) ($this->conversation?->unread_messages_count ?? 0),
             'conversation_is_unread' => (int) ($this->conversation?->unread_messages_count ?? 0) > 0,
             'conversation_last_message_at' => $this->conversation?->last_message_at?->toISOString() ?: $this->created_at?->toISOString(),
+            'conversation_status' => $this->conversationStatusPayload(),
             'conversation_tags' => $this->conversation?->tags
                 ?->map(fn ($tag): array => [
                     'id' => (int) $tag->id,
@@ -50,6 +52,39 @@ class MessageResource extends JsonResource
             'recalled_at' => $this->recalled_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
         ];
+    }
+
+    private function conversationStatusPayload(): array
+    {
+        $status = ConversationStatus::normalize($this->conversation?->status);
+
+        return match ($status) {
+            ConversationStatus::IN_PROGRESS => [
+                'key' => ConversationStatus::IN_PROGRESS,
+                'name' => 'Đang tư vấn',
+                'color' => '#e11d48',
+            ],
+            ConversationStatus::RESOLVED => [
+                'key' => ConversationStatus::RESOLVED,
+                'name' => 'Đã xử lý',
+                'color' => '#16a34a',
+            ],
+            ConversationStatus::CLOSED => [
+                'key' => ConversationStatus::CLOSED,
+                'name' => 'Đã đóng',
+                'color' => '#64748b',
+            ],
+            ConversationStatus::REOPENED => [
+                'key' => ConversationStatus::REOPENED,
+                'name' => 'Mở lại',
+                'color' => '#7c3aed',
+            ],
+            default => [
+                'key' => ConversationStatus::WAITING,
+                'name' => 'Khách đợi',
+                'color' => '#f59e0b',
+            ],
+        };
     }
 
     private function normalizedAttachments(): array

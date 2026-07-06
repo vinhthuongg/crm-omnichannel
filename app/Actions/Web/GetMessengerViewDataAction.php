@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationVisibilityService;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Conversation\Services\WorkShiftService;
 
 class GetMessengerViewDataAction
@@ -258,6 +259,11 @@ class GetMessengerViewDataAction
                 'details' => [],
                 'notes' => [],
                 'tags' => [],
+                'conversation_status' => [
+                    'key' => '',
+                    'name' => '',
+                    'color' => '#64748b',
+                ],
                 'summary' => ['text' => 'Chưa có đủ nội dung để tóm tắt hội thoại.', 'facts' => []],
             ];
         }
@@ -292,15 +298,46 @@ class GetMessengerViewDataAction
                 ->values()
                 ->all() ?? [],
             'tags' => $conversation->tags
-                ?->take(1)
                 ->map(fn ($tag): array => [
                     'name' => $tag->name,
                     'color' => $tag->color ?: '#2563eb',
                 ])
                 ->values()
                 ->all() ?? [],
+            'conversation_status' => $this->conversationStatusPayload($conversation),
             'summary' => $this->summaries->summarize($conversation),
         ];
+    }
+
+    private function conversationStatusPayload(Conversation $conversation): array
+    {
+        return match (ConversationStatus::normalize($conversation->status)) {
+            ConversationStatus::IN_PROGRESS => [
+                'key' => ConversationStatus::IN_PROGRESS,
+                'name' => 'Đang tư vấn',
+                'color' => '#e11d48',
+            ],
+            ConversationStatus::RESOLVED => [
+                'key' => ConversationStatus::RESOLVED,
+                'name' => 'Đã xử lý',
+                'color' => '#16a34a',
+            ],
+            ConversationStatus::CLOSED => [
+                'key' => ConversationStatus::CLOSED,
+                'name' => 'Đã đóng',
+                'color' => '#64748b',
+            ],
+            ConversationStatus::REOPENED => [
+                'key' => ConversationStatus::REOPENED,
+                'name' => 'Mở lại',
+                'color' => '#7c3aed',
+            ],
+            default => [
+                'key' => ConversationStatus::WAITING,
+                'name' => 'Khách đợi',
+                'color' => '#f59e0b',
+            ],
+        };
     }
 
     private function conversationSummary(Conversation $conversation): array

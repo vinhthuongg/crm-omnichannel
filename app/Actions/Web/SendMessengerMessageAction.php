@@ -5,9 +5,9 @@ namespace App\Actions\Web;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Services\ConversationService;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
@@ -132,24 +132,7 @@ class SendMessengerMessageAction
 
     private function markConversationAsConsulting(Conversation $conversation): void
     {
-        Tag::ensureDefaults();
-
-        $tag = Tag::query()->firstOrCreate(
-            ['name' => Tag::DEFAULT_CONSULTING],
-            ['color' => Tag::DEFAULTS[Tag::DEFAULT_CONSULTING], 'is_default' => true],
-        );
-
-        $statusTagIds = Tag::query()
-            ->whereIn('name', array_keys(Tag::DEFAULTS))
-            ->pluck('id')
-            ->all();
-
-        if ($statusTagIds) {
-            $conversation->tags()->detach($statusTagIds);
-        }
-
-        $conversation->tags()->syncWithoutDetaching([$tag->id]);
-        $conversation->load('tags');
+        $conversation->forceFill(['status' => ConversationStatus::IN_PROGRESS])->save();
     }
 
     private function storeAttachments(array $files): array

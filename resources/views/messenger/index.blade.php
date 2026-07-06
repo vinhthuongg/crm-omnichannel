@@ -485,11 +485,22 @@
                 <textarea rows="3" placeholder="Nhập Ghi Chú Và Ấn Enter" data-note-input></textarea>
             </section>
 
-            <section class="profile-section profile-customer-tags" data-profile-conversation-tags>
+            @php($conversationStatus = $profilePanel['conversation_status'] ?? ['name' => '', 'color' => '#64748b'])
+            <section class="profile-section profile-customer-tags" data-profile-conversation-status-section>
                 <h4>Trạng Thái Hội Thoại</h4>
+                <div class="customer-tag-list" data-profile-conversation-status>
+                    @if(filled($conversationStatus['name'] ?? ''))
+                        <span style="--tag-color: {{ $conversationStatus['color'] ?? '#64748b' }}">{{ $conversationStatus['name'] }}</span>
+                    @else
+                        <p class="profile-empty">Chưa Có Trạng Thái</p>
+                    @endif
+                </div>
+            </section>
+            <section class="profile-section profile-customer-tags" data-profile-conversation-tags>
+                <h4>Tag Khách Hàng</h4>
                 <div class="customer-tag-list" data-profile-conversation-tag-list>
                     @if(count($profilePanel['tags']) === 0)
-                        <p class="profile-empty">Chưa Có Trạng Thái</p>
+                        <p class="profile-empty">Chưa Có Tag Khách Hàng</p>
                     @endif
                     @foreach($profilePanel['tags'] as $tag)
                         <span style="--tag-color: {{ $tag['color'] }}">{{ $tag['name'] }}</span>
@@ -523,7 +534,7 @@
         <header>
             <div>
                 <h3>Tùy chỉnh tag</h3>
-                <p>Chỉ giữ 2 tag mặc định. Tag tùy chỉnh có thể sửa màu, đổi tên và xóa.</p>
+                <p>Tag mặc định dùng để phân loại nhu cầu khách hàng. Bạn có thể thêm, đổi màu, đổi tên hoặc xóa tag tùy chỉnh.</p>
             </div>
             <button type="button" class="tag-manager-close" data-close-tag-manager aria-label="Đóng">
                 <span class="material-symbols-outlined" aria-hidden="true">close</span>

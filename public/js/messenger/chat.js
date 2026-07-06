@@ -833,6 +833,10 @@
             renderProfileConversationTags(conversation.tags);
         }
 
+        if (conversation.conversation_status) {
+            renderProfileConversationStatus(conversation.conversation_status);
+        }
+
         if (conversation.conversation_summary) {
             renderConversationSummary(conversation.conversation_summary);
             renderDetectedPhones(
@@ -1505,10 +1509,25 @@
             return;
         }
 
-        const visibleTags = (tags || []).filter((tag) => tag?.name).slice(0, 1);
+        const visibleTags = (tags || []).filter((tag) => tag?.name).slice(0, 4);
 
         list.innerHTML = visibleTags.length
             ? visibleTags.map((tag) => `<span style="--tag-color: ${escapeHtml(tag.color || '#2563eb')}">${escapeHtml(tag.name)}</span>`).join('')
+            : '<p class="profile-empty">Chưa có tag khách hàng.</p>';
+    }
+
+    function renderProfileConversationStatus(status) {
+        const list = document.querySelector('[data-profile-conversation-status]');
+
+        if (!list) {
+            return;
+        }
+
+        const name = String(status?.name || status?.label || '').trim();
+        const color = String(status?.color || '#64748b').trim();
+
+        list.innerHTML = name
+            ? `<span style="--tag-color: ${escapeHtml(color)}">${escapeHtml(name)}</span>`
             : '<p class="profile-empty">Chưa có trạng thái.</p>';
     }
 
@@ -2291,6 +2310,7 @@
 
         if (isActiveThread) {
             updateConversationTags(document.querySelector('[data-conversation-tags]')?.dataset.tagsUrl || '', message.conversation_tags || []);
+            renderProfileConversationStatus(message.conversation_status);
 
             if (message.conversation_unread_messages_count !== undefined) {
                 updateThreadUnread(thread, message.conversation_unread_messages_count);
@@ -3069,6 +3089,9 @@
             ) {
                 updateConversationTags(document.querySelector('[data-conversation-tags]')?.dataset.tagsUrl || '', payload.data.conversation_tags);
                 updateThreadTags(payload.data.conversation_id, payload.data.conversation_tags);
+            }
+            if (payload.data?.conversation_status) {
+                renderProfileConversationStatus(payload.data.conversation_status);
             }
             if (fileInput) {
                 fileInput.value = '';
