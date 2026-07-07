@@ -20,6 +20,8 @@ class BotpressWebhookController extends ApiController
                 'has_header_secret' => $request->headers->has('X-Botpress-Secret'),
                 'has_bearer' => filled($request->bearerToken()),
                 'has_query_secret' => filled($request->query('secret')),
+                'query_secret_length' => strlen((string) $request->query('secret', '')),
+                'query_secret_fingerprint' => $this->secretFingerprint((string) $request->query('secret', '')),
             ]);
 
             abort(403);
@@ -35,17 +37,33 @@ class BotpressWebhookController extends ApiController
 
     private function validSecret(Request $request, string $secret): bool
     {
+        $expected = $this->normalizeSecret($secret);
+
         foreach ([
             (string) $request->header('X-Botpress-Secret', ''),
             (string) $request->bearerToken(),
             (string) $request->query('secret', ''),
             (string) $request->input('secret', ''),
         ] as $candidate) {
-            if ($candidate !== '' && hash_equals($secret, $candidate)) {
+            $candidate = $this->normalizeSecret($candidate);
+
+            if ($candidate !== '' && hash_equals($expected, $candidate)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function normalizeSecret(string $secret): string
+    {
+        return rtrim(trim($secret), '/');
+    }
+
+    private function secretFingerprint(string $secret): ?string
+    {
+        $secret = $this->normalizeSecret($secret);
+
+        return $secret === '' ? null : substr(hash('sha256', $secret), 0, 12);
     }
 }
