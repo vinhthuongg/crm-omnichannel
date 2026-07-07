@@ -329,7 +329,7 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => $this->botAttachments($content, [
+                'attachments' => $this->botAttachments($conversation, $content, [
                     'type' => 'metadata',
                     'name' => 'botpress',
                     'payload' => ['message' => $reply],
