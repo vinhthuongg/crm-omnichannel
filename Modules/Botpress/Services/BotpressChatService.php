@@ -322,23 +322,6 @@ class BotpressChatService
         }
 
         $message = DB::transaction(function () use ($conversation, $link, $reply, $content, $clientMessageId): Message {
-            $attachments = $this->botAttachments($conversation, $content, [
-                'type' => 'metadata',
-                'name' => 'botpress',
-                'payload' => ['message' => $reply],
-            ], $reply);
-
-            $message = $this->replaceRecentPendingBotReply($conversation, $content, $clientMessageId, $attachments);
-
-            if ($message) {
-                $link->forceFill([
-                    'last_botpress_message_id' => (string) data_get($reply, 'id', ''),
-                    'last_payload' => ['last_reply' => $reply],
-                ])->save();
-
-                return $message->load(['conversation.customer.channels', 'sender']);
-            }
-
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
@@ -346,7 +329,11 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => $attachments,
+                'attachments' => $this->botAttachments($conversation, $content, [
+                    'type' => 'metadata',
+                    'name' => 'botpress',
+                    'payload' => ['message' => $reply],
+                ], $reply),
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -369,7 +356,7 @@ class BotpressChatService
         } catch (\Throwable) {
         }
 
-        SendOutboundMessageJob::dispatch($message->id)->delay(now()->addSeconds(5));
+        SendOutboundMessageJob::dispatch($message->id);
     }
 
     private function sendDirectWebhook(Conversation $conversation, Message $message): ?string
@@ -458,13 +445,6 @@ class BotpressChatService
         }
 
         $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata, $payload): Message {
-            $attachments = $this->botAttachments($conversation, $content, $metadata, $payload);
-            $message = $this->replaceRecentPendingBotReply($conversation, $content, $clientMessageId, $attachments);
-
-            if ($message) {
-                return $message->load(['conversation.customer.channels', 'sender']);
-            }
-
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
@@ -472,7 +452,7 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => $attachments,
+                'attachments' => $this->botAttachments($conversation, $content, $metadata, $payload),
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -490,47 +470,7 @@ class BotpressChatService
         } catch (\Throwable) {
         }
 
-        SendOutboundMessageJob::dispatch($message->id)->delay(now()->addSeconds(5));
-
-        return $message;
-    }
-
-    private function replaceRecentPendingBotReply(Conversation $conversation, string $content, string $clientMessageId, array $attachments): ?Message
-    {
-        $message = Message::query()
-            ->where('conversation_id', $conversation->id)
-            ->where('sender_type', 'system')
-            ->where('channel', 'facebook')
-            ->where('outbound_status', 'queued')
-            ->where('created_at', '>=', now()->subSeconds(12))
-            ->where(function ($query): void {
-                $query->where('client_message_id', 'like', 'botpress_%')
-                    ->orWhere('client_message_id', 'like', 'botpress_callback_%')
-                    ->orWhere('client_message_id', 'like', 'botpress_direct_%');
-            })
-            ->latest('id')
-            ->first();
-
-        if (! $message) {
-            return null;
-        }
-
-        $message->forceFill([
-            'content' => $content,
-            'attachments' => $attachments,
-            'client_message_id' => $clientMessageId,
-        ])->save();
-
-        $conversation->forceFill([
-            'last_message_at' => $message->created_at,
-            'first_response_at' => $conversation->first_response_at ?: now(),
-        ])->save();
-
-        Log::info('Botpress pending reply replaced by newer reply', [
-            'conversation_id' => $conversation->id,
-            'message_id' => $message->id,
-            'client_message_id' => $clientMessageId,
-        ]);
+        SendOutboundMessageJob::dispatch($message->id);
 
         return $message;
     }
