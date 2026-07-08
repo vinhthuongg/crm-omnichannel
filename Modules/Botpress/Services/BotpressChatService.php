@@ -531,6 +531,17 @@ class BotpressChatService
             return array_values(array_slice($items, 0, 13));
         }
 
+        if (! (bool) config('services.groq.fallback_enabled', false)) {
+            Log::info('Groq quick replies empty and hard fallback disabled', [
+                'conversation_id' => $conversation->id,
+                'content_preview' => mb_substr($content, 0, 160),
+                'groq_enabled' => config('services.groq.enabled'),
+                'has_groq_api_key' => filled(config('services.groq.api_key')),
+            ]);
+
+            return [];
+        }
+
         $defaults = $this->defaultQuickReplies($content);
         $shouldAskForPhone = $shouldAskForPhone || $this->quickRepliesAskForPhone($defaults);
 

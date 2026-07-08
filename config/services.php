@@ -42,6 +42,7 @@ return [
     ],
     'groq' => [
         'enabled' => env('GROQ_QUICK_REPLIES_ENABLED', false),
+        'fallback_enabled' => env('GROQ_QUICK_REPLIES_FALLBACK_ENABLED', false),
         'api_key' => env('GROQ_API_KEY'),
         'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
         'model' => env('GROQ_QUICK_REPLY_MODEL', 'llama-3.3-70b-versatile'),
