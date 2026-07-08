@@ -93,11 +93,12 @@ class BotpressChatService
                 'prefer_callback' => $this->preferCallback(),
             ]);
 
+            $outboundText = $this->messageText($inbound);
             $sendPayload = [
                 'conversationId' => $link->botpress_conversation_id,
                 'payload' => [
                     'type' => 'text',
-                    'text' => $this->messageText($inbound),
+                    'text' => $outboundText,
                 ],
             ];
 
@@ -113,7 +114,7 @@ class BotpressChatService
                 'status' => $sendResponse->status(),
                 'botpress_message_id' => $sentBotpressMessageId,
                 'botpress_created_at' => $sentBotpressCreatedAt,
-                'text_preview' => mb_substr($this->messageText($inbound), 0, 240),
+                'text_preview' => mb_substr($outboundText, 0, 240),
             ]);
 
             if ($this->preferCallback()) {
@@ -311,8 +312,8 @@ class BotpressChatService
         string $afterMessageId = '',
     ): ?array
     {
-        $attempts = max(1, (int) config('services.botpress.response_poll_attempts', 8));
-        $delayMs = max(100, (int) config('services.botpress.response_poll_delay_ms', 700));
+        $attempts = max(1, (int) config('services.botpress.response_poll_attempts', 24));
+        $delayMs = max(100, (int) config('services.botpress.response_poll_delay_ms', 1000));
 
         for ($attempt = 0; $attempt < $attempts; $attempt++) {
             if ($attempt > 0) {
@@ -327,7 +328,7 @@ class BotpressChatService
             $reply = collect($messages)
                 ->filter(fn (array $message): bool => $this->isNewBotMessage($message, $link, $beforeMessageId, $afterCreatedAt, $afterMessageId))
                 ->sortBy('createdAt')
-                ->first();
+                ->last();
 
             Log::info('Botpress reply poll attempt', [
                 'botpress_conversation_id' => $link->botpress_conversation_id,
@@ -957,7 +958,53 @@ class BotpressChatService
             ->filter()
             ->implode("\n");
 
-        return trim($content."\n".$attachments) ?: '[Tin nhan khong co noi dung]';
+        $text = trim($content."\n".$attachments) ?: '[Tin nhan khong co noi dung]';
+        $context = $this->botpressMessageContext($message);
+
+        if ($context === '') {
+            return $text;
+        }
+
+        return trim(implode("\n\n", [
+            'Tin nhan moi cua khach:',
+            $text,
+            'Ngu canh gan nhat:',
+            $context,
+            'Hay tra loi tu nhien, dung truc tiep tin nhan moi. Neu khach chi chao hoi hoac noi chuyen binh thuong thi dap lai ngan gon, vui ve. Chi hoi them thong tin khi can thiet.',
+        ]));
+    }
+
+    private function botpressMessageContext(Message $message): string
+    {
+        $conversation = $message->conversation;
+
+        if (! $conversation) {
+            return '';
+        }
+
+        return $conversation->messages()
+            ->where('id', '<', $message->id)
+            ->latest('created_at')
+            ->limit(8)
+            ->get()
+            ->reverse()
+            ->map(function (Message $item): string {
+                $role = match ($item->sender_type) {
+                    'customer' => 'Khach',
+                    'system' => 'Bot',
+                    'user' => 'Nhan vien',
+                    default => 'He thong',
+                };
+
+                $content = trim((string) $item->content);
+
+                if ($content === '') {
+                    $content = '[File hoac dinh kem]';
+                }
+
+                return $role.': '.mb_substr($content, 0, 240);
+            })
+            ->implode("\n");
     }
 
     private function recentBotCallbackExists(Conversation $conversation): bool

@@ -30,8 +30,8 @@ return [
         'encryption_key' => env('BOTPRESS_ENCRYPTION_KEY'),
         'callback_secret' => env('BOTPRESS_CALLBACK_SECRET'),
         'prefer_callback' => env('BOTPRESS_PREFER_CALLBACK', true),
-        'response_poll_attempts' => (int) env('BOTPRESS_RESPONSE_POLL_ATTEMPTS', 8),
-        'response_poll_delay_ms' => (int) env('BOTPRESS_RESPONSE_POLL_DELAY_MS', 700),
+        'response_poll_attempts' => (int) env('BOTPRESS_RESPONSE_POLL_ATTEMPTS', 24),
+        'response_poll_delay_ms' => (int) env('BOTPRESS_RESPONSE_POLL_DELAY_MS', 1000),
         'idle_resume_minutes' => (int) env('BOTPRESS_IDLE_RESUME_MINUTES', 2),
     ],
     'nim' => [
