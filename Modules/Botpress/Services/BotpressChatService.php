@@ -84,6 +84,15 @@ class BotpressChatService
             $link = $this->ensureLink($conversation);
             $beforeMessageId = $link->last_botpress_message_id;
 
+            Log::info('Botpress relay link ready', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $inbound->id,
+                'botpress_conversation_id' => $link->botpress_conversation_id,
+                'botpress_user_id' => $link->botpress_user_id,
+                'last_botpress_message_id' => $beforeMessageId,
+                'prefer_callback' => $this->preferCallback(),
+            ]);
+
             $sendPayload = [
                 'conversationId' => $link->botpress_conversation_id,
                 'payload' => [
@@ -92,7 +101,16 @@ class BotpressChatService
                 ],
             ];
 
-            $this->client($link->botpress_user_key)->post('/messages', $sendPayload)->throw();
+            $sendResponse = $this->client($link->botpress_user_key)->post('/messages', $sendPayload)->throw();
+
+            Log::info('Botpress customer message sent', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $inbound->id,
+                'botpress_conversation_id' => $link->botpress_conversation_id,
+                'status' => $sendResponse->status(),
+                'botpress_message_id' => (string) data_get($sendResponse->json(), 'message.id', ''),
+                'text_preview' => mb_substr($this->messageText($inbound), 0, 240),
+            ]);
 
             if ($this->preferCallback()) {
                 Log::info('Botpress relay sent and waiting for callback', [
@@ -118,6 +136,13 @@ class BotpressChatService
             }
 
             $this->storeBotReply($conversation, $link, $reply);
+
+            Log::info('Botpress relay stored bot reply', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $inbound->id,
+                'botpress_reply_id' => (string) data_get($reply, 'id', ''),
+                'reply_preview' => mb_substr((string) data_get($reply, 'payload.text', ''), 0, 240),
+            ]);
         } catch (\Throwable $exception) {
             Log::warning('Botpress relay failed', [
                 'conversation_id' => $conversation->id,
@@ -283,6 +308,25 @@ class BotpressChatService
                 ->filter(fn (array $message): bool => $this->isNewBotMessage($message, $link, $beforeMessageId))
                 ->sortBy('createdAt')
                 ->first();
+
+            Log::info('Botpress reply poll attempt', [
+                'botpress_conversation_id' => $link->botpress_conversation_id,
+                'attempt' => $attempt + 1,
+                'attempts' => $attempts,
+                'messages_count' => is_array($messages) ? count($messages) : 0,
+                'before_message_id' => $beforeMessageId,
+                'last_botpress_message_id' => $link->last_botpress_message_id,
+                'reply_found' => is_array($reply),
+                'latest_messages' => collect($messages)
+                    ->take(5)
+                    ->map(fn (array $message): array => [
+                        'id' => (string) data_get($message, 'id', ''),
+                        'userId' => (string) data_get($message, 'userId', ''),
+                        'text' => mb_substr(trim((string) data_get($message, 'payload.text', '')), 0, 120),
+                    ])
+                    ->values()
+                    ->all(),
+            ]);
 
             if (is_array($reply)) {
                 return $reply;

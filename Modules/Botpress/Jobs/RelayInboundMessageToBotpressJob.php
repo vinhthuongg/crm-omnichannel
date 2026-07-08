@@ -46,5 +46,10 @@ class RelayInboundMessageToBotpressJob implements ShouldQueue
         }
 
         $botpress->relayCustomerMessage($message);
+
+        Log::warning('Botpress relay job completed', [
+            'message_id' => $this->messageId,
+            'conversation_id' => $message->conversation_id,
+        ]);
     }
 }
