@@ -15,6 +15,10 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
+Route::view('privacy-policy', 'legal.privacy')->name('legal.privacy');
+Route::view('terms-of-service', 'legal.terms')->name('legal.terms');
+Route::view('data-deletion', 'legal.data-deletion')->name('legal.data-deletion');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('login', [AuthController::class, 'create'])->name('login');
     Route::post('login', [AuthController::class, 'store'])->name('login.store');
