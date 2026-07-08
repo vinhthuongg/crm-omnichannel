@@ -140,6 +140,8 @@ class BotpressChatService
                 return;
             }
 
+            $replies = $this->filterBotRepliesForCustomer($conversation, $replies);
+
             foreach ($replies as $reply) {
                 $message = $this->storeBotReply($conversation, $link, $reply);
 
@@ -410,6 +412,100 @@ class BotpressChatService
         }
 
         return true;
+    }
+
+    private function filterBotRepliesForCustomer(Conversation $conversation, array $replies): array
+    {
+        $accepted = [];
+        $existingTexts = $conversation->messages()
+            ->where('sender_type', 'system')
+            ->latest('created_at')
+            ->limit(8)
+            ->pluck('content')
+            ->map(fn (?string $content): string => $this->normalizeReplyText((string) $content))
+            ->filter()
+            ->values()
+            ->all();
+
+        foreach ($replies as $reply) {
+            $content = trim((string) data_get($reply, 'payload.text', ''));
+            $normalized = $this->normalizeReplyText($content);
+
+            if ($content === '' || $this->shouldSkipBotReply($content)) {
+                Log::info('Botpress relay reply skipped by content filter', [
+                    'conversation_id' => $conversation->id,
+                    'botpress_reply_id' => (string) data_get($reply, 'id', ''),
+                    'reason' => $content === '' ? 'empty' : 'unwanted_detail',
+                    'reply_preview' => mb_substr($content, 0, 240),
+                ]);
+
+                continue;
+            }
+
+            if ($this->isDuplicateBotReply($normalized, [...$existingTexts, ...array_keys($accepted)])) {
+                Log::info('Botpress relay reply skipped by duplicate filter', [
+                    'conversation_id' => $conversation->id,
+                    'botpress_reply_id' => (string) data_get($reply, 'id', ''),
+                    'reply_preview' => mb_substr($content, 0, 240),
+                ]);
+
+                continue;
+            }
+
+            $accepted[$normalized] = $reply;
+        }
+
+        return array_values($accepted);
+    }
+
+    private function shouldSkipBotReply(string $content): bool
+    {
+        $text = mb_strtolower($content);
+
+        if (str_contains($text, 'cách tính')
+            || str_contains($text, 'công thức')
+            || str_contains($text, 'gồm:')
+            || str_contains($text, 'bao gồm:')) {
+            return str_contains($text, 'thuế')
+                || str_contains($text, 'phí biển')
+                || str_contains($text, 'đăng kiểm')
+                || str_contains($text, 'bảo trì đường bộ')
+                || str_contains($text, 'bảo hiểm bắt buộc');
+        }
+
+        return false;
+    }
+
+    private function isDuplicateBotReply(string $normalized, array $previousTexts): bool
+    {
+        if ($normalized === '') {
+            return true;
+        }
+
+        foreach ($previousTexts as $previous) {
+            $previous = $this->normalizeReplyText((string) $previous);
+
+            if ($previous === '') {
+                continue;
+            }
+
+            if ($normalized === $previous || str_contains($normalized, $previous) || str_contains($previous, $normalized)) {
+                return true;
+            }
+
+            similar_text($normalized, $previous, $percent);
+
+            if ($percent >= 82) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeReplyText(string $content): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', mb_strtolower($content)));
     }
 
     private function storeBotReply(Conversation $conversation, BotpressConversationLink $link, array $reply): ?Message
@@ -990,6 +1086,7 @@ class BotpressChatService
             'Ngu canh gan nhat:',
             $context,
             'Hay tra loi tu nhien, dung truc tiep tin nhan moi. Neu khach chi chao hoi hoac noi chuyen binh thuong thi dap lai ngan gon, vui ve. Chi hoi them thong tin khi can thiet.',
+            'Khong lap lai thong tin da tu van trong ngu canh. Khong gui cach tinh, cong thuc, hay danh sach thue phi chi tiet. Neu khach bo sung tinh/thanh thi chi tra loi ket qua moi can thiet va hoi buoc tiep theo.',
         ]));
     }
 
