@@ -134,7 +134,7 @@ class FacebookOAuthService
             ->timeout(15)
             ->asForm()
             ->post($this->graphUrl("/{$pageId}/subscribed_apps"), [
-                'subscribed_fields' => 'messages,message_echoes,messaging_postbacks,message_deliveries,message_reads',
+                'subscribed_fields' => 'messages,message_echoes,messaging_postbacks,message_deliveries,message_reads,messaging_customer_information',
                 'access_token' => $pageAccessToken,
             ]);
 

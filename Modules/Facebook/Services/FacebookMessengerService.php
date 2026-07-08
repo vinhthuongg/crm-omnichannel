@@ -165,12 +165,13 @@ class FacebookMessengerService
         }
 
         try {
+            $accessToken = $this->token($pageAccessToken);
             $response = $this->http
                 ->connectTimeout(5)
                 ->timeout(10)
-                ->withToken($this->token($pageAccessToken))
                 ->get($this->graphUrl("/{$psid}"), [
                     'fields' => 'name,first_name,last_name,profile_pic',
+                    'access_token' => $accessToken,
                 ]);
 
             if (! $response->successful()) {
@@ -183,7 +184,15 @@ class FacebookMessengerService
                 return [];
             }
 
-            return $response->json();
+            $profile = $response->json();
+
+            Log::info('Facebook profile lookup succeeded', [
+                'psid' => $psid,
+                'has_name' => filled(data_get($profile, 'name')) || filled(data_get($profile, 'first_name')),
+                'has_profile_pic' => filled(data_get($profile, 'profile_pic')),
+            ]);
+
+            return $profile;
         } catch (\Throwable $exception) {
             Log::warning('Facebook profile lookup exception', [
                 'psid' => $psid,
