@@ -127,9 +127,9 @@ class BotpressChatService
                 return;
             }
 
-            $reply = $this->waitForBotReply($link, $beforeMessageId, $sentBotpressCreatedAt, $sentBotpressMessageId);
+            $replies = $this->waitForBotReplies($link, $beforeMessageId, $sentBotpressCreatedAt, $sentBotpressMessageId);
 
-            if (! $reply) {
+            if ($replies === []) {
                 Log::warning('Botpress relay finished without bot reply', [
                     'conversation_id' => $conversation->id,
                     'message_id' => $inbound->id,
@@ -140,25 +140,27 @@ class BotpressChatService
                 return;
             }
 
-            $message = $this->storeBotReply($conversation, $link, $reply);
+            foreach ($replies as $reply) {
+                $message = $this->storeBotReply($conversation, $link, $reply);
 
-            if (! $message) {
-                Log::info('Botpress relay reply skipped because it was already stored', [
+                if (! $message) {
+                    Log::info('Botpress relay reply skipped because it was already stored', [
+                        'conversation_id' => $conversation->id,
+                        'message_id' => $inbound->id,
+                        'botpress_reply_id' => (string) data_get($reply, 'id', ''),
+                    ]);
+
+                    continue;
+                }
+
+                Log::info('Botpress relay stored bot reply', [
                     'conversation_id' => $conversation->id,
                     'message_id' => $inbound->id,
+                    'stored_message_id' => $message->id,
                     'botpress_reply_id' => (string) data_get($reply, 'id', ''),
+                    'reply_preview' => mb_substr((string) data_get($reply, 'payload.text', ''), 0, 240),
                 ]);
-
-                return;
             }
-
-            Log::info('Botpress relay stored bot reply', [
-                'conversation_id' => $conversation->id,
-                'message_id' => $inbound->id,
-                'stored_message_id' => $message->id,
-                'botpress_reply_id' => (string) data_get($reply, 'id', ''),
-                'reply_preview' => mb_substr((string) data_get($reply, 'payload.text', ''), 0, 240),
-            ]);
         } catch (\Throwable $exception) {
             Log::warning('Botpress relay failed', [
                 'conversation_id' => $conversation->id,
@@ -305,15 +307,17 @@ class BotpressChatService
         );
     }
 
-    private function waitForBotReply(
+    private function waitForBotReplies(
         BotpressConversationLink $link,
         ?string $beforeMessageId,
         string $afterCreatedAt = '',
         string $afterMessageId = '',
-    ): ?array
+    ): array
     {
         $attempts = max(1, (int) config('services.botpress.response_poll_attempts', 24));
         $delayMs = max(100, (int) config('services.botpress.response_poll_delay_ms', 1000));
+        $foundReplies = [];
+        $stableAttempts = 0;
 
         for ($attempt = 0; $attempt < $attempts; $attempt++) {
             if ($attempt > 0) {
@@ -325,10 +329,23 @@ class BotpressChatService
                 ->throw()
                 ->json('messages', []);
 
-            $reply = collect($messages)
+            $replies = collect($messages)
                 ->filter(fn (array $message): bool => $this->isNewBotMessage($message, $link, $beforeMessageId, $afterCreatedAt, $afterMessageId))
                 ->sortBy('createdAt')
-                ->last();
+                ->values()
+                ->all();
+
+            $previousCount = count($foundReplies);
+
+            foreach ($replies as $reply) {
+                $replyId = (string) data_get($reply, 'id', '');
+
+                if ($replyId !== '') {
+                    $foundReplies[$replyId] = $reply;
+                }
+            }
+
+            $stableAttempts = count($foundReplies) > $previousCount ? 0 : $stableAttempts + 1;
 
             Log::info('Botpress reply poll attempt', [
                 'botpress_conversation_id' => $link->botpress_conversation_id,
@@ -339,7 +356,9 @@ class BotpressChatService
                 'after_message_id' => $afterMessageId,
                 'after_created_at' => $afterCreatedAt,
                 'last_botpress_message_id' => $link->last_botpress_message_id,
-                'reply_found' => is_array($reply),
+                'reply_found' => $foundReplies !== [],
+                'reply_count' => count($foundReplies),
+                'stable_attempts' => $stableAttempts,
                 'latest_messages' => collect($messages)
                     ->take(5)
                     ->map(fn (array $message): array => [
@@ -351,12 +370,12 @@ class BotpressChatService
                     ->all(),
             ]);
 
-            if (is_array($reply)) {
-                return $reply;
+            if ($foundReplies !== [] && $stableAttempts >= 2) {
+                return array_values($foundReplies);
             }
         }
 
-        return null;
+        return array_values($foundReplies);
     }
 
     private function isNewBotMessage(
