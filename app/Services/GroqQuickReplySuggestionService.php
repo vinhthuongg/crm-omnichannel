@@ -40,11 +40,11 @@ class GroqQuickReplySuggestionService
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => $this->systemPrompt(),
+                            'content' => $this->cleanSystemPrompt(),
                         ],
                         [
                             'role' => 'system',
-                            'content' => $this->contextRulePrompt(),
+                            'content' => $this->cleanContextRulePrompt(),
                         ],
                         [
                             'role' => 'user',
@@ -111,6 +111,21 @@ Quy tắc bám chủ đề:
 PROMPT;
     }
 
+    private function cleanContextRulePrompt(): string
+    {
+        return <<<'PROMPT'
+Quy tắc bám chủ đề:
+- Đọc conversation_context, đặc biệt 6 tin cuối, để hiểu khách đang hỏi gì và bot vừa trả lời gì.
+- Quick reply phải liên quan trực tiếp đến chủ đề hiện tại. Không tự nhảy sang giá lăn bánh, tỉnh/thành, trả góp hoặc lái thử nếu khách chưa gợi ý.
+- Nếu khách đang hỏi hồ sơ trả góp, ưu tiên giấy tờ cần chuẩn bị, thu nhập, trả trước, thời hạn vay, ngân hàng, số điện thoại.
+- Nếu khách đang hỏi ưu đãi, ưu tiên ưu đãi đúng mẫu xe/chủ đề, phiên bản, màu xe, trả góp, thời gian nhận xe.
+- Nếu khách đang hỏi kỹ thuật, lỗi xe, cứu hộ hoặc bảo dưỡng, ưu tiên lỗi đang gặp, lịch kiểm tra, gọi kỹ thuật, gửi số điện thoại. Không sinh nút mua xe nếu chưa có nhu cầu mua.
+- Nếu đang nói về một mẫu xe cụ thể, payload phải giữ đúng mẫu xe đó.
+- Nếu chưa chắc chủ đề, tạo câu hỏi làm rõ nhu cầu thay vì tự đoán.
+- Payload phải là một câu đầy đủ, có dấu, nói rõ ý định của khách khi bấm nút.
+PROMPT;
+    }
+
     private function systemPrompt(): string
     {
         return <<<'PROMPT'
@@ -153,6 +168,39 @@ Ví dụ xấu cần tránh:
 {"title":"Báo giá","payload":"Báo giá"}
 {"title":"Trả góp","payload":"Trả góp"}
 {"title":"Khuyến mãi","payload":"Khuyến mãi"}
+PROMPT;
+    }
+
+    private function cleanSystemPrompt(): string
+    {
+        return <<<'PROMPT'
+Bạn là trợ lý tạo quick reply cho CRM Toyota Kiên Giang.
+
+Nhiệm vụ: đọc tin nhắn bot vừa gửi và ngữ cảnh hội thoại, sau đó tạo 8 đến 13 quick replies. Các nút phải giống câu khách hàng thật sự sẽ bấm để hỏi tiếp, không phải danh mục khô cứng.
+
+Chỉ trả về JSON object đúng format:
+{
+  "quick_replies": [
+    {"title": "Câu ngắn đủ ý", "payload": "Ý định đầy đủ của khách khi bấm nút"}
+  ]
+}
+
+Quy tắc:
+- Viết tiếng Việt có dấu đầy đủ.
+- title tối đa 20 ký tự, có thể hơi cụt nhưng phải đủ hiểu.
+- title phải là câu hỏi hoặc câu nói tự nhiên, ví dụ: "Hồ sơ cần gì?", "Trả trước 150tr?", "Còn màu trắng không?", "Mai lái thử được?", "Gửi số cho em".
+- Không dùng title kiểu danh mục một từ như "Báo giá", "Trả góp", "Khuyến mãi".
+- payload phải là một câu đầy đủ, nói rõ ý định của khách và giữ đúng ngữ cảnh.
+- 70% nút phải bám sát nhu cầu chính hiện tại, 30% còn lại là nhu cầu liên quan hợp lý.
+- Không bịa giá, ưu đãi, lãi suất. Nếu cần số liệu, payload chỉ yêu cầu tư vấn hoặc hỏi thêm thông tin.
+- Không lặp ý giữa các nút.
+- Giọng điệu lịch sự, tự nhiên, đúng kiểu khách chat với tư vấn viên Toyota.
+
+Ví dụ tốt:
+{"title":"Hồ sơ cần gì?","payload":"Khách muốn biết hồ sơ và giấy tờ cần chuẩn bị để mua mẫu xe đang quan tâm theo hình thức trả góp."}
+{"title":"Trả trước 150tr?","payload":"Khách muốn hỏi nếu trả trước khoảng 150 triệu thì phương án trả góp cho mẫu xe đang quan tâm sẽ như thế nào."}
+{"title":"Ưu đãi xe này?","payload":"Khách muốn hỏi ưu đãi hiện tại cho mẫu xe đang được tư vấn trong cuộc trò chuyện."}
+{"title":"Gửi số cho em","payload":"Khách muốn gửi số điện thoại để Toyota Kiên Giang liên hệ tư vấn chi tiết."}
 PROMPT;
     }
 
