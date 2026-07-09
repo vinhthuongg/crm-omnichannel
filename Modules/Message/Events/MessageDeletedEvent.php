@@ -6,6 +6,8 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Services\RealtimeConversationRecipientService;
 
 class MessageDeletedEvent implements ShouldBroadcastNow
 {
@@ -22,10 +24,20 @@ class MessageDeletedEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('crm.conversation.'.$this->conversationId),
             new PrivateChannel('crm.conversations'),
         ];
+
+        $conversation = Conversation::query()->find($this->conversationId);
+
+        if ($conversation) {
+            foreach (app(RealtimeConversationRecipientService::class)->channelsFor($conversation) as $channel) {
+                $channels[] = new PrivateChannel($channel);
+            }
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

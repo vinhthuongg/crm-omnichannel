@@ -8,6 +8,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Services\RealtimeConversationRecipientService;
 
 abstract class ConversationLifecycleEvent implements ShouldBroadcastNow
 {
@@ -21,10 +22,16 @@ abstract class ConversationLifecycleEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('crm.conversations'),
             new PrivateChannel('crm.conversation.'.$this->conversation->id),
         ];
+
+        foreach (app(RealtimeConversationRecipientService::class)->channelsFor($this->conversation) as $channel) {
+            $channels[] = new PrivateChannel($channel);
+        }
+
+        return $channels;
     }
 
     abstract public function broadcastAs(): string;

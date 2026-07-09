@@ -6,6 +6,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Modules\Conversation\Services\RealtimeConversationRecipientService;
 use Modules\Message\Http\Resources\MessageResource;
 use Modules\Message\Models\Message;
 
@@ -21,7 +22,13 @@ class MessageUpdatedEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('crm.conversation.'.$this->message->conversation_id)];
+        $channels = [new PrivateChannel('crm.conversation.'.$this->message->conversation_id)];
+
+        foreach (app(RealtimeConversationRecipientService::class)->channelsFor($this->message->conversation) as $channel) {
+            $channels[] = new PrivateChannel($channel);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

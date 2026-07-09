@@ -380,14 +380,18 @@ class MobileApiController extends ApiController
         $scheme = $publicScheme ?: ($request->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws'));
 
         return [
-            'driver' => 'reverb',
+            'enabled' => filled($reverb['key']) && filled($host),
             'key' => $reverb['key'],
-            'host' => $host,
-            'port' => $port ? (int) $port : null,
-            'scheme' => $scheme,
+            'websocket_url' => sprintf(
+                '%s://%s%s/app/%s?protocol=7&client=crm-mobile&version=1.0&flash=false',
+                $scheme,
+                $host,
+                $port ? ':'.(int) $port : '',
+                rawurlencode((string) $reverb['key']),
+            ),
             'auth_url' => url('/api/mobile/broadcasting/auth'),
-            'inbox_channel' => 'private-crm.conversations',
-            'conversation_channel_prefix' => 'private-crm.conversation.',
+            'inbox_channel' => 'private-crm.user.'.$request->user()->id.'.conversations',
+            'conversation_channel_pattern' => 'private-crm.conversation.{conversation_id}',
             'events' => ['message.created', 'message.updated', 'message.deleted'],
         ];
     }
