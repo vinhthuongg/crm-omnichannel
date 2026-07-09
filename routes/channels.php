@@ -1,6 +1,14 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
+use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Services\ConversationVisibilityService;
 
-Broadcast::channel('crm.conversations', fn ($user) => $user !== null);
-Broadcast::channel('crm.conversation.{conversationId}', fn ($user, int $conversationId) => $user !== null);
+Broadcast::channel('crm.conversations', fn (User $user): bool => $user !== null);
+Broadcast::channel('crm.conversation.{conversationId}', function (User $user, int $conversationId): bool {
+    $conversation = Conversation::query()->find($conversationId);
+
+    return $conversation !== null
+        && app(ConversationVisibilityService::class)->canView($user, $conversation);
+});

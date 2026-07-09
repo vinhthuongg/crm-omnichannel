@@ -6,6 +6,7 @@ use Modules\Mobile\Http\Controllers\MobileApiController;
 Route::middleware('auth:sanctum')->prefix('mobile')->group(function (): void {
     Route::get('me', [MobileApiController::class, 'me']);
     Route::get('bootstrap', [MobileApiController::class, 'bootstrap']);
+    Route::post('broadcasting/auth', [MobileApiController::class, 'broadcastAuth']);
 
     Route::get('conversations', [MobileApiController::class, 'conversations']);
     Route::get('conversations/{conversation}', [MobileApiController::class, 'conversation']);

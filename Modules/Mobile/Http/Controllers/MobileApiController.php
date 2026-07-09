@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Broadcast;
 use Modules\Conversation\Actions\AssignConversationAction;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
@@ -47,8 +48,19 @@ class MobileApiController extends ApiController
                     ->map(fn (Tag $tag): array => $this->tagPayload($tag))
                     ->values(),
                 'channels' => ['facebook', 'zalo'],
+                'realtime' => $this->realtimePayload($request),
             ],
         ]);
+    }
+
+    public function broadcastAuth(Request $request)
+    {
+        $request->validate([
+            'socket_id' => ['required', 'string'],
+            'channel_name' => ['required', 'string'],
+        ]);
+
+        return Broadcast::auth($request);
     }
 
     public function conversations(Request $request): JsonResponse
@@ -337,6 +349,46 @@ class MobileApiController extends ApiController
             'data' => $notification->data,
             'read_at' => $notification->read_at?->toISOString(),
             'created_at' => $notification->created_at?->toISOString(),
+        ];
+    }
+
+    private function realtimePayload(Request $request): array
+    {
+        $reverb = config('broadcasting.connections.reverb');
+        $publicHost = config('reverb.public.host');
+        $publicPort = config('reverb.public.port');
+        $publicScheme = match (config('reverb.public.scheme')) {
+            'http' => 'ws',
+            'https' => 'wss',
+            default => config('reverb.public.scheme'),
+        };
+
+        $host = $publicHost ?: (
+            in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true)
+                ? $request->getHost()
+                : $reverb['options']['host']
+        );
+
+        $port = $publicHost
+            ? $publicPort
+            : (
+                in_array($reverb['options']['host'], ['127.0.0.1', 'localhost'], true) && $request->secure()
+                    ? null
+                    : $reverb['options']['port']
+            );
+
+        $scheme = $publicScheme ?: ($request->secure() ? 'wss' : ($reverb['options']['scheme'] === 'https' ? 'wss' : 'ws'));
+
+        return [
+            'driver' => 'reverb',
+            'key' => $reverb['key'],
+            'host' => $host,
+            'port' => $port ? (int) $port : null,
+            'scheme' => $scheme,
+            'auth_url' => url('/api/mobile/broadcasting/auth'),
+            'inbox_channel' => 'private-crm.conversations',
+            'conversation_channel_prefix' => 'private-crm.conversation.',
+            'events' => ['message.created', 'message.updated', 'message.deleted'],
         ];
     }
 
