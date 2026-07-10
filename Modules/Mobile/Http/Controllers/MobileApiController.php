@@ -338,6 +338,18 @@ class MobileApiController extends ApiController
 
         [$startsAt, $endsAt] = $this->performanceDateRange($request);
         $workShiftId = $request->filled('work_shift_id') ? $request->integer('work_shift_id') : null;
+        $conversations = $this->agentPerformanceConversationQuery($agent, $startsAt, $endsAt, $workShiftId)
+            ->with([
+                'customer.channels',
+                'customer.tags',
+                'customer.notes' => fn (Builder $query): Builder => $query
+                    ->where('user_id', $agent->id)
+                    ->whereBetween('created_at', [$startsAt, $endsAt])
+                    ->latest(),
+                'tags',
+            ])
+            ->latest('last_message_at')
+            ->paginate($this->perPage($request, 20, 100));
 
         return response()->json([
             'data' => [
@@ -347,6 +359,10 @@ class MobileApiController extends ApiController
                     'work_shift_id' => $workShiftId,
                 ],
                 'agent' => $this->agentPerformancePayload($agent, $startsAt, $endsAt, $workShiftId),
+                'conversations' => $conversations->getCollection()
+                    ->map(fn (Conversation $conversation): array => $this->agentConversationPerformancePayload($conversation, $agent, $startsAt, $endsAt))
+                    ->values(),
+                'meta' => $this->paginationPayload($conversations),
             ],
         ]);
     }
@@ -682,6 +698,74 @@ class MobileApiController extends ApiController
                         ->orWhere('queue_shift_id', $workShiftId)
                         ->orWhere('work_shift_id', $workShiftId);
                 }));
+    }
+
+    private function agentConversationPerformancePayload(Conversation $conversation, User $agent, Carbon $startsAt, Carbon $endsAt): array
+    {
+        $responseSeconds = $conversation->first_response_at
+            ? max(0, (int) $conversation->created_at->diffInSeconds($conversation->first_response_at))
+            : null;
+        $customerTags = $conversation->customer?->relationLoaded('tags')
+            ? $conversation->customer->tags
+            : collect();
+        $customerNotes = $conversation->customer?->relationLoaded('notes')
+            ? $conversation->customer->notes
+            : collect();
+        $lastMessage = $conversation->messages()->latest('created_at')->first();
+        $hasPhone = filled($conversation->customer?->phone);
+        $hasConversationTags = $conversation->tags->isNotEmpty();
+        $isClassified = $hasConversationTags || $customerTags->isNotEmpty();
+        $hasNotes = $customerNotes->isNotEmpty();
+
+        return [
+            'conversation' => [
+                'id' => (int) $conversation->id,
+                'status' => $conversation->status,
+                'channel' => $conversation->facebook_page_id ? 'facebook' : 'zalo',
+                'last_message_at' => $conversation->last_message_at?->toISOString(),
+                'created_at' => $conversation->created_at?->toISOString(),
+            ],
+            'customer' => $conversation->customer ? $this->customerPayload($conversation->customer) : null,
+            'last_message' => $lastMessage ? $this->messagePayload($lastMessage) : null,
+            'response' => [
+                'first_response_at' => $conversation->first_response_at?->toISOString(),
+                'seconds' => $responseSeconds,
+                'minutes' => $responseSeconds === null ? null : round($responseSeconds / 60, 2),
+                'label' => $responseSeconds === null ? 'Chưa có' : $this->durationLabel($responseSeconds),
+                'met' => $responseSeconds !== null,
+            ],
+            'phone' => [
+                'collected' => $hasPhone,
+                'value' => $conversation->customer?->phone,
+            ],
+            'process' => [
+                'tagged' => $hasConversationTags,
+                'classified' => $isClassified,
+                'noted' => $hasNotes,
+                'completed_steps' => collect([$hasConversationTags, $isClassified, $hasNotes])->filter()->count(),
+                'total_steps' => 3,
+                'rate' => $this->percentage(
+                    collect([$hasConversationTags, $isClassified, $hasNotes])->filter()->count(),
+                    3
+                ),
+            ],
+            'tags' => $conversation->tags->map(fn (Tag $tag): array => $this->tagPayload($tag))->values(),
+            'customer_interests' => $customerTags
+                ->map(fn ($tag): array => [
+                    'id' => (int) $tag->id,
+                    'name' => $tag->name,
+                    'color' => $tag->color,
+                ])
+                ->values(),
+            'notes' => [
+                'count' => $customerNotes->count(),
+                'latest' => $customerNotes->first() ? [
+                    'id' => (int) $customerNotes->first()->id,
+                    'body' => $customerNotes->first()->body,
+                    'created_at' => $customerNotes->first()->created_at?->toISOString(),
+                ] : null,
+            ],
+        ];
     }
 
     private function performanceDateRange(Request $request): array
