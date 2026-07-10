@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Validation\ValidationException;
 use Modules\Conversation\Actions\AssignConversationAction;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
@@ -181,6 +183,45 @@ class MobileApiController extends ApiController
         ]);
     }
 
+    public function workShiftOverview(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $shifts = WorkShift::query()
+            ->with('agents')
+            ->orderBy('starts_at')
+            ->limit(100)
+            ->get();
+        $currentShift = $shifts->first(fn (WorkShift $shift): bool => $this->workShiftContainsNow($shift));
+        $nextShift = $shifts->first(fn (WorkShift $shift): bool => $shift->is_active && $shift->starts_at && $shift->starts_at->greaterThan(now()));
+        $selectedShift = $shifts->firstWhere('id', (int) $request->query('shift_id')) ?: $currentShift ?: $nextShift ?: $shifts->first();
+        $manageStatus = $this->manageStatus($request);
+        $managedShifts = $shifts
+            ->filter(fn (WorkShift $shift): bool => $this->matchesManageStatus($shift, $manageStatus))
+            ->values();
+        $busyAgentIds = $this->busyAgentIds();
+        $agents = $this->workShiftAgents();
+
+        return response()->json([
+            'data' => [
+                'current_shift' => $currentShift ? $this->workShiftPayload($currentShift) : null,
+                'next_shift' => $nextShift ? $this->workShiftPayload($nextShift) : null,
+                'selected_shift' => $selectedShift ? $this->workShiftPayload($selectedShift) : null,
+                'shifts' => $shifts->map(fn (WorkShift $shift): array => $this->workShiftPayload($shift))->values(),
+                'managed_shifts' => $managedShifts->map(fn (WorkShift $shift): array => $this->workShiftPayload($shift))->values(),
+                'staff_members' => $selectedShift ? $this->staffMembersForShift($selectedShift) : [],
+                'staff_metrics' => $selectedShift ? $this->workShiftMetrics($selectedShift) : $this->emptyWorkShiftMetrics(),
+                'agents' => $agents->map(fn (User $agent): array => $this->agentPayload($agent))->values(),
+                'create_agents' => $agents
+                    ->reject(fn (User $agent): bool => $busyAgentIds->contains($agent->id))
+                    ->map(fn (User $agent): array => $this->agentPayload($agent))
+                    ->values(),
+                'busy_agent_ids' => $busyAgentIds,
+                'manage_status' => $manageStatus,
+            ],
+        ]);
+    }
+
     public function workShifts(Request $request): JsonResponse
     {
         $query = WorkShift::query()
@@ -216,6 +257,41 @@ class MobileApiController extends ApiController
         );
 
         return response()->json(['data' => $this->workShiftPayload($workShift->load('agents'))]);
+    }
+
+    public function storeWorkShift(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $validated = $this->validatedWorkShift($request);
+        $this->ensureAgentsAvailable($validated['agent_ids']);
+
+        $shift = WorkShift::query()->create($this->workShiftAttributes($validated, $request->boolean('is_active', true)));
+        $shift->agents()->sync($validated['agent_ids']);
+
+        return response()->json(['data' => $this->workShiftPayload($shift->load('agents'))], 201);
+    }
+
+    public function updateWorkShift(Request $request, WorkShift $workShift): JsonResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $validated = $this->validatedWorkShift($request);
+        $this->ensureAgentsAvailable($validated['agent_ids'], $workShift);
+
+        $workShift->update($this->workShiftAttributes($validated, $request->boolean('is_active')));
+        $workShift->agents()->sync($validated['agent_ids']);
+
+        return response()->json(['data' => $this->workShiftPayload($workShift->fresh('agents'))]);
+    }
+
+    public function destroyWorkShift(Request $request, WorkShift $workShift): JsonResponse
+    {
+        abort_unless($request->user()->can('user.manage'), 403);
+
+        $workShift->delete();
+
+        return response()->json(status: 204);
     }
 
     public function customers(Request $request): JsonResponse
@@ -502,6 +578,129 @@ class MobileApiController extends ApiController
             'finished_conversations' => $finished,
             'total_conversations' => $waiting + $handling + $finished,
         ];
+    }
+
+    private function emptyWorkShiftMetrics(): array
+    {
+        return [
+            'waiting_conversations' => 0,
+            'handling_conversations' => 0,
+            'finished_conversations' => 0,
+            'total_conversations' => 0,
+        ];
+    }
+
+    private function staffMembersForShift(WorkShift $shift)
+    {
+        return $shift->agents()
+            ->withCount([
+                'assignedConversations as active_conversations_count' => fn (Builder $query) => $query
+                    ->where('owner_shift_id', $shift->id)
+                    ->whereIn('status', ConversationStatus::ACTIVE),
+                'assignedConversations as finished_conversations_count' => fn (Builder $query) => $query
+                    ->where('owner_shift_id', $shift->id)
+                    ->whereIn('status', [ConversationStatus::RESOLVED, ConversationStatus::CLOSED]),
+            ])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $agent): array => [
+                ...$this->agentPayload($agent),
+                'active_conversations_count' => (int) $agent->active_conversations_count,
+                'finished_conversations_count' => (int) $agent->finished_conversations_count,
+            ])
+            ->values();
+    }
+
+    private function workShiftAgents()
+    {
+        return User::role(['CSKH', 'User'])
+            ->where('is_active', true)
+            ->withCount([
+                'assignedConversations as active_conversations_count' => fn (Builder $query) => $query->whereIn('status', ConversationStatus::ACTIVE),
+            ])
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function busyAgentIds()
+    {
+        return WorkShift::query()
+            ->where('is_active', true)
+            ->with('agents:id')
+            ->get()
+            ->flatMap(fn (WorkShift $shift) => $shift->agents->pluck('id'))
+            ->unique()
+            ->values();
+    }
+
+    private function validatedWorkShift(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
+            'starts_time' => ['required', 'date_format:H:i'],
+            'ends_time' => ['required', 'date_format:H:i'],
+            'agent_ids' => ['required', 'array', 'min:1', 'max:2'],
+            'agent_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+    }
+
+    private function workShiftAttributes(array $validated, bool $isActive): array
+    {
+        $startsAt = $this->timeOnSystemDate($validated['starts_time']);
+        $endsAt = $this->timeOnSystemDate($validated['ends_time']);
+
+        if ($endsAt->lessThanOrEqualTo($startsAt)) {
+            $endsAt->addDay();
+        }
+
+        return [
+            'name' => $validated['name'] ?? null,
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
+            'is_active' => $isActive,
+        ];
+    }
+
+    private function timeOnSystemDate(string $time): Carbon
+    {
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+
+        return now()->startOfDay()->setTime($hour, $minute);
+    }
+
+    private function ensureAgentsAvailable(array $agentIds, ?WorkShift $currentShift = null): void
+    {
+        $busyShift = WorkShift::query()
+            ->where('is_active', true)
+            ->when($currentShift, fn (Builder $query) => $query->where('id', '!=', $currentShift->id))
+            ->whereHas('agents', fn (Builder $query) => $query->whereIn('users.id', $agentIds))
+            ->first();
+
+        if (! $busyShift) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'agent_ids' => 'Nhân viên đã nằm trong ca trực đang bật. Vui lòng chọn nhân viên khác.',
+        ]);
+    }
+
+    private function manageStatus(Request $request): string
+    {
+        $status = (string) $request->query('status', 'all');
+
+        return in_array($status, ['all', 'active', 'inactive', 'current'], true) ? $status : 'all';
+    }
+
+    private function matchesManageStatus(WorkShift $shift, string $status): bool
+    {
+        return match ($status) {
+            'active' => $shift->is_active,
+            'inactive' => ! $shift->is_active,
+            'current' => $this->workShiftContainsNow($shift),
+            default => true,
+        };
     }
 
     private function workShiftContainsNow(WorkShift $shift): bool
