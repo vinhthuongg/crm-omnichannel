@@ -429,12 +429,19 @@ class MobileApiController extends ApiController
         ]);
     }
 
-    public function detachCustomerTag(Request $request, Customer $customer, Tag $tag): JsonResponse
+    public function detachCustomerTag(Request $request, Customer $customer, int $tagId): JsonResponse
     {
         $visibleConversations = $this->visibleCustomerConversations($request, $customer);
         abort_unless($visibleConversations->isNotEmpty(), 403);
 
-        $customerTag = CustomerTag::query()->where('name', $tag->name)->first();
+        $customerTag = CustomerTag::query()->find($tagId);
+
+        if (! $customerTag) {
+            $systemTag = Tag::query()->find($tagId);
+            $customerTag = $systemTag
+                ? CustomerTag::query()->where('name', $systemTag->name)->first()
+                : null;
+        }
 
         if ($customerTag) {
             $customer->tags()->detach($customerTag->id);
