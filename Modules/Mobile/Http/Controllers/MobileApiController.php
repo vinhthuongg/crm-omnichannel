@@ -11,7 +11,10 @@ use Illuminate\Support\Facades\Broadcast;
 use Modules\Conversation\Actions\AssignConversationAction;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Models\Tag;
+use Modules\Conversation\Models\WorkShift;
 use Modules\Conversation\Services\ConversationVisibilityService;
+use Modules\Conversation\Services\WorkShiftService;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
 use Modules\Message\Actions\SendMessageAction;
 use Modules\Message\Models\Message;
@@ -19,7 +22,10 @@ use Modules\Shared\Http\Controllers\ApiController;
 
 class MobileApiController extends ApiController
 {
-    public function __construct(private readonly ConversationVisibilityService $visibility)
+    public function __construct(
+        private readonly ConversationVisibilityService $visibility,
+        private readonly WorkShiftService $shifts,
+    )
     {
     }
 
@@ -164,6 +170,52 @@ class MobileApiController extends ApiController
         }
 
         return response()->json(['data' => $this->conversationPayload($conversation->load(['customer.channels', 'assignee', 'tags']))]);
+    }
+
+    public function currentWorkShift(Request $request): JsonResponse
+    {
+        $shift = $this->shifts->currentShiftFor($request->user());
+
+        return response()->json([
+            'data' => $shift ? $this->workShiftPayload($shift->load('agents')) : null,
+        ]);
+    }
+
+    public function workShifts(Request $request): JsonResponse
+    {
+        $query = WorkShift::query()
+            ->with('agents')
+            ->when(! $request->user()->can('user.manage'), fn (Builder $query): Builder => $query
+                ->whereHas('agents', fn (Builder $agents): Builder => $agents->whereKey($request->user()->id)))
+            ->when($request->filled('status'), function (Builder $query) use ($request): void {
+                match ($request->string('status')->toString()) {
+                    'active' => $query->where('is_active', true),
+                    'inactive' => $query->where('is_active', false),
+                    'current' => $query
+                        ->where('is_active', true)
+                        ->where('starts_at', '<=', now())
+                        ->where('ends_at', '>', now()),
+                    default => null,
+                };
+            })
+            ->orderByDesc('starts_at')
+            ->paginate($this->perPage($request, 20, 100));
+
+        return response()->json([
+            'data' => $query->getCollection()->map(fn (WorkShift $shift): array => $this->workShiftPayload($shift))->values(),
+            'meta' => $this->paginationPayload($query),
+        ]);
+    }
+
+    public function workShift(Request $request, WorkShift $workShift): JsonResponse
+    {
+        abort_unless(
+            $request->user()->can('user.manage')
+            || $workShift->agents()->whereKey($request->user()->id)->exists(),
+            403
+        );
+
+        return response()->json(['data' => $this->workShiftPayload($workShift->load('agents'))]);
     }
 
     public function customers(Request $request): JsonResponse
@@ -403,6 +455,80 @@ class MobileApiController extends ApiController
             'read_at' => $notification->read_at?->toISOString(),
             'created_at' => $notification->created_at?->toISOString(),
         ];
+    }
+
+    private function workShiftPayload(WorkShift $shift): array
+    {
+        $metrics = $this->workShiftMetrics($shift);
+
+        return [
+            'id' => (int) $shift->id,
+            'name' => $shift->name,
+            'starts_at' => $shift->starts_at?->toISOString(),
+            'ends_at' => $shift->ends_at?->toISOString(),
+            'starts_time' => $shift->starts_at?->format('H:i'),
+            'ends_time' => $shift->ends_at?->format('H:i'),
+            'is_active' => (bool) $shift->is_active,
+            'is_current' => $this->workShiftContainsNow($shift),
+            'agents' => $shift->relationLoaded('agents')
+                ? $shift->agents->map(fn (User $agent): array => $this->agentPayload($agent))->values()
+                : [],
+            'metrics' => $metrics,
+            'created_at' => $shift->created_at?->toISOString(),
+            'updated_at' => $shift->updated_at?->toISOString(),
+        ];
+    }
+
+    private function workShiftMetrics(WorkShift $shift): array
+    {
+        $waiting = Conversation::query()
+            ->where('queue_shift_id', $shift->id)
+            ->where('status', ConversationStatus::WAITING)
+            ->whereNull('assigned_to')
+            ->count();
+        $handling = Conversation::query()
+            ->where('owner_shift_id', $shift->id)
+            ->whereIn('status', ConversationStatus::ACTIVE)
+            ->whereNotNull('assigned_to')
+            ->count();
+        $finished = Conversation::query()
+            ->where('owner_shift_id', $shift->id)
+            ->whereIn('status', [ConversationStatus::RESOLVED, ConversationStatus::CLOSED])
+            ->count();
+
+        return [
+            'waiting_conversations' => $waiting,
+            'handling_conversations' => $handling,
+            'finished_conversations' => $finished,
+            'total_conversations' => $waiting + $handling + $finished,
+        ];
+    }
+
+    private function workShiftContainsNow(WorkShift $shift): bool
+    {
+        if (! $shift->is_active || ! $shift->starts_at || ! $shift->ends_at) {
+            return false;
+        }
+
+        $now = now();
+
+        if ($shift->starts_at <= $now && $shift->ends_at > $now) {
+            return true;
+        }
+
+        $start = ((int) $shift->starts_at->format('H') * 3600) + ((int) $shift->starts_at->format('i') * 60);
+        $end = ((int) $shift->ends_at->format('H') * 3600) + ((int) $shift->ends_at->format('i') * 60);
+        $current = ((int) $now->format('H') * 3600) + ((int) $now->format('i') * 60);
+
+        if ($start === $end) {
+            return true;
+        }
+
+        if ($start < $end) {
+            return $current >= $start && $current < $end;
+        }
+
+        return $current >= $start || $current < $end;
     }
 
     private function realtimePayload(Request $request): array
