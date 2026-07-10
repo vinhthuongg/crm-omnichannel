@@ -294,6 +294,63 @@ class MobileApiController extends ApiController
         return response()->json(status: 204);
     }
 
+    public function agentPerformance(Request $request): JsonResponse
+    {
+        [$startsAt, $endsAt] = $this->performanceDateRange($request);
+        $workShiftId = $request->filled('work_shift_id') ? $request->integer('work_shift_id') : null;
+
+        $agents = User::query()
+            ->where('is_active', true)
+            ->when(
+                ! $request->user()->can('report.view') && ! $request->user()->can('user.manage'),
+                fn (Builder $query): Builder => $query->whereKey($request->user()->id),
+            )
+            ->where(function (Builder $query): void {
+                $query->role(['Admin', 'CSKH', 'User'])
+                    ->orWhereHas('assignedConversations');
+            })
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'range' => [
+                    'starts_at' => $startsAt->toISOString(),
+                    'ends_at' => $endsAt->toISOString(),
+                    'work_shift_id' => $workShiftId,
+                ],
+                'summary' => $this->agentPerformanceSummary($agents, $startsAt, $endsAt, $workShiftId),
+                'agents' => $agents
+                    ->map(fn (User $agent): array => $this->agentPerformancePayload($agent, $startsAt, $endsAt, $workShiftId))
+                    ->values(),
+            ],
+        ]);
+    }
+
+    public function agentPerformanceDetail(Request $request, User $agent): JsonResponse
+    {
+        abort_unless(
+            $request->user()->can('report.view')
+            || $request->user()->can('user.manage')
+            || (int) $request->user()->id === (int) $agent->id,
+            403
+        );
+
+        [$startsAt, $endsAt] = $this->performanceDateRange($request);
+        $workShiftId = $request->filled('work_shift_id') ? $request->integer('work_shift_id') : null;
+
+        return response()->json([
+            'data' => [
+                'range' => [
+                    'starts_at' => $startsAt->toISOString(),
+                    'ends_at' => $endsAt->toISOString(),
+                    'work_shift_id' => $workShiftId,
+                ],
+                'agent' => $this->agentPerformancePayload($agent, $startsAt, $endsAt, $workShiftId),
+            ],
+        ]);
+    }
+
     public function customers(Request $request): JsonResponse
     {
         $visibleCustomerIds = $this->visibility->visibleFor($request->user())->select('customer_id');
@@ -510,6 +567,173 @@ class MobileApiController extends ApiController
             ...$this->agentPayload($user->loadMissing('roles')),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         ];
+    }
+
+    private function agentPerformanceSummary($agents, Carbon $startsAt, Carbon $endsAt, ?int $workShiftId): array
+    {
+        $payloads = $agents->map(fn (User $agent): array => $this->agentPerformancePayload($agent, $startsAt, $endsAt, $workShiftId));
+
+        $totalConversations = (int) $payloads->sum('conversations.total');
+        $respondedConversations = (int) $payloads->sum('response.responded_conversations');
+        $phoneConversations = (int) $payloads->sum('phone.conversations_with_phone');
+        $taggedConversations = (int) $payloads->sum('process.tagged_conversations');
+        $classifiedConversations = (int) $payloads->sum('process.classified_conversations');
+        $notedConversations = (int) $payloads->sum('process.noted_conversations');
+        $weightedResponseSeconds = (int) $payloads->sum(
+            fn (array $payload): int => (int) ($payload['response']['average_seconds'] ?? 0)
+                * (int) ($payload['response']['responded_conversations'] ?? 0)
+        );
+
+        return [
+            'total_agents' => $agents->count(),
+            'total_conversations' => $totalConversations,
+            'responded_conversations' => $respondedConversations,
+            'average_response_seconds' => $respondedConversations > 0 ? (int) round($weightedResponseSeconds / $respondedConversations) : null,
+            'average_response_label' => $respondedConversations > 0 ? $this->durationLabel((int) round($weightedResponseSeconds / $respondedConversations)) : 'Chưa có',
+            'phone_collected' => [
+                'conversations' => $phoneConversations,
+                'rate' => $this->percentage($phoneConversations, $totalConversations),
+            ],
+            'process_compliance' => [
+                'tagged_rate' => $this->percentage($taggedConversations, $totalConversations),
+                'classified_rate' => $this->percentage($classifiedConversations, $totalConversations),
+                'noted_rate' => $this->percentage($notedConversations, $totalConversations),
+                'overall_rate' => $this->percentage($taggedConversations + $classifiedConversations + $notedConversations, $totalConversations * 3),
+            ],
+        ];
+    }
+
+    private function agentPerformancePayload(User $agent, Carbon $startsAt, Carbon $endsAt, ?int $workShiftId): array
+    {
+        $base = $this->agentPerformanceConversationQuery($agent, $startsAt, $endsAt, $workShiftId);
+        $totalConversations = (clone $base)->count();
+        $respondedConversations = (clone $base)->whereNotNull('first_response_at')->count();
+        $averageResponseSeconds = (clone $base)
+            ->whereNotNull('first_response_at')
+            ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, created_at, first_response_at)) as average_seconds')
+            ->value('average_seconds');
+        $phoneConversations = (clone $base)
+            ->whereHas('customer', fn (Builder $query): Builder => $query
+                ->whereNotNull('phone')
+                ->where('phone', '!=', ''))
+            ->count();
+        $taggedConversations = (clone $base)
+            ->whereHas('tags')
+            ->count();
+        $classifiedConversations = (clone $base)
+            ->where(function (Builder $query): void {
+                $query->whereHas('tags')
+                    ->orWhereHas('customer.tags');
+            })
+            ->count();
+        $notedConversations = (clone $base)
+            ->whereHas('customer.notes', fn (Builder $query): Builder => $query
+                ->where('user_id', $agent->id)
+                ->whereBetween('created_at', [$startsAt, $endsAt]))
+            ->count();
+        $sentMessages = Message::query()
+            ->where('sender_type', 'user')
+            ->where('sender_id', $agent->id)
+            ->whereBetween('created_at', [$startsAt, $endsAt])
+            ->count();
+
+        $responseSeconds = $averageResponseSeconds === null ? null : max(0, (int) round((float) $averageResponseSeconds));
+
+        return [
+            'agent' => $this->agentPayload($agent),
+            'conversations' => [
+                'total' => $totalConversations,
+                'active' => (clone $base)->whereIn('status', ConversationStatus::ACTIVE)->count(),
+                'waiting' => (clone $base)->where('status', ConversationStatus::WAITING)->count(),
+                'finished' => (clone $base)->whereIn('status', [ConversationStatus::RESOLVED, ConversationStatus::CLOSED])->count(),
+                'sent_messages' => $sentMessages,
+            ],
+            'response' => [
+                'responded_conversations' => $respondedConversations,
+                'average_seconds' => $responseSeconds,
+                'average_minutes' => $responseSeconds === null ? null : round($responseSeconds / 60, 2),
+                'label' => $responseSeconds === null ? 'Chưa có' : $this->durationLabel($responseSeconds),
+                'rate' => $this->percentage($respondedConversations, $totalConversations),
+            ],
+            'phone' => [
+                'conversations_with_phone' => $phoneConversations,
+                'rate' => $this->percentage($phoneConversations, $totalConversations),
+            ],
+            'process' => [
+                'tagged_conversations' => $taggedConversations,
+                'classified_conversations' => $classifiedConversations,
+                'noted_conversations' => $notedConversations,
+                'tagged_rate' => $this->percentage($taggedConversations, $totalConversations),
+                'classified_rate' => $this->percentage($classifiedConversations, $totalConversations),
+                'noted_rate' => $this->percentage($notedConversations, $totalConversations),
+                'overall_rate' => $this->percentage($taggedConversations + $classifiedConversations + $notedConversations, $totalConversations * 3),
+            ],
+        ];
+    }
+
+    private function agentPerformanceConversationQuery(User $agent, Carbon $startsAt, Carbon $endsAt, ?int $workShiftId): Builder
+    {
+        return Conversation::query()
+            ->where('assigned_to', $agent->id)
+            ->whereBetween('created_at', [$startsAt, $endsAt])
+            ->when($workShiftId, fn (Builder $query): Builder => $query
+                ->where(function (Builder $query) use ($workShiftId): void {
+                    $query->where('owner_shift_id', $workShiftId)
+                        ->orWhere('queue_shift_id', $workShiftId)
+                        ->orWhere('work_shift_id', $workShiftId);
+                }));
+    }
+
+    private function performanceDateRange(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'work_shift_id' => ['nullable', 'integer', 'exists:work_shifts,id'],
+        ]);
+
+        $startsAt = filled($validated['date_from'] ?? null)
+            ? Carbon::parse($validated['date_from'])->startOfDay()
+            : now()->startOfDay();
+        $endsAt = filled($validated['date_to'] ?? null)
+            ? Carbon::parse($validated['date_to'])->endOfDay()
+            : now()->endOfDay();
+
+        if ($endsAt->lessThan($startsAt)) {
+            throw ValidationException::withMessages([
+                'date_to' => 'Ngày kết thúc phải sau ngày bắt đầu.',
+            ]);
+        }
+
+        return [$startsAt, $endsAt];
+    }
+
+    private function percentage(int $value, int $total): float
+    {
+        return $total > 0 ? round(($value / $total) * 100, 2) : 0.0;
+    }
+
+    private function durationLabel(int $seconds): string
+    {
+        if ($seconds < 60) {
+            return $seconds.' giây';
+        }
+
+        $minutes = intdiv($seconds, 60);
+        $remainingSeconds = $seconds % 60;
+
+        if ($minutes < 60) {
+            return $remainingSeconds > 0
+                ? $minutes.' phút '.$remainingSeconds.' giây'
+                : $minutes.' phút';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return $remainingMinutes > 0
+            ? $hours.' giờ '.$remainingMinutes.' phút'
+            : $hours.' giờ';
     }
 
     private function tagPayload(Tag $tag): array

@@ -15,6 +15,9 @@ Route::middleware('auth:sanctum')->prefix('mobile')->group(function (): void {
     Route::post('conversations/{conversation}/read', [MobileApiController::class, 'markRead']);
     Route::post('conversations/{conversation}/assign', [MobileApiController::class, 'assign']);
 
+    Route::get('agents/performance', [MobileApiController::class, 'agentPerformance']);
+    Route::get('agents/{agent}/performance', [MobileApiController::class, 'agentPerformanceDetail']);
+
     Route::get('work-shifts/overview', [MobileApiController::class, 'workShiftOverview']);
     Route::get('work-shifts/current', [MobileApiController::class, 'currentWorkShift']);
     Route::get('work-shifts', [MobileApiController::class, 'workShifts']);
