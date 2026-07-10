@@ -194,14 +194,16 @@ class MobileApiController extends ApiController
 
     public function customer(Request $request, Customer $customer): JsonResponse
     {
-        abort_unless(
-            $this->visibility->visibleFor($request->user())->where('customer_id', $customer->id)->exists(),
-            403
-        );
+        $visibleConversations = $this->visibility->visibleFor($request->user())
+            ->where('customer_id', $customer->id)
+            ->with('tags')
+            ->get();
+
+        abort_unless($visibleConversations->isNotEmpty(), 403);
 
         $customer->load(['channels', 'tags']);
 
-        return response()->json(['data' => $this->customerDetailPayload($customer)]);
+        return response()->json(['data' => $this->customerDetailPayload($customer, $visibleConversations)]);
     }
 
     public function notifications(Request $request): JsonResponse
@@ -324,7 +326,7 @@ class MobileApiController extends ApiController
         ];
     }
 
-    private function customerDetailPayload(Customer $customer): array
+    private function customerDetailPayload(Customer $customer, $visibleConversations): array
     {
         return [
             'information' => [
@@ -339,12 +341,28 @@ class MobileApiController extends ApiController
                 'channel' => $channel->channel,
                 'external_id' => $channel->external_id,
             ])->values(),
-            'interests' => $customer->tags->map(fn ($tag): array => [
+            'interests' => $this->customerInterestPayload($customer, $visibleConversations),
+        ];
+    }
+
+    private function customerInterestPayload(Customer $customer, $visibleConversations)
+    {
+        return collect()
+            ->merge($customer->tags->map(fn ($tag): array => [
                 'id' => (int) $tag->id,
+                'source' => 'customer',
                 'name' => $tag->name,
                 'color' => $tag->color,
-            ])->values(),
-        ];
+            ]))
+            ->merge($visibleConversations->flatMap(fn (Conversation $conversation) => $conversation->tags->map(fn (Tag $tag): array => [
+                'id' => (int) $tag->id,
+                'source' => 'conversation',
+                'name' => $tag->name,
+                'color' => $tag->color,
+            ])))
+            ->filter(fn (array $tag): bool => filled($tag['name']))
+            ->unique(fn (array $tag): string => mb_strtolower((string) $tag['name']))
+            ->values();
     }
 
     private function agentPayload(User $user): array
