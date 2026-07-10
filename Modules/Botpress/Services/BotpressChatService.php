@@ -548,6 +548,7 @@ class BotpressChatService
                 'last_message_at' => $message->created_at,
                 'first_response_at' => $conversation->first_response_at ?: now(),
             ])->save();
+            $conversation->markAsRead();
 
             $link->forceFill([
                 'last_botpress_message_id' => (string) data_get($reply, 'id', ''),
@@ -669,6 +670,7 @@ class BotpressChatService
                 'last_message_at' => $message->created_at,
                 'first_response_at' => $conversation->first_response_at ?: now(),
             ])->save();
+            $conversation->markAsRead();
 
             return $message->load(['conversation.customer.channels', 'sender']);
         });

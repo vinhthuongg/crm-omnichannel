@@ -163,6 +163,7 @@ class MessageService
             ]);
 
             $conversation->forceFill(['last_message_at' => $stored->created_at])->save();
+            $conversation->markAsRead();
 
             return $stored;
         });
