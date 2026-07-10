@@ -105,17 +105,7 @@ class DashboardService
     private function intentConversationCount(User $user, string $tagName, array $keywords): int
     {
         return (clone $this->visibility->visibleFor($user))
-            ->where(function (Builder $query) use ($tagName, $keywords): void {
-                $query->whereHas('tags', fn (Builder $tagQuery): Builder => $tagQuery->where('name', $tagName))
-                    ->orWhereHas('messages', function (Builder $messageQuery) use ($keywords): void {
-                        $messageQuery->whereIn('sender_type', ['customer', 'system'])
-                            ->where(function (Builder $keywordQuery) use ($keywords): void {
-                                foreach ($keywords as $keyword) {
-                                    $keywordQuery->orWhere('content', 'like', '%'.$keyword.'%');
-                                }
-                            });
-                    });
-            })
+            ->whereHas('customer.tags', fn (Builder $tagQuery): Builder => $tagQuery->where('name', $tagName))
             ->count();
     }
 

@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Notifications\DatabaseNotification;
 use Modules\ActivityLog\Models\ActivityLog;
 use Modules\Conversation\Models\Conversation;
-use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationIntentService;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\CustomerChannel;
 use Modules\Customer\Models\Customer;
+use Modules\Customer\Models\CustomerTag;
 use Modules\Facebook\Models\FacebookPage;
 
 class GetDashboardViewDataAction
@@ -286,17 +286,7 @@ class GetDashboardViewDataAction
     private function intentConversationCount(User $user, string $tagName, array $keywords): int
     {
         return (clone $this->visibleConversations($user))
-            ->where(function (Builder $query) use ($tagName, $keywords): void {
-                $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tagName))
-                    ->orWhereHas('messages', function (Builder $messageQuery) use ($keywords): void {
-                        $messageQuery->whereIn('sender_type', ['customer', 'system'])
-                            ->where(function (Builder $keywordQuery) use ($keywords): void {
-                                foreach ($keywords as $keyword) {
-                                    $keywordQuery->orWhere('content', 'like', '%'.$keyword.'%');
-                                }
-                            });
-                    });
-            })
+            ->whereHas('customer.tags', fn (Builder $tagQuery) => $tagQuery->where('name', $tagName))
             ->count();
     }
 
@@ -592,17 +582,23 @@ class GetDashboardViewDataAction
 
     private function allocation(User $user): Collection
     {
-        $tags = Tag::query()
-            ->withCount(['conversations' => function (Builder $query) use ($user): void {
-                $query->whereIn('conversations.id', $this->visibleConversations($user)->select('id'));
-            }])
-            ->orderByDesc('conversations_count')
-            ->limit(4)
-            ->get();
+        $tags = CustomerTag::query()
+            ->orderBy('name')
+            ->get()
+            ->map(function (CustomerTag $tag) use ($user): CustomerTag {
+                $tag->conversations_count = (clone $this->visibleConversations($user))
+                    ->whereHas('customer.tags', fn (Builder $query): Builder => $query->whereKey($tag->id))
+                    ->count();
+
+                return $tag;
+            })
+            ->sortByDesc('conversations_count')
+            ->take(4)
+            ->values();
 
         $max = max(1, (int) $tags->max('conversations_count'));
 
-        return $tags->map(fn (Tag $tag): array => [
+        return $tags->map(fn (CustomerTag $tag): array => [
             'name' => $tag->name,
             'value' => (int) $tag->conversations_count,
             'percent' => ((int) $tag->conversations_count / $max) * 100,

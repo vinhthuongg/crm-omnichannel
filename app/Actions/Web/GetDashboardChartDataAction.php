@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Modules\Conversation\Models\Conversation;
-use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
+use Modules\Customer\Models\CustomerTag;
 
 class GetDashboardChartDataAction
 {
@@ -106,14 +106,20 @@ class GetDashboardChartDataAction
 
     private function tagAllocation(User $user): array
     {
-        return Tag::query()
-            ->withCount(['conversations' => function (Builder $query) use ($user): void {
-                $query->whereIn('conversations.id', $this->visibleConversations($user)->select('id'));
-            }])
-            ->orderByDesc('conversations_count')
-            ->limit(5)
+        return CustomerTag::query()
+            ->orderBy('name')
             ->get()
-            ->map(fn (Tag $tag): array => [
+            ->map(function (CustomerTag $tag) use ($user): CustomerTag {
+                $tag->conversations_count = (clone $this->visibleConversations($user))
+                    ->whereHas('customer.tags', fn (Builder $query): Builder => $query->whereKey($tag->id))
+                    ->count();
+
+                return $tag;
+            })
+            ->sortByDesc('conversations_count')
+            ->take(5)
+            ->values()
+            ->map(fn (CustomerTag $tag): array => [
                 'tag' => $tag->name,
                 'value' => (int) $tag->conversations_count,
             ])
