@@ -76,7 +76,7 @@ class MobileApiController extends ApiController
     public function conversations(Request $request): JsonResponse
     {
         $query = $this->visibility->visibleFor($request->user())
-            ->with(['customer.channels', 'assignee', 'tags'])
+            ->with(['customer.channels', 'customer.tags', 'assignee', 'tags'])
             ->when($request->filled('status'), fn (Builder $query): Builder => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('assigned_to'), fn (Builder $query): Builder => $query->where('assigned_to', $request->integer('assigned_to')))
             ->when($request->boolean('unread'), fn (Builder $query): Builder => $query->where('unread_messages_count', '>', 0))
@@ -104,7 +104,7 @@ class MobileApiController extends ApiController
     {
         abort_unless($this->visibility->canView($request->user(), $conversation), 403);
 
-        $conversation->load(['customer.channels', 'assignee', 'tags']);
+        $conversation->load(['customer.channels', 'customer.tags', 'assignee', 'tags']);
 
         return response()->json(['data' => $this->conversationPayload($conversation)]);
     }
@@ -158,7 +158,7 @@ class MobileApiController extends ApiController
 
         $conversation->markAsRead();
 
-        return response()->json(['data' => $this->conversationPayload($conversation->fresh(['customer.channels', 'assignee', 'tags']))]);
+        return response()->json(['data' => $this->conversationPayload($conversation->fresh(['customer.channels', 'customer.tags', 'assignee', 'tags']))]);
     }
 
     public function assign(Request $request, Conversation $conversation, AssignConversationAction $action): JsonResponse
@@ -173,7 +173,7 @@ class MobileApiController extends ApiController
             abort(409, $exception->getMessage());
         }
 
-        return response()->json(['data' => $this->conversationPayload($conversation->load(['customer.channels', 'assignee', 'tags']))]);
+        return response()->json(['data' => $this->conversationPayload($conversation->load(['customer.channels', 'customer.tags', 'assignee', 'tags']))]);
     }
 
     public function currentWorkShift(Request $request): JsonResponse
@@ -358,7 +358,7 @@ class MobileApiController extends ApiController
         $visibleCustomerIds = $this->visibility->visibleFor($request->user())->select('customer_id');
 
         $query = Customer::query()
-            ->with('channels')
+            ->with(['channels', 'tags'])
             ->whereIn('id', $visibleCustomerIds)
             ->when($request->filled('q'), function (Builder $query) use ($request): void {
                 $keyword = '%'.$request->string('q')->toString().'%';
@@ -486,6 +486,9 @@ class MobileApiController extends ApiController
         $lastMessage = $conversation->relationLoaded('messages') && $conversation->messages->isNotEmpty()
             ? $conversation->messages->sortByDesc('created_at')->first()
             : $conversation->messages()->latest('created_at')->first();
+        $customerInterests = $conversation->customer
+            ? $this->customerInterestPayload($conversation->customer)
+            : collect();
 
         return [
             'id' => (int) $conversation->id,
@@ -497,7 +500,9 @@ class MobileApiController extends ApiController
             'last_read_at' => $conversation->last_read_at?->toISOString(),
             'customer' => $conversation->customer ? $this->customerPayload($conversation->customer) : null,
             'assignee' => $conversation->assignee ? $this->agentPayload($conversation->assignee) : null,
-            'tags' => $conversation->tags->map(fn (Tag $tag): array => $this->tagPayload($tag))->values(),
+            'tags' => $customerInterests,
+            'customer_interests' => $customerInterests,
+            'conversation_tags' => $conversation->tags->map(fn (Tag $tag): array => $this->tagPayload($tag))->values(),
             'last_message' => $lastMessage ? $this->messagePayload($lastMessage) : null,
             'created_at' => $conversation->created_at?->toISOString(),
             'updated_at' => $conversation->updated_at?->toISOString(),
@@ -569,6 +574,9 @@ class MobileApiController extends ApiController
                     'metadata' => $channel->metadata,
                 ])->values()
                 : [],
+            'interests' => $customer->relationLoaded('tags')
+                ? $this->customerInterestPayload($customer)
+                : [],
             'created_at' => $customer->created_at?->toISOString(),
             'updated_at' => $customer->updated_at?->toISOString(),
         ];
@@ -589,7 +597,7 @@ class MobileApiController extends ApiController
                 'channel' => $channel->channel,
                 'external_id' => $channel->external_id,
             ])->values(),
-            'interests' => $this->customerInterestPayload($customer, $visibleConversations),
+            'interests' => $this->customerInterestPayload($customer),
         ];
     }
 
@@ -601,11 +609,17 @@ class MobileApiController extends ApiController
             ->get();
     }
 
-    private function customerInterestPayload(Customer $customer, $visibleConversations)
+    private function customerInterestPayload(Customer $customer)
     {
+        $systemTagIds = Tag::query()
+            ->whereIn('name', $customer->tags->pluck('name')->filter()->values())
+            ->pluck('id', 'name');
+
         return $customer->tags
-            ->map(fn ($tag): array => [
+            ->map(fn (CustomerTag $tag): array => [
                 'id' => (int) $tag->id,
+                'customer_tag_id' => (int) $tag->id,
+                'tag_id' => (int) ($systemTagIds[$tag->name] ?? 0),
                 'source' => 'customer',
                 'name' => $tag->name,
                 'color' => $tag->color,
@@ -683,13 +697,10 @@ class MobileApiController extends ApiController
                 ->where('phone', '!=', ''))
             ->count();
         $taggedConversations = (clone $base)
-            ->whereHas('tags')
+            ->whereHas('customer.tags')
             ->count();
         $classifiedConversations = (clone $base)
-            ->where(function (Builder $query): void {
-                $query->whereHas('tags')
-                    ->orWhereHas('customer.tags');
-            })
+            ->whereHas('customer.tags')
             ->count();
         $notedConversations = (clone $base)
             ->whereHas('customer.notes', fn (Builder $query): Builder => $query
