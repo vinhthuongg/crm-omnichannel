@@ -248,6 +248,7 @@ class GetMessengerViewDataAction
         Tag::ensureDefaults();
 
         return Tag::query()
+            ->where('is_default', true)
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();

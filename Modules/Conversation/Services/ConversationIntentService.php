@@ -10,12 +10,12 @@ use Modules\Message\Models\Message;
 
 class ConversationIntentService
 {
-    public const TAG_QUOTE = 'Bao gia';
-    public const TAG_TEST_DRIVE = 'Lai thu';
-    public const TAG_INSTALLMENT = 'Tra gop';
-    public const TAG_APPOINTMENT = 'Dat lich';
-    public const TAG_MAINTENANCE = 'Bao duong';
-    public const TAG_PHONE = 'Da co SDT';
+    public const TAG_QUOTE = Tag::DEFAULT_QUOTE;
+    public const TAG_TEST_DRIVE = Tag::DEFAULT_TEST_DRIVE;
+    public const TAG_INSTALLMENT = Tag::DEFAULT_INSTALLMENT;
+    public const TAG_APPOINTMENT = Tag::DEFAULT_APPOINTMENT;
+    public const TAG_MAINTENANCE = 'Bảo dưỡng';
+    public const TAG_PHONE = Tag::DEFAULT_PHONE;
 
     private const INTENTS = [
         self::TAG_QUOTE => [
@@ -51,7 +51,6 @@ class ConversationIntentService
         }
 
         $this->syncPhone($conversation->customer, (string) $message->content);
-        $this->syncIntentTags($conversation, $this->matchedIntentTags($conversation));
     }
 
     private function matchedIntentTags(Conversation $conversation): array

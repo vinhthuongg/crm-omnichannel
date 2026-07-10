@@ -508,7 +508,7 @@ class MessengerController extends Controller
         );
 
         $conversation->loadMissing('customer');
-        $conversation->customer?->tags()->sync([$tag->id]);
+        $conversation->customer?->tags()->syncWithoutDetaching([$tag->id]);
         $conversation->load(['customer.tags']);
 
         return response()->json([
@@ -532,34 +532,14 @@ class MessengerController extends Controller
     public function storeConversationTag(Request $request): JsonResponse
     {
         $this->assertCanManageTags($request);
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:80'],
-            'color' => ['nullable', 'string', 'max:24'],
-        ]);
-
-        $name = trim($validated['name']);
-
-        if ($name === '') {
-            return response()->json(['message' => 'Tag khong duoc de trong.'], 422);
-        }
-
         Tag::ensureDefaults();
 
-        $tag = Tag::query()->updateOrCreate(
-            ['name' => $name],
-            [
-                'color' => $validated['color'] ?: '#2563eb',
-                'is_default' => array_key_exists($name, Tag::DEFAULTS),
-            ],
-        );
-
         return response()->json([
+            'message' => 'Hệ thống chỉ cho phép dùng các nhãn mặc định.',
             'data' => [
-                'tag' => $this->tagPayload($tag->refresh()),
                 'tags' => $this->tagPayloads(),
             ],
-        ], 201);
+        ], 422);
     }
 
     public function updateConversationTag(Request $request, Tag $tag): JsonResponse
@@ -839,6 +819,7 @@ class MessengerController extends Controller
         Tag::ensureDefaults();
 
         return Tag::query()
+            ->where('is_default', true)
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get()

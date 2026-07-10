@@ -18,6 +18,7 @@ use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Conversation\Services\WorkShiftService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
+use Modules\Customer\Models\CustomerTag;
 use Modules\Message\Actions\SendMessageAction;
 use Modules\Message\Models\Message;
 use Modules\Shared\Http\Controllers\ApiController;
@@ -51,6 +52,7 @@ class MobileApiController extends ApiController
                     ->map(fn (User $agent): array => $this->agentPayload($agent))
                     ->values(),
                 'tags' => Tag::query()
+                    ->where('is_default', true)
                     ->orderBy('name')
                     ->get(['id', 'name', 'color', 'is_default'])
                     ->map(fn (Tag $tag): array => $this->tagPayload($tag))
@@ -379,16 +381,70 @@ class MobileApiController extends ApiController
 
     public function customer(Request $request, Customer $customer): JsonResponse
     {
-        $visibleConversations = $this->visibility->visibleFor($request->user())
-            ->where('customer_id', $customer->id)
-            ->with('tags')
-            ->get();
+        $visibleConversations = $this->visibleCustomerConversations($request, $customer);
 
         abort_unless($visibleConversations->isNotEmpty(), 403);
 
         $customer->load(['channels', 'tags']);
 
         return response()->json(['data' => $this->customerDetailPayload($customer, $visibleConversations)]);
+    }
+
+    public function customerTags(Request $request): JsonResponse
+    {
+        Tag::ensureDefaults();
+
+        return response()->json([
+            'data' => Tag::query()
+                ->where('is_default', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'color', 'is_default'])
+                ->map(fn (Tag $tag): array => $this->tagPayload($tag))
+                ->values(),
+        ]);
+    }
+
+    public function attachCustomerTag(Request $request, Customer $customer): JsonResponse
+    {
+        $visibleConversations = $this->visibleCustomerConversations($request, $customer);
+        abort_unless($visibleConversations->isNotEmpty(), 403);
+
+        $validated = $request->validate([
+            'tag_id' => ['required', 'integer', 'exists:tags,id'],
+        ]);
+
+        $tag = Tag::query()
+            ->where('is_default', true)
+            ->findOrFail($validated['tag_id']);
+        $customerTag = CustomerTag::query()->firstOrCreate(
+            ['name' => $tag->name],
+            ['color' => $tag->color ?: '#2563eb'],
+        );
+
+        $customer->tags()->syncWithoutDetaching([$customerTag->id]);
+        $customer->load(['channels', 'tags']);
+
+        return response()->json([
+            'data' => $this->customerDetailPayload($customer, $visibleConversations),
+        ]);
+    }
+
+    public function detachCustomerTag(Request $request, Customer $customer, Tag $tag): JsonResponse
+    {
+        $visibleConversations = $this->visibleCustomerConversations($request, $customer);
+        abort_unless($visibleConversations->isNotEmpty(), 403);
+
+        $customerTag = CustomerTag::query()->where('name', $tag->name)->first();
+
+        if ($customerTag) {
+            $customer->tags()->detach($customerTag->id);
+        }
+
+        $customer->load(['channels', 'tags']);
+
+        return response()->json([
+            'data' => $this->customerDetailPayload($customer, $visibleConversations),
+        ]);
     }
 
     public function notifications(Request $request): JsonResponse
@@ -528,6 +584,14 @@ class MobileApiController extends ApiController
             ])->values(),
             'interests' => $this->customerInterestPayload($customer, $visibleConversations),
         ];
+    }
+
+    private function visibleCustomerConversations(Request $request, Customer $customer)
+    {
+        return $this->visibility->visibleFor($request->user())
+            ->where('customer_id', $customer->id)
+            ->with('tags')
+            ->get();
     }
 
     private function customerInterestPayload(Customer $customer, $visibleConversations)

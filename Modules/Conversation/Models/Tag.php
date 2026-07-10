@@ -10,16 +10,18 @@ class Tag extends Model
     public const DEFAULT_CONSULTING = 'Đang Tư Vấn';
     public const DEFAULT_WAITING = 'Khách Đợi';
 
-    public const DEFAULT_QUOTE = 'Báo giá xe';
-    public const DEFAULT_TEST_DRIVE = 'Lái thử';
-    public const DEFAULT_SERVICE = 'Bảo dưỡng';
-    public const DEFAULT_APPOINTMENT = 'Đặt lịch';
+    public const DEFAULT_TEST_DRIVE = 'Lái Thử';
+    public const DEFAULT_PHONE = 'Đã có SĐT';
+    public const DEFAULT_QUOTE = 'Báo Giá';
+    public const DEFAULT_INSTALLMENT = 'Trả Góp';
+    public const DEFAULT_APPOINTMENT = 'Đặt Lịch';
 
     public const DEFAULTS = [
-        self::DEFAULT_QUOTE => '#2563eb',
         self::DEFAULT_TEST_DRIVE => '#16a34a',
-        self::DEFAULT_SERVICE => '#f59e0b',
-        self::DEFAULT_APPOINTMENT => '#dc2626',
+        self::DEFAULT_PHONE => '#0f766e',
+        self::DEFAULT_QUOTE => '#2563eb',
+        self::DEFAULT_INSTALLMENT => '#7c3aed',
+        self::DEFAULT_APPOINTMENT => '#f97316',
     ];
 
     public const LEGACY_STATUS_TAGS = [
