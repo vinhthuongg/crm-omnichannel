@@ -124,18 +124,12 @@ class CustomerPageController extends Controller
                     'last_time' => $lastAt?->format('H:i') ?: '',
                     'assignee' => $conversation?->assignee?->name,
                     'assignee_initial' => $conversation?->assignee ? strtoupper(substr($conversation->assignee->name, 0, 1)) : null,
-                    'status_label' => match ($status) {
-                        ConversationStatus::WAITING => 'Khách đợi',
-                        ConversationStatus::CLOSED => 'Đã đóng',
-                        ConversationStatus::RESOLVED => 'Đã xử lý',
-                        ConversationStatus::REOPENED => 'Mở lại',
-                        default => 'Đang tư vấn',
-                    },
-                    'status_class' => match ($status) {
-                        ConversationStatus::WAITING => 'waiting',
-                        ConversationStatus::CLOSED,
-                        ConversationStatus::RESOLVED => 'success',
-                        default => 'active',
+                    'status_label' => ConversationStatus::label($status),
+                    'status_class' => match (ConversationStatus::normalize($status)) {
+                        ConversationStatus::CLOSED => 'success',
+                        ConversationStatus::WAITING_CUSTOMER => 'active',
+                        ConversationStatus::BOT_CONSULTING => 'bot',
+                        default => 'waiting',
                     },
                     'conversation_url' => $conversation ? route('crm.conversations.show', $conversation) : null,
                 ];

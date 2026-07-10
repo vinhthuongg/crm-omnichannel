@@ -64,7 +64,7 @@ class MessageService
                 $conversation = Conversation::query()->create([
                     'customer_id' => $customer->id,
                     'facebook_page_id' => $facebookPageId !== '' ? $facebookPageId : null,
-                    'status' => ConversationStatus::WAITING,
+                    'status' => ConversationStatus::CUSTOMER_WAITING,
                     'last_message_at' => now(),
                     'work_shift_id' => $currentShift?->id,
                     'owner_shift_id' => $currentShift?->id,
@@ -162,7 +162,10 @@ class MessageService
                 'sent_at' => now(),
             ]);
 
-            $conversation->forceFill(['last_message_at' => $stored->created_at])->save();
+            $conversation->forceFill([
+                'last_message_at' => $stored->created_at,
+                'status' => ConversationStatus::BOT_CONSULTING,
+            ])->save();
             $conversation->markAsRead();
 
             return $stored;
@@ -306,11 +309,11 @@ class MessageService
 
     private function markConversationAsWaitingForConsulting(Conversation $conversation): void
     {
-        $conversation->forceFill(['status' => ConversationStatus::WAITING])->save();
+        $conversation->forceFill(['status' => ConversationStatus::CUSTOMER_WAITING])->save();
     }
 
     private function markConversationAsConsulting(Conversation $conversation): void
     {
-        $conversation->forceFill(['status' => ConversationStatus::IN_PROGRESS])->save();
+        $conversation->forceFill(['status' => ConversationStatus::WAITING_CUSTOMER])->save();
     }
 }

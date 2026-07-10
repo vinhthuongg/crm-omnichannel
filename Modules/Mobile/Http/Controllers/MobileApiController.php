@@ -77,7 +77,11 @@ class MobileApiController extends ApiController
     {
         $query = $this->visibility->visibleFor($request->user())
             ->with(['customer.channels', 'customer.tags', 'assignee', 'tags'])
-            ->when($request->filled('status'), fn (Builder $query): Builder => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('status'), function (Builder $query) use ($request): Builder {
+                $status = ConversationStatus::fromFilter($request->string('status')->toString());
+
+                return $status ? $query->where('status', $status) : $query;
+            })
             ->when($request->filled('assigned_to'), fn (Builder $query): Builder => $query->where('assigned_to', $request->integer('assigned_to')))
             ->when($request->boolean('unread'), fn (Builder $query): Builder => $query->where('unread_messages_count', '>', 0))
             ->when($request->filled('q'), function (Builder $query) use ($request): void {
@@ -492,7 +496,9 @@ class MobileApiController extends ApiController
 
         return [
             'id' => (int) $conversation->id,
-            'status' => $conversation->status,
+            'status' => ConversationStatus::normalize($conversation->status),
+            'status_label' => ConversationStatus::label($conversation->status),
+            'status_color' => ConversationStatus::color($conversation->status),
             'channel' => $conversation->facebook_page_id ? 'facebook' : 'zalo',
             'facebook_page_id' => $conversation->facebook_page_id,
             'unread_messages_count' => (int) $conversation->unread_messages_count,

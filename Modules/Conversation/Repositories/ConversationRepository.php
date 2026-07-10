@@ -29,7 +29,7 @@ class ConversationRepository
     public function openForCustomer(Customer $customer): Conversation
     {
         return Conversation::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'status' => ConversationStatus::WAITING],
+            ['customer_id' => $customer->id, 'status' => ConversationStatus::CUSTOMER_WAITING],
             ['last_message_at' => now()],
         );
     }

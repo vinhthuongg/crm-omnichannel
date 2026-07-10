@@ -7,22 +7,23 @@ use Modules\Conversation\Support\ConversationStatus;
 class ConversationStateMachine
 {
     private const ALLOWED = [
-        ConversationStatus::WAITING => [
-            ConversationStatus::IN_PROGRESS,
+        ConversationStatus::CUSTOMER_WAITING => [
+            ConversationStatus::WAITING_CUSTOMER,
+            ConversationStatus::BOT_CONSULTING,
+            ConversationStatus::CLOSED,
         ],
-        ConversationStatus::IN_PROGRESS => [
-            ConversationStatus::WAITING,
-            ConversationStatus::RESOLVED,
+        ConversationStatus::WAITING_CUSTOMER => [
+            ConversationStatus::CUSTOMER_WAITING,
+            ConversationStatus::BOT_CONSULTING,
+            ConversationStatus::CLOSED,
         ],
-        ConversationStatus::RESOLVED => [
+        ConversationStatus::BOT_CONSULTING => [
+            ConversationStatus::CUSTOMER_WAITING,
+            ConversationStatus::WAITING_CUSTOMER,
             ConversationStatus::CLOSED,
         ],
         ConversationStatus::CLOSED => [
-            ConversationStatus::REOPENED,
-        ],
-        ConversationStatus::REOPENED => [
-            ConversationStatus::IN_PROGRESS,
-            ConversationStatus::WAITING,
+            ConversationStatus::CUSTOMER_WAITING,
         ],
     ];
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Botpress\Models\BotpressConversationLink;
 use Modules\Conversation\Models\Conversation;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
@@ -547,6 +548,7 @@ class BotpressChatService
             $conversation->forceFill([
                 'last_message_at' => $message->created_at,
                 'first_response_at' => $conversation->first_response_at ?: now(),
+                'status' => ConversationStatus::BOT_CONSULTING,
             ])->save();
             $conversation->markAsRead();
 
@@ -669,6 +671,7 @@ class BotpressChatService
             $conversation->forceFill([
                 'last_message_at' => $message->created_at,
                 'first_response_at' => $conversation->first_response_at ?: now(),
+                'status' => ConversationStatus::BOT_CONSULTING,
             ])->save();
             $conversation->markAsRead();
 

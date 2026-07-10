@@ -196,7 +196,7 @@ class FacebookConversationImportService
             if (! $conversation) {
                 $conversation = Conversation::query()->create([
                     'customer_id' => $customer->id,
-                    'status' => ConversationStatus::WAITING,
+                    'status' => ConversationStatus::CUSTOMER_WAITING,
                     'facebook_page_id' => $page->page_id,
                     'external_conversation_id' => $remoteConversationId,
                     'last_message_at' => $this->createdAt($remoteMessage, $remoteConversation),

@@ -58,33 +58,11 @@ class MessageResource extends JsonResource
     {
         $status = ConversationStatus::normalize($this->conversation?->status);
 
-        return match ($status) {
-            ConversationStatus::IN_PROGRESS => [
-                'key' => ConversationStatus::IN_PROGRESS,
-                'name' => 'Đang tư vấn',
-                'color' => '#e11d48',
-            ],
-            ConversationStatus::RESOLVED => [
-                'key' => ConversationStatus::RESOLVED,
-                'name' => 'Đã xử lý',
-                'color' => '#16a34a',
-            ],
-            ConversationStatus::CLOSED => [
-                'key' => ConversationStatus::CLOSED,
-                'name' => 'Đã đóng',
-                'color' => '#64748b',
-            ],
-            ConversationStatus::REOPENED => [
-                'key' => ConversationStatus::REOPENED,
-                'name' => 'Mở lại',
-                'color' => '#7c3aed',
-            ],
-            default => [
-                'key' => ConversationStatus::WAITING,
-                'name' => 'Khách đợi',
-                'color' => '#f59e0b',
-            ],
-        };
+        return [
+            'key' => $status,
+            'name' => ConversationStatus::label($status),
+            'color' => ConversationStatus::color($status),
+        ];
     }
 
     private function normalizedAttachments(): array

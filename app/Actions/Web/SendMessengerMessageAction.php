@@ -132,7 +132,7 @@ class SendMessengerMessageAction
 
     private function markConversationAsConsulting(Conversation $conversation): void
     {
-        $conversation->forceFill(['status' => ConversationStatus::IN_PROGRESS])->save();
+        $conversation->forceFill(['status' => ConversationStatus::WAITING_CUSTOMER])->save();
     }
 
     private function storeAttachments(array $files): array

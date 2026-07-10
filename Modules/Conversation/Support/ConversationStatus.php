@@ -4,52 +4,80 @@ namespace Modules\Conversation\Support;
 
 final class ConversationStatus
 {
-    public const WAITING = 'waiting';
-    public const IN_PROGRESS = 'in_progress';
-    public const RESOLVED = 'resolved';
     public const CLOSED = 'closed';
-    public const REOPENED = 'reopened';
+    public const WAITING_CUSTOMER = 'waiting_customer';
+    public const BOT_CONSULTING = 'bot_consulting';
+    public const CUSTOMER_WAITING = 'customer_waiting';
+
+    public const WAITING = self::CUSTOMER_WAITING;
+    public const IN_PROGRESS = self::WAITING_CUSTOMER;
+    public const RESOLVED = self::CLOSED;
+    public const REOPENED = self::CUSTOMER_WAITING;
 
     public const ACTIVE = [
-        self::WAITING,
-        self::IN_PROGRESS,
-        self::REOPENED,
+        self::CUSTOMER_WAITING,
+        self::WAITING_CUSTOMER,
+        self::BOT_CONSULTING,
     ];
 
     public const ALL = [
-        self::WAITING,
-        self::IN_PROGRESS,
-        self::RESOLVED,
         self::CLOSED,
-        self::REOPENED,
+        self::WAITING_CUSTOMER,
+        self::BOT_CONSULTING,
+        self::CUSTOMER_WAITING,
     ];
 
     public static function normalize(?string $status): string
     {
         return match ($status) {
-            'open' => self::IN_PROGRESS,
-            'pending' => self::WAITING,
-            self::WAITING,
-            self::IN_PROGRESS,
-            self::RESOLVED,
-            self::CLOSED,
-            self::REOPENED => $status,
-            default => self::WAITING,
+            'open',
+            'in_progress' => self::WAITING_CUSTOMER,
+            'pending',
+            'waiting',
+            'reopened' => self::CUSTOMER_WAITING,
+            'resolved',
+            self::CLOSED => self::CLOSED,
+            self::WAITING_CUSTOMER,
+            self::BOT_CONSULTING,
+            self::CUSTOMER_WAITING => $status,
+            default => self::CUSTOMER_WAITING,
         };
     }
 
     public static function fromFilter(?string $status): ?string
     {
         return match ($status) {
-            'open' => self::IN_PROGRESS,
-            'pending' => self::WAITING,
-            'closed' => self::CLOSED,
-            self::WAITING,
-            self::IN_PROGRESS,
-            self::RESOLVED,
-            self::CLOSED,
-            self::REOPENED => $status,
+            'open',
+            'in_progress' => self::WAITING_CUSTOMER,
+            'pending',
+            'waiting',
+            'reopened' => self::CUSTOMER_WAITING,
+            'resolved',
+            self::CLOSED => self::CLOSED,
+            self::WAITING_CUSTOMER,
+            self::BOT_CONSULTING,
+            self::CUSTOMER_WAITING => $status,
             default => null,
+        };
+    }
+
+    public static function label(?string $status): string
+    {
+        return match (self::normalize($status)) {
+            self::CLOSED => 'Đóng',
+            self::WAITING_CUSTOMER => 'Đợi khách trả lời',
+            self::BOT_CONSULTING => 'Bot đang tư vấn',
+            default => 'Khách đợi rep tin nhắn',
+        };
+    }
+
+    public static function color(?string $status): string
+    {
+        return match (self::normalize($status)) {
+            self::CLOSED => '#64748b',
+            self::WAITING_CUSTOMER => '#2563eb',
+            self::BOT_CONSULTING => '#7c3aed',
+            default => '#f59e0b',
         };
     }
 }

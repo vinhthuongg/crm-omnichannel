@@ -56,9 +56,10 @@
                     <span>Trạng thái</span>
                     <select name="status">
                         <option value="">Tất cả trạng thái</option>
-                        <option value="in_progress" @selected($filters['status'] === 'in_progress')>Đang tư vấn</option>
-                        <option value="waiting" @selected($filters['status'] === 'waiting')>Khách đợi</option>
-                        <option value="closed" @selected($filters['status'] === 'closed')>Đã đóng</option>
+                        <option value="customer_waiting" @selected($filters['status'] === 'customer_waiting')>Khách đợi rep tin nhắn</option>
+                        <option value="waiting_customer" @selected($filters['status'] === 'waiting_customer')>Đợi khách trả lời</option>
+                        <option value="bot_consulting" @selected($filters['status'] === 'bot_consulting')>Bot đang tư vấn</option>
+                        <option value="closed" @selected($filters['status'] === 'closed')>Đóng</option>
                     </select>
                 </label>
                 <label>

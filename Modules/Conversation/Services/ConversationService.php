@@ -57,7 +57,7 @@ class ConversationService
             throw new \RuntimeException('Ban khong thuoc ca truc dang chiu trach nhiem hoi thoai nay.');
         }
 
-        $this->states->assertCanTransition($conversation->status, ConversationStatus::IN_PROGRESS);
+        $this->states->assertCanTransition($conversation->status, ConversationStatus::CUSTOMER_WAITING);
 
         $updated = Conversation::query()
             ->whereKey($conversation->id)
@@ -67,7 +67,7 @@ class ConversationService
                 'assigned_by' => null,
                 'assigned_type' => AssignmentType::CLAIM,
                 'claimed_at' => now(),
-                'status' => ConversationStatus::IN_PROGRESS,
+                'status' => ConversationStatus::CUSTOMER_WAITING,
                 'updated_at' => now(),
             ]);
 
@@ -100,14 +100,14 @@ class ConversationService
         return DB::transaction(function () use ($conversation, $actor): Conversation {
             $conversation = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
             $old = $this->assignmentSnapshot($conversation);
-            $this->states->assertCanTransition($conversation->status, ConversationStatus::WAITING);
+            $this->states->assertCanTransition($conversation->status, ConversationStatus::CUSTOMER_WAITING);
 
             $conversation->forceFill([
                 'assigned_to' => null,
                 'assigned_by' => null,
                 'assigned_type' => null,
                 'claimed_at' => null,
-                'status' => ConversationStatus::WAITING,
+                'status' => ConversationStatus::CUSTOMER_WAITING,
             ])->save();
 
             $conversation = $conversation->refresh()->load(['customer.channels', 'assignee', 'tags']);
@@ -121,7 +121,7 @@ class ConversationService
 
     public function resolve(Conversation $conversation, User $actor): Conversation
     {
-        return $this->transition($conversation, ConversationStatus::RESOLVED, ConversationAction::RESOLVE, $actor, [
+        return $this->transition($conversation, ConversationStatus::CLOSED, ConversationAction::RESOLVE, $actor, [
             'resolved_at' => now(),
         ], ConversationResolved::class);
     }
@@ -135,7 +135,7 @@ class ConversationService
 
     public function reopen(Conversation $conversation, User $actor): Conversation
     {
-        return $this->transition($conversation, ConversationStatus::REOPENED, ConversationAction::REOPEN, $actor, [
+        return $this->transition($conversation, ConversationStatus::CUSTOMER_WAITING, ConversationAction::REOPEN, $actor, [
             'closed_at' => null,
         ], ConversationReopened::class);
     }
@@ -171,9 +171,9 @@ class ConversationService
         $conversation->forceFill([
             'last_message_at' => $message->created_at,
             'last_read_at' => now(),
-            'status' => in_array($conversation->status, [ConversationStatus::RESOLVED, ConversationStatus::CLOSED], true)
-                ? $conversation->status
-                : ConversationStatus::IN_PROGRESS,
+            'status' => in_array(ConversationStatus::normalize($conversation->status), [ConversationStatus::CLOSED], true)
+                ? ConversationStatus::CLOSED
+                : ConversationStatus::WAITING_CUSTOMER,
             'first_response_at' => $isWhisper ? $conversation->first_response_at : ($conversation->first_response_at ?: now()),
             'unread_messages_count' => 0,
             'automation_state' => $automationState,
@@ -189,14 +189,14 @@ class ConversationService
         return DB::transaction(function () use ($conversation, $assignee, $actor, $type): Conversation {
             $conversation = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
             $old = $this->assignmentSnapshot($conversation);
-            $this->states->assertCanTransition($conversation->status, ConversationStatus::IN_PROGRESS);
+            $this->states->assertCanTransition($conversation->status, ConversationStatus::CUSTOMER_WAITING);
 
             $conversation->forceFill([
                 'assigned_to' => $assignee->id,
                 'assigned_by' => $actor->id,
                 'assigned_type' => $type,
                 'claimed_at' => now(),
-                'status' => ConversationStatus::IN_PROGRESS,
+                'status' => ConversationStatus::CUSTOMER_WAITING,
             ])->save();
 
             $conversation = $conversation->refresh()->load(['customer.channels', 'assignee', 'tags']);

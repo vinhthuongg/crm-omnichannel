@@ -5,6 +5,7 @@ namespace Modules\Conversation\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Customer\Http\Resources\CustomerResource;
+use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Http\Resources\MessageResource;
 use Modules\User\Http\Resources\UserResource;
 
@@ -14,7 +15,9 @@ class ConversationResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'status' => $this->status,
+            'status' => ConversationStatus::normalize($this->status),
+            'status_label' => ConversationStatus::label($this->status),
+            'status_color' => ConversationStatus::color($this->status),
             'assigned_to' => $this->assigned_to,
             'assigned_by' => $this->assigned_by,
             'assigned_type' => $this->assigned_type,
