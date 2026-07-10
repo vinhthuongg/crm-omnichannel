@@ -192,6 +192,18 @@ class MobileApiController extends ApiController
         ]);
     }
 
+    public function customer(Request $request, Customer $customer): JsonResponse
+    {
+        abort_unless(
+            $this->visibility->visibleFor($request->user())->where('customer_id', $customer->id)->exists(),
+            403
+        );
+
+        $customer->load(['channels', 'tags']);
+
+        return response()->json(['data' => $this->customerDetailPayload($customer)]);
+    }
+
     public function notifications(Request $request): JsonResponse
     {
         $query = $request->user()
@@ -309,6 +321,29 @@ class MobileApiController extends ApiController
                 : [],
             'created_at' => $customer->created_at?->toISOString(),
             'updated_at' => $customer->updated_at?->toISOString(),
+        ];
+    }
+
+    private function customerDetailPayload(Customer $customer): array
+    {
+        return [
+            'information' => [
+                'id' => (int) $customer->id,
+                'name' => $customer->name,
+                'avatar' => $customer->avatar,
+                'phone' => $customer->phone,
+                'email' => $customer->email,
+            ],
+            'channels' => $customer->channels->map(fn ($channel): array => [
+                'id' => (int) $channel->id,
+                'channel' => $channel->channel,
+                'external_id' => $channel->external_id,
+            ])->values(),
+            'interests' => $customer->tags->map(fn ($tag): array => [
+                'id' => (int) $tag->id,
+                'name' => $tag->name,
+                'color' => $tag->color,
+            ])->values(),
         ];
     }
 
