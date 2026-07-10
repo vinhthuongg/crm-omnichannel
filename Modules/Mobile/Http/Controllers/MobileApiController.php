@@ -596,19 +596,13 @@ class MobileApiController extends ApiController
 
     private function customerInterestPayload(Customer $customer, $visibleConversations)
     {
-        return collect()
-            ->merge($customer->tags->map(fn ($tag): array => [
+        return $customer->tags
+            ->map(fn ($tag): array => [
                 'id' => (int) $tag->id,
                 'source' => 'customer',
                 'name' => $tag->name,
                 'color' => $tag->color,
-            ]))
-            ->merge($visibleConversations->flatMap(fn (Conversation $conversation) => $conversation->tags->map(fn (Tag $tag): array => [
-                'id' => (int) $tag->id,
-                'source' => 'conversation',
-                'name' => $tag->name,
-                'color' => $tag->color,
-            ])))
+            ])
             ->filter(fn (array $tag): bool => filled($tag['name']))
             ->unique(fn (array $tag): string => mb_strtolower((string) $tag['name']))
             ->values();
