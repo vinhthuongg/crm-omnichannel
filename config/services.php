@@ -48,4 +48,12 @@ return [
         'model' => env('GROQ_QUICK_REPLY_MODEL', 'llama-3.3-70b-versatile'),
         'timeout' => (int) env('GROQ_TIMEOUT', 8),
     ],
+    'firebase' => [
+        'enabled' => env('FIREBASE_FCM_ENABLED', false),
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+        'client_email' => env('FIREBASE_CLIENT_EMAIL'),
+        'private_key' => env('FIREBASE_PRIVATE_KEY'),
+        'token_uri' => env('FIREBASE_TOKEN_URI', 'https://oauth2.googleapis.com/token'),
+        'timeout' => (int) env('FIREBASE_TIMEOUT', 10),
+    ],
 ];

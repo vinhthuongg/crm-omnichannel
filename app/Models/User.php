@@ -11,6 +11,7 @@ use Modules\Facebook\Models\FacebookAccount;
 use Modules\Facebook\Models\FacebookPage;
 use Modules\Message\Models\Message;
 use Modules\Conversation\Models\WorkShift;
+use Modules\Notification\Models\FcmDeviceToken;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -55,5 +56,10 @@ class User extends Authenticatable
     public function workShifts()
     {
         return $this->belongsToMany(WorkShift::class, 'work_shift_user')->withTimestamps();
+    }
+
+    public function fcmDeviceTokens(): HasMany
+    {
+        return $this->hasMany(FcmDeviceToken::class);
     }
 }

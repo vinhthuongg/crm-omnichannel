@@ -21,6 +21,7 @@ use Modules\Customer\Models\Customer;
 use Modules\Customer\Models\CustomerTag;
 use Modules\Message\Actions\SendMessageAction;
 use Modules\Message\Models\Message;
+use Modules\Notification\Models\FcmDeviceToken;
 use Modules\Shared\Http\Controllers\ApiController;
 
 class MobileApiController extends ApiController
@@ -71,6 +72,51 @@ class MobileApiController extends ApiController
         ]);
 
         return Broadcast::auth($request);
+    }
+
+    public function storeFcmToken(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string', 'max:512'],
+            'platform' => ['nullable', 'string', 'in:android,ios,web'],
+            'device_id' => ['nullable', 'string', 'max:255'],
+            'app_version' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $token = FcmDeviceToken::query()->updateOrCreate(
+            ['token' => $data['token']],
+            [
+                'user_id' => $request->user()->id,
+                'platform' => $data['platform'] ?? null,
+                'device_id' => $data['device_id'] ?? null,
+                'app_version' => $data['app_version'] ?? null,
+                'last_used_at' => now(),
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => (int) $token->id,
+                'platform' => $token->platform,
+                'device_id' => $token->device_id,
+                'app_version' => $token->app_version,
+                'last_used_at' => $token->last_used_at?->toISOString(),
+            ],
+        ]);
+    }
+
+    public function destroyFcmToken(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string', 'max:512'],
+        ]);
+
+        $request->user()
+            ->fcmDeviceTokens()
+            ->where('token', $data['token'])
+            ->delete();
+
+        return response()->json(status: 204);
     }
 
     public function conversations(Request $request): JsonResponse
