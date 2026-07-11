@@ -362,7 +362,7 @@ class MobileApiController extends ApiController
         $visibleCustomerIds = $this->visibility->visibleFor($request->user())->select('customer_id');
 
         $query = Customer::query()
-            ->with(['channels', 'tags'])
+            ->with(['channels', 'tags', 'potentialMarkedBy'])
             ->whereIn('id', $visibleCustomerIds)
             ->when($request->filled('q'), function (Builder $query) use ($request): void {
                 $keyword = '%'.$request->string('q')->toString().'%';
@@ -390,7 +390,7 @@ class MobileApiController extends ApiController
 
         abort_unless($visibleConversations->isNotEmpty(), 403);
 
-        $customer->load(['channels', 'tags']);
+        $customer->load(['channels', 'tags', 'potentialMarkedBy']);
 
         return response()->json(['data' => $this->customerDetailPayload($customer, $visibleConversations)]);
     }
@@ -614,6 +614,7 @@ class MobileApiController extends ApiController
             'is_potential' => (bool) $customer->is_potential,
             'potential_marked_at' => $customer->potential_marked_at?->toISOString(),
             'potential_marked_by' => $customer->potential_marked_by ? (int) $customer->potential_marked_by : null,
+            'potential' => $this->customerPotentialPayload($customer),
             'channels' => $customer->relationLoaded('channels')
                 ? $customer->channels->map(fn ($channel): array => [
                     'id' => (int) $channel->id,
@@ -642,6 +643,7 @@ class MobileApiController extends ApiController
                 'is_potential' => (bool) $customer->is_potential,
                 'potential_marked_at' => $customer->potential_marked_at?->toISOString(),
                 'potential_marked_by' => $customer->potential_marked_by ? (int) $customer->potential_marked_by : null,
+                'potential' => $this->customerPotentialPayload($customer),
             ],
             'channels' => $customer->channels->map(fn ($channel): array => [
                 'id' => (int) $channel->id,
@@ -649,6 +651,17 @@ class MobileApiController extends ApiController
                 'external_id' => $channel->external_id,
             ])->values(),
             'interests' => $this->customerInterestPayload($customer),
+        ];
+    }
+
+    private function customerPotentialPayload(Customer $customer): array
+    {
+        return [
+            'is_potential' => (bool) $customer->is_potential,
+            'marked_at' => $customer->potential_marked_at?->toISOString(),
+            'marked_by' => $customer->relationLoaded('potentialMarkedBy') && $customer->potentialMarkedBy
+                ? $this->agentPayload($customer->potentialMarkedBy)
+                : ($customer->potential_marked_by ? ['id' => (int) $customer->potential_marked_by] : null),
         ];
     }
 
