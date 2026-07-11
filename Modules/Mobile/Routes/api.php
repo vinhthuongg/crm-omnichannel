@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->prefix('mobile')->group(function (): void {
     Route::get('customers/tags', [MobileApiController::class, 'customerTags']);
     Route::post('customers/{customer}/tags', [MobileApiController::class, 'attachCustomerTag']);
     Route::delete('customers/{customer}/tags/{tagId}', [MobileApiController::class, 'detachCustomerTag']);
+    Route::post('customers/{customer}/potential', [MobileApiController::class, 'markCustomerPotential']);
     Route::get('customers/{customer}', [MobileApiController::class, 'customer']);
     Route::get('notifications', [MobileApiController::class, 'notifications']);
     Route::post('notifications/{notification}/read', [MobileApiController::class, 'markNotificationRead']);

@@ -374,6 +374,7 @@ class MobileApiController extends ApiController
                         ->orWhereHas('channels', fn (Builder $channel): Builder => $channel->where('external_id', 'like', $keyword));
                 });
             })
+            ->when($request->has('potential'), fn (Builder $query): Builder => $query->where('is_potential', $request->boolean('potential')))
             ->latest('updated_at')
             ->paginate($this->perPage($request, 20, 100));
 
@@ -392,6 +393,25 @@ class MobileApiController extends ApiController
         $customer->load(['channels', 'tags']);
 
         return response()->json(['data' => $this->customerDetailPayload($customer, $visibleConversations)]);
+    }
+
+    public function markCustomerPotential(Request $request, Customer $customer): JsonResponse
+    {
+        $visibleConversations = $this->visibleCustomerConversations($request, $customer);
+
+        abort_unless($visibleConversations->isNotEmpty(), 403);
+
+        $customer->forceFill([
+            'is_potential' => true,
+            'potential_marked_at' => $customer->potential_marked_at ?: now(),
+            'potential_marked_by' => $request->user()?->id,
+        ])->save();
+
+        $customer->load(['channels', 'tags', 'potentialMarkedBy']);
+
+        return response()->json([
+            'data' => $this->customerDetailPayload($customer, $visibleConversations),
+        ]);
     }
 
     public function customerTags(Request $request): JsonResponse
@@ -572,6 +592,9 @@ class MobileApiController extends ApiController
             'avatar' => $customer->avatar,
             'phone' => $customer->phone,
             'email' => $customer->email,
+            'is_potential' => (bool) $customer->is_potential,
+            'potential_marked_at' => $customer->potential_marked_at?->toISOString(),
+            'potential_marked_by' => $customer->potential_marked_by ? (int) $customer->potential_marked_by : null,
             'channels' => $customer->relationLoaded('channels')
                 ? $customer->channels->map(fn ($channel): array => [
                     'id' => (int) $channel->id,
@@ -597,6 +620,9 @@ class MobileApiController extends ApiController
                 'avatar' => $customer->avatar,
                 'phone' => $customer->phone,
                 'email' => $customer->email,
+                'is_potential' => (bool) $customer->is_potential,
+                'potential_marked_at' => $customer->potential_marked_at?->toISOString(),
+                'potential_marked_by' => $customer->potential_marked_by ? (int) $customer->potential_marked_by : null,
             ],
             'channels' => $customer->channels->map(fn ($channel): array => [
                 'id' => (int) $channel->id,
