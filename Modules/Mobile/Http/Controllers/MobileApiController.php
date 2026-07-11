@@ -414,6 +414,25 @@ class MobileApiController extends ApiController
         ]);
     }
 
+    public function unmarkCustomerPotential(Request $request, Customer $customer): JsonResponse
+    {
+        $visibleConversations = $this->visibleCustomerConversations($request, $customer);
+
+        abort_unless($visibleConversations->isNotEmpty(), 403);
+
+        $customer->forceFill([
+            'is_potential' => false,
+            'potential_marked_at' => null,
+            'potential_marked_by' => null,
+        ])->save();
+
+        $customer->load(['channels', 'tags', 'potentialMarkedBy']);
+
+        return response()->json([
+            'data' => $this->customerDetailPayload($customer, $visibleConversations),
+        ]);
+    }
+
     public function customerTags(Request $request): JsonResponse
     {
         Tag::ensureDefaults();
