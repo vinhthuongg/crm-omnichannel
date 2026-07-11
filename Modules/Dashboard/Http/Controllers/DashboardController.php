@@ -12,6 +12,12 @@ class DashboardController extends ApiController
     {
         abort_unless($request->user()->can('report.view'), 403);
 
-        return response()->json(['data' => $action->execute($request->user())]);
+        $filters = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        return response()->json(['data' => $action->execute($request->user(), $filters)]);
     }
 }

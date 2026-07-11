@@ -11,8 +11,8 @@ class GetDashboardOverviewAction
     {
     }
 
-    public function execute(User $user): array
+    public function execute(User $user, array $filters = []): array
     {
-        return $this->service->overview($user);
+        return $this->service->overview($user, $filters);
     }
 }
