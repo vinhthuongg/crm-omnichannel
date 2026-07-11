@@ -81,7 +81,7 @@ class DashboardService
                 ['key' => 'installment_interests', 'label' => 'Quan tâm trả góp', 'value' => $intentMetrics['installment_interests']],
                 ['key' => 'active_conversations', 'label' => 'Hội thoại đang xử lý', 'value' => $activeConversations],
                 ['key' => 'new_customers_today', 'label' => 'Khách hàng mới', 'value' => $newCustomersToday],
-                ['key' => 'potential_customers', 'label' => 'Khách hàng tiềm năng', 'value' => $potentialCustomers],
+                ['key' => 'potential_customers', 'label' => 'Khách hàng tiềm năng', 'value' => $potentialCustomers, 'tone' => 'potential', 'icon' => null],
                 ['key' => 'appointment_bookings', 'label' => 'Khách đặt lịch', 'value' => $intentMetrics['appointment_bookings']],
                 ['key' => 'phones_collected', 'label' => 'SĐT đã thu thập', 'value' => $phonesCollected],
                 ['key' => 'maintenance_bookings', 'label' => 'Đặt lịch bảo dưỡng', 'value' => $intentMetrics['maintenance_bookings']],

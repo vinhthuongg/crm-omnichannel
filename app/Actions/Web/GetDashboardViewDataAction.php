@@ -200,6 +200,10 @@ class GetDashboardViewDataAction
             ->whereNotNull('phone')
             ->where('phone', '<>', '')
             ->count();
+        $potentialCustomers = Customer::query()
+            ->where('is_potential', true)
+            ->whereHas('conversations', fn (Builder $query): Builder => $query->whereIn('id', $this->visibleConversations($user)->select('id')))
+            ->count();
         $yesterdayPhones = Customer::query()
             ->whereNotNull('phone')
             ->where('phone', '<>', '')
@@ -235,6 +239,15 @@ class GetDashboardViewDataAction
                     'tone' => $newCustomers >= $yesterdayCustomers ? 'good' : 'bad',
                     'icon' => 'person_add',
                     'accent' => false,
+                ],
+                [
+                    'label' => 'Khách hàng tiềm năng',
+                    'value' => number_format($potentialCustomers),
+                    'change' => 'Đã phân loại',
+                    'tone' => 'potential',
+                    'icon' => null,
+                    'accent' => false,
+                    'variant' => 'potential',
                 ],
                 [
                     'label' => 'SĐT đã thu thập',

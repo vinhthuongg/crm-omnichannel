@@ -13,6 +13,9 @@
     --dash-success-soft: #e7f7ef;
     --dash-warning: #735000;
     --dash-warning-soft: #fff4db;
+    --dash-potential: #0f766e;
+    --dash-potential-soft: #ecfdf5;
+    --dash-potential-border: #99f6e4;
     --dash-danger: #c0182f;
     --dash-danger-soft: #fff0f0;
     --dash-shadow: 0 1px 2px rgba(22, 26, 48, .04);
@@ -159,9 +162,15 @@
     color: var(--dash-danger);
 }
 
+.today-kpi-card.is-potential {
+    border-color: var(--dash-potential-border);
+    background: var(--dash-potential-soft);
+}
+
 .today-kpi-card span.good,
 .today-kpi-card span.bad,
 .today-kpi-card span.danger,
+.today-kpi-card span.potential,
 .agent-kpi-card span.good,
 .agent-kpi-card span.bad,
 .agent-kpi-card span.danger {
@@ -183,6 +192,11 @@
 .agent-kpi-card span.bad,
 .agent-kpi-card span.danger {
     color: var(--dash-danger);
+}
+
+.today-kpi-card.is-potential h2,
+.today-kpi-card span.potential {
+    color: var(--dash-potential);
 }
 
 .today-kpi-card > b,

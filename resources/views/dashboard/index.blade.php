@@ -394,15 +394,17 @@
 
                 <section class="today-metric-grid">
                     @foreach($dashboardOverview['cards'] as $card)
-                        <article class="today-kpi-card {{ $card['accent'] ? 'is-urgent' : '' }}">
+                        <article class="today-kpi-card {{ $card['accent'] ? 'is-urgent' : '' }} {{ ($card['variant'] ?? null) === 'potential' ? 'is-potential' : '' }}">
                             <div>
                                 <p>{{ $card['label'] }}</p>
                                 <h2>{{ $card['value'] }}</h2>
                                 <span class="{{ $card['tone'] }}">{{ $card['change'] }}</span>
                             </div>
-                            <b>
-                                <span class="material-symbols-outlined" aria-hidden="true">{{ $card['icon'] }}</span>
-                            </b>
+                            @if(! empty($card['icon']))
+                                <b>
+                                    <span class="material-symbols-outlined" aria-hidden="true">{{ $card['icon'] }}</span>
+                                </b>
+                            @endif
                         </article>
                     @endforeach
 
