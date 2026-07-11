@@ -28,9 +28,13 @@ class DashboardService
             : clone $visibleConversations;
         $totalConversations = (clone $overviewConversations)->count();
         $totalHandled = (clone $overviewConversations)
-            ->whereIn('status', [ConversationStatus::IN_PROGRESS, ConversationStatus::RESOLVED, ConversationStatus::CLOSED])
+            ->whereIn('status', [ConversationStatus::WAITING_CUSTOMER, ConversationStatus::CLOSED])
             ->count();
-        $activeConversations = (clone $overviewConversations)->where('status', ConversationStatus::IN_PROGRESS)->count();
+        $activeConversations = (clone $overviewConversations)->whereIn('status', ConversationStatus::ACTIVE)->count();
+        $customerWaitingConversations = (clone $overviewConversations)->where('status', ConversationStatus::CUSTOMER_WAITING)->count();
+        $waitingCustomerConversations = (clone $overviewConversations)->where('status', ConversationStatus::WAITING_CUSTOMER)->count();
+        $botConsultingConversations = (clone $overviewConversations)->where('status', ConversationStatus::BOT_CONSULTING)->count();
+        $closedConversations = (clone $overviewConversations)->where('status', ConversationStatus::CLOSED)->count();
         $phonesCollected = Customer::query()
             ->whereNotNull('phone')
             ->where('phone', '<>', '')
@@ -46,6 +50,7 @@ class DashboardService
             ->whereHas('conversations', fn (Builder $query): Builder => $query->whereIn('id', (clone $overviewConversations)->select('id')))
             ->count();
         $newCustomersToday = Customer::query()
+            ->whereHas('conversations', fn (Builder $query): Builder => $query->whereIn('id', (clone $overviewConversations)->select('id')))
             ->when(
                 $hasDateFilter,
                 fn (Builder $query): Builder => $query->whereBetween('created_at', [$startsAt, $endsAt]),
@@ -88,6 +93,10 @@ class DashboardService
             'summary' => [
                 'total_conversations' => $totalConversations,
                 'active_conversations' => $activeConversations,
+                'customer_waiting_conversations' => $customerWaitingConversations,
+                'waiting_customer_conversations' => $waitingCustomerConversations,
+                'bot_consulting_conversations' => $botConsultingConversations,
+                'closed_conversations' => $closedConversations,
                 'new_customers_today' => $newCustomersToday,
                 'phones_collected' => $phonesCollected,
                 'phone_conversations' => $phoneConversations,
@@ -105,6 +114,7 @@ class DashboardService
                 'phone_conversations' => $phoneConversations,
                 'potential_customers' => $potentialCustomers,
                 'new_customers_last_7_days' => Customer::query()
+                    ->whereHas('conversations', fn (Builder $query): Builder => $query->whereIn('id', (clone $overviewConversations)->select('id')))
                     ->whereBetween('created_at', $hasDateFilter ? [$startsAt, $endsAt] : [today()->subDays(6)->startOfDay(), now()])
                     ->count(),
             ],
