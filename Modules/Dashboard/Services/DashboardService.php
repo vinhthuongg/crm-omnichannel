@@ -36,6 +36,11 @@ class DashboardService
             ->where('phone', '<>', '')
             ->whereHas('conversations', fn (Builder $query): Builder => $query->whereIn('id', (clone $overviewConversations)->select('id')))
             ->count();
+        $phoneConversations = (clone $overviewConversations)
+            ->whereHas('customer', fn (Builder $query): Builder => $query
+                ->whereNotNull('phone')
+                ->where('phone', '<>', ''))
+            ->count();
         $potentialCustomers = Customer::query()
             ->where('is_potential', true)
             ->whereHas('conversations', fn (Builder $query): Builder => $query->whereIn('id', (clone $overviewConversations)->select('id')))
@@ -49,7 +54,7 @@ class DashboardService
             ->count();
         $intentMetrics = $this->intentMetrics($user, $hasDateFilter ? $startsAt : null, $hasDateFilter ? $endsAt : null);
         $averageResponseMinutes = $this->averageResponseMinutes($user, $hasDateFilter ? $startsAt : null, $hasDateFilter ? $endsAt : null);
-        $phoneCollectionRate = $totalHandled > 0 ? round(($phonesCollected / $totalHandled) * 100, 1) : 0.0;
+        $phoneCollectionRate = $totalConversations > 0 ? round(($phoneConversations / $totalConversations) * 100, 1) : 0.0;
         $activityConversations = $hasDateFilter
             ? $this->whereActivityBetween(clone $visibleConversations, $startsAt, $endsAt)->count()
             : $this->whereActivityDate(clone $visibleConversations, today())->count();
@@ -85,6 +90,7 @@ class DashboardService
                 'active_conversations' => $activeConversations,
                 'new_customers_today' => $newCustomersToday,
                 'phones_collected' => $phonesCollected,
+                'phone_conversations' => $phoneConversations,
                 'potential_customers' => $potentialCustomers,
                 'total_handled_conversations' => $totalHandled,
                 'average_response_minutes' => $averageResponseMinutes,
@@ -96,6 +102,7 @@ class DashboardService
                 'average_response_minutes' => $averageResponseMinutes,
                 'phone_collection_rate' => $phoneCollectionRate,
                 'phones_collected' => $phonesCollected,
+                'phone_conversations' => $phoneConversations,
                 'potential_customers' => $potentialCustomers,
                 'new_customers_last_7_days' => Customer::query()
                     ->whereBetween('created_at', $hasDateFilter ? [$startsAt, $endsAt] : [today()->subDays(6)->startOfDay(), now()])
