@@ -17,18 +17,29 @@ final readonly class FacebookWebhookMessageData
         $pageId = (string) data_get($entry, 'recipient.id');
         $message = data_get($entry, 'message', []);
         $attachments = self::normalizeAttachments((array) data_get($message, 'attachments', []));
+        $hasMessageAttachments = $attachments !== [];
         $quickReplyPayload = trim((string) data_get($message, 'quick_reply.payload', ''));
-        $content = data_get($message, 'text');
+        $quickReplyTitle = trim((string) data_get($message, 'text', ''));
+        $content = $quickReplyPayload !== '' ? $quickReplyPayload : data_get($message, 'text');
 
-        if (blank($content) && $quickReplyPayload !== '') {
-            $content = $quickReplyPayload;
+        if ($quickReplyPayload !== '') {
+            $attachments[] = [
+                'name' => 'Quick reply',
+                'type' => 'quick_reply',
+                'payload' => [
+                    'title' => $quickReplyTitle,
+                    'text' => $quickReplyPayload,
+                    'payload' => $quickReplyPayload,
+                    'raw' => data_get($message, 'quick_reply', []),
+                ],
+            ];
         }
 
         $name = trim((string) data_get($profile, 'first_name').' '.(string) data_get($profile, 'last_name'));
         $name = $name !== '' ? $name : (string) data_get($profile, 'name', '');
         $avatar = data_get($profile, 'profile_pic');
 
-        return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, $content, $attachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId, 'shared_phone_number' => self::phoneFromQuickReply($quickReplyPayload)]);
+        return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, $content, $hasMessageAttachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId, 'shared_phone_number' => self::phoneFromQuickReply($quickReplyPayload), 'quick_reply_title' => $quickReplyTitle, 'quick_reply_payload' => $quickReplyPayload]);
     }
 
     private static function phoneFromQuickReply(string $payload): ?string

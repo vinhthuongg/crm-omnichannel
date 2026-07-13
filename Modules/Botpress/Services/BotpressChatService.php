@@ -1208,10 +1208,18 @@ class BotpressChatService
 
     private function messageText(Message $message): string
     {
-        $quickReplyPayload = trim((string) data_get($message->attachments, '0.payload.raw.message.quick_reply.payload', ''));
+        $quickReplyAttachment = collect($message->attachments ?? [])
+            ->first(fn (array $attachment): bool => ($attachment['type'] ?? '') === 'quick_reply');
+        $quickReplyPayload = trim((string) (
+            data_get($quickReplyAttachment, 'payload.text')
+            ?: data_get($quickReplyAttachment, 'payload.payload')
+            ?: data_get($quickReplyAttachment, 'payload.raw.payload')
+            ?: data_get($message->attachments, '0.payload.raw.message.quick_reply.payload', '')
+        ));
 
         if ($quickReplyPayload !== '') {
-            $title = trim((string) $message->content);
+            $title = trim((string) data_get($quickReplyAttachment, 'payload.title', ''));
+            $title = $title !== '' && $title !== $quickReplyPayload ? $title : '';
 
             return trim(implode("\n", array_filter([
                 'Khách vừa bấm quick reply trong Messenger.',
