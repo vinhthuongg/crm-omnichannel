@@ -38,6 +38,10 @@ return [
         'generate_quick_replies' => env('BOTPRESS_GENERATE_QUICK_REPLIES', true),
         'idle_resume_minutes' => (int) env('BOTPRESS_IDLE_RESUME_MINUTES', 2),
         'customer_idle_follow_up_minutes' => (int) env('CUSTOMER_IDLE_FOLLOW_UP_MINUTES', 3),
+        'admin_token' => env('BOTPRESS_ADMIN_TOKEN'),
+        'studio_url' => env('BOTPRESS_STUDIO_URL'),
+        'knowledge_webhook_url' => env('BOTPRESS_KNOWLEDGE_WEBHOOK_URL'),
+        'knowledge_webhook_secret' => env('BOTPRESS_KNOWLEDGE_WEBHOOK_SECRET'),
     ],
     'nim' => [
         'api_key' => env('NVIDIA_NIM_API_KEY', env('NVIDIA_API_KEY')),
