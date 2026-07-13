@@ -85,7 +85,9 @@ class BotpressChatService
 
             $link = $this->ensureLink($conversation);
             $beforeMessageId = $link->last_botpress_message_id;
-            $knownMessageIds = $this->knownBotpressMessageIds($link);
+            $knownMessageIds = (bool) config('services.botpress.snapshot_known_messages', false)
+                ? $this->knownBotpressMessageIds($link)
+                : [];
 
             Log::info('Botpress relay link ready', [
                 'conversation_id' => $conversation->id,
@@ -598,13 +600,13 @@ class BotpressChatService
         } catch (\Throwable) {
         }
 
-        SendOutboundMessageJob::dispatch($message->id);
+        $this->sendOutbound($message);
         SendCustomerIdleFollowUpJob::dispatchFor($message);
         Log::info('Botpress outbound message queued', [
             'conversation_id' => $conversation->id,
             'stored_message_id' => $message->id,
             'botpress_reply_id' => (string) data_get($reply, 'id', ''),
-            'queue' => 'outbound',
+            'queue' => $this->sendOutboundSync() ? 'sync' : 'outbound',
             'channel' => $message->channel,
             'content_preview' => mb_substr($content, 0, 240),
         ]);
@@ -725,13 +727,13 @@ class BotpressChatService
         } catch (\Throwable) {
         }
 
-        SendOutboundMessageJob::dispatch($message->id);
+        $this->sendOutbound($message);
         SendCustomerIdleFollowUpJob::dispatchFor($message);
         Log::info('Botpress outbound message queued', [
             'conversation_id' => $conversation->id,
             'stored_message_id' => $message->id,
             'client_message_id' => $clientMessageId,
-            'queue' => 'outbound',
+            'queue' => $this->sendOutboundSync() ? 'sync' : 'outbound',
             'channel' => $message->channel,
             'content_preview' => mb_substr($content, 0, 240),
         ]);
@@ -767,6 +769,10 @@ class BotpressChatService
 
     private function botAttachments(Conversation $conversation, string $content, array $metadata, array $payload = []): array
     {
+        if (! (bool) config('services.botpress.generate_quick_replies', true)) {
+            return [$metadata];
+        }
+
         $quickReplies = $this->quickRepliesForBotMessage($conversation, $content, $payload);
 
         if ($quickReplies === []) {
@@ -814,6 +820,30 @@ class BotpressChatService
         }
 
         return array_values(array_slice($defaults, 0, 13));
+    }
+
+    private function sendOutbound(Message $message): void
+    {
+        if (! $this->sendOutboundSync()) {
+            SendOutboundMessageJob::dispatch($message->id);
+
+            return;
+        }
+
+        try {
+            SendOutboundMessageJob::dispatchSync($message->id);
+        } catch (\Throwable $exception) {
+            Log::warning('Botpress sync outbound failed', [
+                'conversation_id' => $message->conversation_id,
+                'message_id' => $message->id,
+                ...$this->exceptionContext($exception),
+            ]);
+        }
+    }
+
+    private function sendOutboundSync(): bool
+    {
+        return (bool) config('services.botpress.send_outbound_sync', true);
     }
 
     private function quickReplyContext(Conversation $conversation): array
