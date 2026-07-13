@@ -12,33 +12,23 @@ use Modules\Botpress\Models\BotpressConversationLink;
 
 class BotpressAdminController extends Controller
 {
-    public function launch(): RedirectResponse
+    public function index(): View
     {
-        abort_unless(request()->user()?->can('user.manage'), 403);
+        $this->guardAdmin();
 
-        $token = $this->shareToken();
-        abort_if($token === '', 404, 'Chatbot admin token is not configured.');
-
-        return redirect()->route('botpress.admin.public', ['token' => $token]);
+        return $this->view();
     }
 
-    public function index(string $token): View
+    public function show(int $conversation): View
     {
-        $this->guardToken($token);
+        $this->guardAdmin();
 
-        return $this->view($token);
+        return $this->view($conversation);
     }
 
-    public function show(string $token, int $conversation): View
+    public function storeKnowledge(Request $request): RedirectResponse
     {
-        $this->guardToken($token);
-
-        return $this->view($token, $conversation);
-    }
-
-    public function storeKnowledge(string $token, Request $request): RedirectResponse
-    {
-        $this->guardToken($token);
+        $this->guardAdmin();
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:160'],
@@ -91,13 +81,12 @@ class BotpressAdminController extends Controller
         return back()->with('status', 'Đã gửi tài liệu để xử lý.');
     }
 
-    private function view(string $token, ?int $conversationId = null): View
+    private function view(?int $conversationId = null): View
     {
         $conversations = $this->conversations();
         $selectedConversation = $conversationId ? $this->selectedConversation($conversationId) : $conversations->first()?->conversation;
 
         return view('botpress.admin', [
-            'token' => $token,
             'conversations' => $conversations,
             'selectedConversation' => $selectedConversation,
             'knowledgeBases' => $this->knowledgeBases(),
@@ -105,16 +94,9 @@ class BotpressAdminController extends Controller
         ]);
     }
 
-    private function guardToken(string $token): void
+    private function guardAdmin(): void
     {
-        $expected = $this->shareToken();
-
-        abort_if($expected === '' || ! hash_equals($expected, $token), 404);
-    }
-
-    private function shareToken(): string
-    {
-        return trim((string) config('services.botpress.admin_token', ''));
+        abort_unless(request()->user()?->can('user.manage'), 403);
     }
 
     private function conversations()

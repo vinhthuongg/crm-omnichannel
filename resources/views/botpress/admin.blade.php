@@ -324,7 +324,7 @@
                             $lastMessage = ($conversation?->messages ?? collect())->first();
                             $isActive = $selectedConversation?->id === $conversation?->id;
                         @endphp
-                        <a class="conversation {{ $isActive ? 'active' : '' }}" href="{{ route('botpress.admin.conversations.show', ['token' => $token, 'conversation' => $link->conversation_id]) }}">
+                        <a class="conversation {{ $isActive ? 'active' : '' }}" href="{{ route('botpress.admin.conversations.show', ['conversation' => $link->conversation_id]) }}">
                             <div>
                                 <div class="conversation-name">{{ $customer?->name ?: 'Khách hàng #'.$link->conversation_id }}</div>
                                 <div class="meta">{{ $conversation?->status ?: 'Đang xử lý' }}</div>
@@ -398,7 +398,7 @@
                     <h2>Thêm tài liệu / web</h2>
                 </div>
                 <div class="panel-body">
-                    <form method="post" action="{{ route('botpress.admin.knowledge.store', ['token' => $token]) }}">
+                    <form method="post" action="{{ route('botpress.admin.knowledge.store') }}">
                         @csrf
                         <label>
                             <span class="meta">Tiêu đề</span>
