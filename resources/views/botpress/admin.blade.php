@@ -148,7 +148,7 @@
         .chat-scroll {
             max-height: 68vh;
             overflow: auto;
-            padding: 18px 20px;
+            padding: 18px 18px 22px;
             background:
                 radial-gradient(circle, rgba(37, 99, 235, .12) 1px, transparent 1px) 0 0 / 22px 22px,
                 #fbfdff;
@@ -156,21 +156,45 @@
 
         .bubble-row {
             display: flex;
-            margin-bottom: 14px;
+            align-items: flex-end;
+            gap: 8px;
+            margin-bottom: 10px;
         }
 
         .bubble-row.out {
             justify-content: flex-end;
         }
 
+        .bubble-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            flex: 0 0 28px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 13px;
+        }
+
+        .bubble-row.out .bubble-avatar {
+            order: 2;
+            background: #fee2e2;
+            color: #be123c;
+        }
+
         .bubble {
-            max-width: min(620px, 78%);
+            width: fit-content;
+            max-width: min(520px, 72%);
             border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 10px 12px;
+            border-radius: 12px;
+            padding: 8px 10px;
             background: #fff;
-            line-height: 1.45;
+            line-height: 1.38;
             white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            font-size: 14px;
         }
 
         .bubble-row.out .bubble {
@@ -185,16 +209,16 @@
 
         .bubble-author {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             color: var(--muted);
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .bubble-time {
             display: block;
-            margin-top: 7px;
+            margin-top: 5px;
             color: var(--muted);
-            font-size: 12px;
+            font-size: 11px;
             text-align: right;
         }
 
@@ -340,6 +364,7 @@
                                 $isWhisper = $message->message_type === 'whisper' || $message->channel === 'internal';
                             @endphp
                             <div class="bubble-row {{ $isOutbound ? 'out' : '' }} {{ $isWhisper ? 'whisper' : '' }}">
+                                <span class="bubble-avatar">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($message->senderName(), 0, 1)) }}</span>
                                 <div class="bubble">
                                     <span class="bubble-author">{{ $message->senderName() }}</span>
                                     {{ $message->content ?: '[Tệp đính kèm]' }}
