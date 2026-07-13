@@ -43,14 +43,6 @@ return [
         'knowledge_webhook_url' => env('BOTPRESS_KNOWLEDGE_WEBHOOK_URL'),
         'knowledge_webhook_secret' => env('BOTPRESS_KNOWLEDGE_WEBHOOK_SECRET'),
     ],
-    'chat_webview' => [
-        'token' => env('CHAT_WEBVIEW_TOKEN', env('BOTPRESS_ADMIN_TOKEN')),
-    ],
-    'public_admin' => [
-        'enabled' => env('PUBLIC_ADMIN_ACCESS_ENABLED', false),
-        'token' => env('PUBLIC_ADMIN_ACCESS_TOKEN'),
-        'email' => env('PUBLIC_ADMIN_ACCESS_EMAIL', 'admin@oldthread.store'),
-    ],
     'nim' => [
         'api_key' => env('NVIDIA_NIM_API_KEY', env('NVIDIA_API_KEY')),
         'base_url' => env('NVIDIA_NIM_BASE_URL', 'https://integrate.api.nvidia.com/v1'),
