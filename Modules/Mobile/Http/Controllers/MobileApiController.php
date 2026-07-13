@@ -545,14 +545,63 @@ class MobileApiController extends ApiController
 
     public function notifications(Request $request): JsonResponse
     {
-        $query = $request->user()
-            ->notifications()
-            ->latest()
-            ->paginate($this->perPage($request, 20, 100));
+        $scope = (string) $request->query('scope', 'mine');
+        $perPage = $this->perPage($request, 20, 100);
+
+        if ($scope === 'all') {
+            $groups = [
+                'mine' => [
+                    'label' => 'Thông báo của tôi',
+                    ...$this->notificationGroupPayload($request->user(), $this->notificationQueryForUsers(collect([$request->user()])), $perPage),
+                ],
+                'other_admins' => [
+                    'label' => 'Thông báo của admin khác',
+                    ...($request->user()->hasRole('Admin')
+                        ? $this->notificationGroupPayload(null, $this->notificationQueryForUsers($this->otherAdmins($request->user())), $perPage)
+                        : $this->emptyNotificationGroupPayload()),
+                ],
+                'other_agents' => [
+                    'label' => 'Thông báo của nhân viên khác',
+                    ...($request->user()->hasRole('Admin')
+                        ? $this->notificationGroupPayload(null, $this->notificationQueryForUsers($this->otherAgents($request->user())), $perPage)
+                        : $this->emptyNotificationGroupPayload()),
+                ],
+            ];
+
+            return response()->json([
+                'data' => [
+                    'scope' => 'all',
+                    'summary' => collect($groups)
+                        ->map(fn (array $group): array => [
+                            'total' => (int) data_get($group, 'meta.total', 0),
+                            'unread' => (int) data_get($group, 'unread_count', 0),
+                        ])
+                        ->all(),
+                    'groups' => $groups,
+                ],
+            ]);
+        }
+
+        $builder = match ($scope) {
+            'other_admins' => $request->user()->hasRole('Admin')
+                ? $this->notificationQueryForUsers($this->otherAdmins($request->user()))
+                : abort(403),
+            'other_agents' => $request->user()->hasRole('Admin')
+                ? $this->notificationQueryForUsers($this->otherAgents($request->user()))
+                : abort(403),
+            default => $request->user()->notifications()->getQuery()->with('notifiable'),
+        };
+
+        $unreadCount = $this->unreadCountForNotificationQuery(clone $builder);
+        $query = $builder->latest()->paginate($perPage);
 
         return response()->json([
             'data' => $query->getCollection()->map(fn (DatabaseNotification $notification): array => $this->notificationPayload($notification))->values(),
             'meta' => $this->paginationPayload($query),
+            'summary' => [
+                'scope' => in_array($scope, ['mine', 'other_admins', 'other_agents'], true) ? $scope : 'mine',
+                'unread_count' => $unreadCount,
+            ],
         ]);
     }
 
@@ -934,13 +983,82 @@ class MobileApiController extends ApiController
 
     private function notificationPayload(DatabaseNotification $notification): array
     {
+        $notifiable = $notification->notifiable;
+
         return [
             'id' => $notification->id,
             'type' => $notification->type,
+            'owner' => $notifiable instanceof User ? $this->agentPayload($notifiable) : null,
             'data' => $notification->data,
             'read_at' => $notification->read_at?->toISOString(),
             'created_at' => $notification->created_at?->toISOString(),
         ];
+    }
+
+    private function notificationGroupPayload(?User $owner, Builder $query, int $perPage): array
+    {
+        $unreadCount = $this->unreadCountForNotificationQuery(clone $query);
+        $page = $query
+            ->with('notifiable')
+            ->latest()
+            ->paginate($perPage);
+
+        return [
+            'owner' => $owner ? $this->agentPayload($owner) : null,
+            'unread_count' => $unreadCount,
+            'data' => $page->getCollection()
+                ->map(fn (DatabaseNotification $notification): array => $this->notificationPayload($notification))
+                ->values(),
+            'meta' => $this->paginationPayload($page),
+        ];
+    }
+
+    private function emptyNotificationGroupPayload(): array
+    {
+        return [
+            'owner' => null,
+            'unread_count' => 0,
+            'data' => [],
+            'meta' => [
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => 0,
+                'total' => 0,
+                'has_more' => false,
+            ],
+        ];
+    }
+
+    private function notificationQueryForUsers($users): Builder
+    {
+        $ids = collect($users)
+            ->map(fn (User $user): int => (int) $user->getKey())
+            ->filter()
+            ->values();
+
+        return DatabaseNotification::query()
+            ->with('notifiable')
+            ->where('notifiable_type', (new User())->getMorphClass())
+            ->whereIn('notifiable_id', $ids->all());
+    }
+
+    private function unreadCountForNotificationQuery(Builder $query): int
+    {
+        return (int) $query->whereNull('read_at')->count();
+    }
+
+    private function otherAdmins(User $user)
+    {
+        return User::role('Admin')
+            ->whereKeyNot($user->getKey())
+            ->get();
+    }
+
+    private function otherAgents(User $user)
+    {
+        return User::role(['CSKH', 'User'])
+            ->whereKeyNot($user->getKey())
+            ->get();
     }
 
     private function workShiftPayload(WorkShift $shift): array
