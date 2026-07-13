@@ -29,39 +29,39 @@ class GroqQuickReplySuggestionService
         }
 
         try {
+            $startedAt = microtime(true);
             $response = $this->http
                 ->baseUrl(rtrim((string) config('services.groq.base_url'), '/'))
                 ->acceptJson()
                 ->asJson()
                 ->withToken(trim((string) config('services.groq.api_key')))
-                ->timeout((int) config('services.groq.timeout', 8))
+                ->timeout((float) config('services.groq.timeout', 1.2))
+                ->connectTimeout((float) config('services.groq.connect_timeout', 0.5))
                 ->post('/chat/completions', [
                     'model' => trim((string) config('services.groq.model')),
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => $this->cleanSystemPrompt(),
-                        ],
-                        [
-                            'role' => 'system',
-                            'content' => $this->cleanContextRulePrompt(),
+                            'content' => $this->systemPrompt(),
                         ],
                         [
                             'role' => 'user',
                             'content' => json_encode([
-                                'bot_message' => $botMessage,
-                                'conversation_context' => $context,
+                                'bot_message' => mb_substr($botMessage, 0, 900),
+                                'recent_messages' => array_slice($context['messages'] ?? [], -6),
+                                'status' => $context['status'] ?? null,
                             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                         ],
                     ],
-                    'temperature' => 0.7,
-                    'max_completion_tokens' => 900,
+                    'temperature' => 0.45,
+                    'max_completion_tokens' => 520,
                     'response_format' => ['type' => 'json_object'],
                 ]);
 
             if ($response->failed()) {
                 Log::warning('Groq quick reply generation failed', [
                     'status' => $response->status(),
+                    'duration_ms' => (int) ((microtime(true) - $startedAt) * 1000),
                     'body' => mb_substr($response->body(), 0, 1200),
                 ]);
 
@@ -73,14 +73,16 @@ class GroqQuickReplySuggestionService
 
             if ($items === []) {
                 Log::warning('Groq quick reply generation returned empty payload', [
+                    'duration_ms' => (int) ((microtime(true) - $startedAt) * 1000),
                     'text' => mb_substr($text, 0, 1200),
                 ]);
 
                 return [];
             }
 
-            Log::warning('Groq quick replies generated', [
+            Log::info('Groq quick replies generated', [
                 'count' => count($items),
+                'duration_ms' => (int) ((microtime(true) - $startedAt) * 1000),
                 'titles' => array_column($items, 'title'),
             ]);
 
@@ -94,113 +96,23 @@ class GroqQuickReplySuggestionService
         }
     }
 
-    private function contextRulePrompt(): string
-    {
-        return <<<'PROMPT'
-Quy tắc bám chủ đề:
-- Phải đọc cả conversation_context, đặc biệt 6 tin cuối, để hiểu khách đang hỏi gì.
-- Quick reply phải liên quan trực tiếp đến chủ đề khách và bot vừa nói. Không tự nhảy sang chủ đề khác nếu khách chưa gợi ý.
-- Nếu khách đang hỏi kỹ thuật, lỗi xe, cứu hộ hoặc bảo dưỡng: không sinh nút hỏi mua xe, giá xe, trả góp, lái thử, trừ khi cuộc hội thoại có nhắc rõ nhu cầu mua xe.
-- Nếu khách đang hỏi một mẫu xe cụ thể, hầu hết nút phải giữ đúng mẫu xe đó.
-- Nếu khách đang hỏi giá, chỉ mở rộng sang ưu đãi, phiên bản, màu xe, trả góp, lăn bánh và thời gian giao xe của đúng mẫu xe đó.
-- Nếu khách đang hỏi trả góp, ưu tiên số tiền trả trước, kỳ hạn vay, hồ sơ, lãi suất, ngân hàng, số điện thoại.
-- Nếu khách đang hỏi đặt lịch hoặc lái thử, ưu tiên ngày giờ, địa điểm, mẫu xe, giấy tờ, số điện thoại.
-- Nút mở rộng chỉ được chiếm tối đa 3 nút trong 13 nút và vẫn phải hợp lý với ngữ cảnh.
-- Nếu không chắc chủ đề, tạo câu hỏi làm rõ nhu cầu thay vì tự đoán.
-- Payload phải diễn giải đầy đủ ý định khách hàng bằng tiếng Việt có dấu, không chỉ lặp lại title.
-PROMPT;
-    }
-
-    private function cleanContextRulePrompt(): string
-    {
-        return <<<'PROMPT'
-Quy tắc bám chủ đề:
-- Đọc conversation_context, đặc biệt 6 tin cuối, để hiểu khách đang hỏi gì và bot vừa trả lời gì.
-- Quick reply phải liên quan trực tiếp đến chủ đề hiện tại. Không tự nhảy sang giá lăn bánh, tỉnh/thành, trả góp hoặc lái thử nếu khách chưa gợi ý.
-- Nếu khách đang hỏi hồ sơ trả góp, ưu tiên giấy tờ cần chuẩn bị, thu nhập, trả trước, thời hạn vay, ngân hàng, số điện thoại.
-- Nếu khách đang hỏi ưu đãi, ưu tiên ưu đãi đúng mẫu xe/chủ đề, phiên bản, màu xe, trả góp, thời gian nhận xe.
-- Nếu khách đang hỏi kỹ thuật, lỗi xe, cứu hộ hoặc bảo dưỡng, ưu tiên lỗi đang gặp, lịch kiểm tra, gọi kỹ thuật, gửi số điện thoại. Không sinh nút mua xe nếu chưa có nhu cầu mua.
-- Nếu đang nói về một mẫu xe cụ thể, payload phải giữ đúng mẫu xe đó.
-- Nếu chưa chắc chủ đề, tạo câu hỏi làm rõ nhu cầu thay vì tự đoán.
-- Payload phải là một câu đầy đủ, có dấu, nói rõ ý định của khách khi bấm nút.
-PROMPT;
-    }
-
     private function systemPrompt(): string
     {
         return <<<'PROMPT'
-Bạn là trợ lý tạo quick reply cho CRM Toyota Kiên Giang.
+Bạn tạo quick reply cho Messenger của Toyota Kiên Giang.
 
-Nhiệm vụ: đọc tin nhắn gần nhất của bot và tạo 8 đến 13 quick replies. Các nút phải giống câu khách hàng thật sự sẽ bấm để hỏi tiếp, không phải danh mục khô cứng.
+Trả về JSON duy nhất:
+{"quick_replies":[{"title":"...","payload":"..."}]}
 
-Chỉ trả về JSON object đúng format:
-{
-  "quick_replies": [
-    {"title": "Câu ngắn đủ ý", "payload": "Ý định đầy đủ của khách khi bấm nút"}
-  ]
-}
-
-Quy tắc:
-- Viết tiếng Việt có dấu đầy đủ.
-- Tạo tối đa 13 nút, tối thiểu 8 nút nếu đủ ngữ cảnh.
-- title tối đa 20 ký tự để Messenger hiển thị được. Nếu ý dài, tự viết lại thành câu ngắn tự nhiên.
-- title được phép ngắn nhưng không mất nghĩa. Không viết kiểu danh mục một từ như "Báo giá", "Trả góp", "Khuyến mãi", "Lái thử".
-- title phải là câu hỏi hoặc câu nói tự nhiên của khách, ví dụ: "Bản nào hợp anh?", "Trả trước 150tr?", "Còn màu trắng không?", "Mai lái thử được?", "Giấy tờ cần gì?".
-- payload phải là một câu đầy đủ, có dấu, nói rõ ý định của khách và giữ đúng ngữ cảnh bot vừa trả lời.
-- 60-70% nút phải bám sát nhu cầu chính trong tin nhắn bot vừa nói.
-- 30-40% nút còn lại là nhu cầu liên quan hợp lý: phiên bản, màu xe, giá lăn bánh, ưu đãi, trả góp, hồ sơ, lái thử, đặt lịch, bảo dưỡng, kỹ thuật, để lại số điện thoại.
-- Nếu bot đang nói về một mẫu xe cụ thể, payload phải giữ mẫu xe đó. Không tự đổi sang mẫu xe khác.
-- Nếu bot đang nói về kỹ thuật hoặc cứu hộ, ưu tiên các nút hỏi lỗi, đặt lịch kiểm tra, gọi kỹ thuật, gửi số điện thoại.
-- Nếu bot đang nói về giá hoặc ưu đãi, ưu tiên các nút hỏi phiên bản, màu, lăn bánh, trả góp, thời gian nhận xe.
-- Nếu bot đang hỏi xin số điện thoại, tạo một nút có ý định gửi số điện thoại để CRM có thể dùng payload chia sẻ số nếu phù hợp.
-- Không bịa giá, ưu đãi, lãi suất. Nếu cần số liệu, payload chỉ nên yêu cầu tư vấn chi tiết hoặc hỏi thêm thông tin.
+Luật:
+- Tạo 6-10 nút, tiếng Việt có dấu.
+- title tối đa 20 ký tự, là câu khách có thể bấm, không phải danh mục cứng. Ví dụ: "Trả trước 150tr?", "Hồ sơ cần gì?", "Mai lái thử được?".
+- payload là một câu đầy đủ nói rõ ý định khách khi bấm.
+- Bám sát tin nhắn bot vừa gửi và 6 tin gần nhất. Không nhảy sang chủ đề khác.
+- Nếu đang nói về mẫu xe nào thì giữ đúng mẫu xe đó.
+- Nếu bot xin số điện thoại hoặc cần liên hệ, có thể tạo nút "Gửi số cho em".
+- Không bịa giá, ưu đãi, lãi suất. Nếu thiếu dữ liệu thì hỏi làm rõ.
 - Không lặp ý giữa các nút.
-- Giọng điệu lịch sự, tự nhiên, đúng kiểu khách chat với tư vấn viên Toyota.
-
-Ví dụ tốt:
-{"title":"Bản nào hợp anh?","payload":"Khách muốn được tư vấn phiên bản phù hợp với nhu cầu sử dụng và ngân sách của mình."}
-{"title":"Trả trước 150tr?","payload":"Khách muốn hỏi nếu trả trước khoảng 150 triệu thì phương án trả góp cho mẫu xe đang quan tâm sẽ như thế nào."}
-{"title":"Còn màu trắng không?","payload":"Khách muốn hỏi mẫu xe đang quan tâm còn màu trắng tại Toyota Kiên Giang không."}
-{"title":"Mai lái thử được?","payload":"Khách muốn đặt lịch lái thử vào ngày mai cho mẫu xe đang quan tâm."}
-{"title":"Gửi số cho em","payload":"Khách muốn gửi số điện thoại để Toyota Kiên Giang liên hệ tư vấn chi tiết."}
-
-Ví dụ xấu cần tránh:
-{"title":"Báo giá","payload":"Báo giá"}
-{"title":"Trả góp","payload":"Trả góp"}
-{"title":"Khuyến mãi","payload":"Khuyến mãi"}
-PROMPT;
-    }
-
-    private function cleanSystemPrompt(): string
-    {
-        return <<<'PROMPT'
-Bạn là trợ lý tạo quick reply cho CRM Toyota Kiên Giang.
-
-Nhiệm vụ: đọc tin nhắn bot vừa gửi và ngữ cảnh hội thoại, sau đó tạo 8 đến 13 quick replies. Các nút phải giống câu khách hàng thật sự sẽ bấm để hỏi tiếp, không phải danh mục khô cứng.
-
-Chỉ trả về JSON object đúng format:
-{
-  "quick_replies": [
-    {"title": "Câu ngắn đủ ý", "payload": "Ý định đầy đủ của khách khi bấm nút"}
-  ]
-}
-
-Quy tắc:
-- Viết tiếng Việt có dấu đầy đủ.
-- title tối đa 20 ký tự, có thể hơi cụt nhưng phải đủ hiểu.
-- title phải là câu hỏi hoặc câu nói tự nhiên, ví dụ: "Hồ sơ cần gì?", "Trả trước 150tr?", "Còn màu trắng không?", "Mai lái thử được?", "Gửi số cho em".
-- Không dùng title kiểu danh mục một từ như "Báo giá", "Trả góp", "Khuyến mãi".
-- payload phải là một câu đầy đủ, nói rõ ý định của khách và giữ đúng ngữ cảnh.
-- 70% nút phải bám sát nhu cầu chính hiện tại, 30% còn lại là nhu cầu liên quan hợp lý.
-- Không bịa giá, ưu đãi, lãi suất. Nếu cần số liệu, payload chỉ yêu cầu tư vấn hoặc hỏi thêm thông tin.
-- Không lặp ý giữa các nút.
-- Giọng điệu lịch sự, tự nhiên, đúng kiểu khách chat với tư vấn viên Toyota.
-
-Ví dụ tốt:
-{"title":"Hồ sơ cần gì?","payload":"Khách muốn biết hồ sơ và giấy tờ cần chuẩn bị để mua mẫu xe đang quan tâm theo hình thức trả góp."}
-{"title":"Trả trước 150tr?","payload":"Khách muốn hỏi nếu trả trước khoảng 150 triệu thì phương án trả góp cho mẫu xe đang quan tâm sẽ như thế nào."}
-{"title":"Ưu đãi xe này?","payload":"Khách muốn hỏi ưu đãi hiện tại cho mẫu xe đang được tư vấn trong cuộc trò chuyện."}
-{"title":"Gửi số cho em","payload":"Khách muốn gửi số điện thoại để Toyota Kiên Giang liên hệ tư vấn chi tiết."}
 PROMPT;
     }
 

@@ -881,6 +881,52 @@ class BotpressChatService
 
     private function defaultQuickReplies(string $content): array
     {
+        return $this->fastDefaultQuickReplies($content);
+    }
+
+    private function fastDefaultQuickReplies(string $content): array
+    {
+        $lower = Str::of($content)->lower()->ascii()->toString();
+
+        if ($this->containsAny($lower, ['tra gop', 'lai suat', 'vay', 'ngan hang', 'ho so', 'tra truoc'])) {
+            return [
+                $this->quickReply('Tính góp xe này?', 'Khách muốn tính phương án trả góp cho mẫu xe đang được tư vấn trong cuộc trò chuyện hiện tại.'),
+                $this->quickReply('Hồ sơ cần gì?', 'Khách muốn biết hồ sơ và giấy tờ cần chuẩn bị để mua mẫu xe đang tư vấn theo hình thức trả góp.'),
+                $this->quickReply('Trả trước bao nhiêu?', 'Khách muốn biết cần trả trước bao nhiêu tiền để mua mẫu xe đang quan tâm theo hình thức trả góp.'),
+                $this->quickReply('Vay mấy năm được?', 'Khách muốn hỏi thời hạn vay phù hợp khi mua xe trả góp.'),
+                $this->quickReply('Gửi số tư vấn', 'Khách muốn để lại số điện thoại để nhân viên Toyota Kiên Giang gọi tư vấn chi tiết.'),
+            ];
+        }
+
+        if ($this->containsAny($lower, ['lai thu', 'dat lich', 'lich hen', 'showroom'])) {
+            return [
+                $this->quickReply('Đặt lịch lái thử?', 'Khách muốn đặt lịch lái thử mẫu xe đang được tư vấn trong cuộc trò chuyện hiện tại.'),
+                $this->quickReply('Mai còn lịch không?', 'Khách muốn hỏi ngày mai còn lịch lái thử mẫu xe đang quan tâm không.'),
+                $this->quickReply('Lái thử cần gì?', 'Khách muốn biết khi đi lái thử cần chuẩn bị giấy tờ gì.'),
+                $this->quickReply('Gửi số giữ lịch', 'Khách muốn để lại số điện thoại để nhân viên giữ lịch lái thử.'),
+            ];
+        }
+
+        if ($this->containsAny($lower, ['gia', 'khuyen mai', 'uu dai', 'lan banh', 'phien ban', 'mau xe'])) {
+            return [
+                $this->quickReply('Giá lăn bánh xe?', 'Khách muốn hỏi giá lăn bánh cho mẫu xe đang được tư vấn trong cuộc trò chuyện hiện tại.'),
+                $this->quickReply('Ưu đãi xe này?', 'Khách muốn hỏi ưu đãi và khuyến mãi hiện tại cho mẫu xe đang được tư vấn.'),
+                $this->quickReply('Trả góp xe này?', 'Khách muốn hỏi phương án trả góp cho mẫu xe đang được tư vấn.'),
+                $this->quickReply('Còn màu nào không?', 'Khách muốn hỏi mẫu xe đang được tư vấn còn những màu nào tại Toyota Kiên Giang.'),
+                $this->quickReply('Gửi số nhận giá', 'Khách muốn để lại số điện thoại để nhận báo giá chi tiết từ Toyota Kiên Giang.'),
+            ];
+        }
+
+        return [
+            $this->quickReply('Tư vấn xe hợp?', 'Khách muốn được tư vấn mẫu Toyota phù hợp với nhu cầu sử dụng và ngân sách.'),
+            $this->quickReply('Xin giá lăn bánh?', 'Khách muốn xin giá lăn bánh chi tiết cho mẫu xe đang quan tâm trong cuộc trò chuyện.'),
+            $this->quickReply('Xem ưu đãi xe?', 'Khách muốn xem ưu đãi và khuyến mãi hiện tại của mẫu xe đang được tư vấn.'),
+            $this->quickReply('Đặt lịch lái thử?', 'Khách muốn đặt lịch lái thử mẫu xe đang quan tâm.'),
+        ];
+    }
+
+    private function legacyDefaultQuickRepliesWithBrokenEncoding(string $content): array
+    {
         $lower = mb_strtolower($content);
 
         if ($this->containsAny($lower, ['tra gop', 'trả góp', 'lai suat', 'lãi suất', 'vay'])) {

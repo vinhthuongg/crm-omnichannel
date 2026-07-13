@@ -47,11 +47,12 @@ return [
     ],
     'groq' => [
         'enabled' => env('GROQ_QUICK_REPLIES_ENABLED', false),
-        'fallback_enabled' => env('GROQ_QUICK_REPLIES_FALLBACK_ENABLED', false),
+        'fallback_enabled' => env('GROQ_QUICK_REPLIES_FALLBACK_ENABLED', true),
         'api_key' => env('GROQ_API_KEY'),
         'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
-        'model' => env('GROQ_QUICK_REPLY_MODEL', 'llama-3.3-70b-versatile'),
-        'timeout' => (int) env('GROQ_TIMEOUT', 2),
+        'model' => env('GROQ_QUICK_REPLY_MODEL', 'llama-3.1-8b-instant'),
+        'timeout' => (float) env('GROQ_TIMEOUT', 1.2),
+        'connect_timeout' => (float) env('GROQ_CONNECT_TIMEOUT', 0.5),
     ],
     'firebase' => [
         'enabled' => env('FIREBASE_FCM_ENABLED', false),
