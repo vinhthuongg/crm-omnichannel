@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\ChatWebviewController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MessengerController;
+use App\Http\Controllers\Web\PublicAdminAccessController;
 use App\Http\Controllers\Web\WorkShiftController;
 use Modules\Customer\Http\Controllers\CustomerPageController;
 
@@ -21,6 +22,7 @@ Route::view('terms-of-service', 'legal.terms')->name('legal.terms');
 Route::view('data-deletion', 'legal.data-deletion')->name('legal.data-deletion');
 Route::get('chat-webview/{token}', [ChatWebviewController::class, 'index'])->name('chat-webview.index');
 Route::get('chat-webview/{token}/conversations/{conversation}', [ChatWebviewController::class, 'show'])->name('chat-webview.show');
+Route::get('public-admin/{token}', PublicAdminAccessController::class)->name('public-admin.launch');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('login', [AuthController::class, 'create'])->name('login');
