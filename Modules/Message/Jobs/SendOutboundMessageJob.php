@@ -38,19 +38,63 @@ class SendOutboundMessageJob implements ShouldQueue
             ->with('conversation.customer.channels')
             ->find($this->messageId);
 
-        if (! $message?->conversation) {
+        if (! $message) {
+            Log::warning('Outbound job skipped because message was not found', [
+                'message_id' => $this->messageId,
+            ]);
+
+            return;
+        }
+
+        if (! $message->conversation) {
+            Log::warning('Outbound job skipped because conversation was not found', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'channel' => $message->channel,
+                'sender_type' => $message->sender_type,
+                'outbound_status' => $message->outbound_status,
+            ]);
+
             return;
         }
 
         if ($message->recalled_at || $message->trashed()) {
+            Log::info('Outbound job skipped because message is no longer sendable', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'channel' => $message->channel,
+                'sender_type' => $message->sender_type,
+                'outbound_status' => $message->outbound_status,
+                'recalled_at' => $message->recalled_at?->toISOString(),
+                'trashed' => $message->trashed(),
+            ]);
+
             return;
         }
 
         if ($message->outbound_status !== 'queued') {
+            Log::info('Outbound job skipped because message is not queued', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'channel' => $message->channel,
+                'sender_type' => $message->sender_type,
+                'outbound_status' => $message->outbound_status,
+                'external_message_id' => $message->external_message_id,
+            ]);
+
             return;
         }
 
         try {
+            Log::info('Outbound job sending message', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'channel' => $message->channel,
+                'sender_type' => $message->sender_type,
+                'attachments_count' => count($message->attachments ?? []),
+                'content_preview' => mb_substr((string) $message->content, 0, 240),
+            ]);
+
             $message->forceFill([
                 'outbound_status' => 'sending',
                 'outbound_error' => null,
@@ -86,6 +130,14 @@ class SendOutboundMessageJob implements ShouldQueue
                 'sent_at' => now(),
             ])->save();
             event(new MessageUpdatedEvent($message));
+
+            Log::info('Outbound job marked message as sent', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'channel' => $message->channel,
+                'sender_type' => $message->sender_type,
+                'external_message_id' => $externalMessageId,
+            ]);
 
             if ($message->sender_type === 'system') {
                 $outbound->stopTyping($message->conversation, $message->channel);
