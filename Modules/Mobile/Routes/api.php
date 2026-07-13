@@ -11,8 +11,10 @@ Route::middleware('auth:sanctum')->prefix('mobile')->group(function (): void {
     Route::delete('devices/fcm-token', [MobileApiController::class, 'destroyFcmToken']);
 
     Route::get('conversations', [MobileApiController::class, 'conversations']);
+    Route::get('conversations/stream', [MobileApiController::class, 'conversationStream']);
     Route::get('conversations/{conversation}', [MobileApiController::class, 'conversation']);
     Route::get('conversations/{conversation}/messages', [MobileApiController::class, 'messages']);
+    Route::get('conversations/{conversation}/messages/stream', [MobileApiController::class, 'messageStream']);
     Route::post('conversations/{conversation}/messages', [MobileApiController::class, 'sendMessage']);
     Route::post('conversations/{conversation}/read', [MobileApiController::class, 'markRead']);
     Route::post('conversations/{conversation}/assign', [MobileApiController::class, 'assign']);

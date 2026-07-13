@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Broadcast;
@@ -177,6 +178,75 @@ class MobileApiController extends ApiController
                 ->values(),
             'meta' => $this->paginationPayload($query),
         ]);
+    }
+
+    public function conversationStream(Request $request): StreamedResponse
+    {
+        $lastId = max(0, $request->integer('after_id'));
+        $user = $request->user();
+
+        return response()->stream(function () use ($user, $lastId): void {
+            $this->prepareStream();
+
+            $startedAt = time();
+            echo "retry: 1000\n\n";
+            echo ': '.str_repeat(' ', 2048)."\n\n";
+            $this->flushStream();
+
+            while (! connection_aborted() && time() - $startedAt < 55) {
+                $visibleConversationIds = $this->visibility->visibleFor($user)->select('id');
+                $messages = Message::query()
+                    ->with(['sender', 'conversation.customer.channels', 'conversation.customer.tags', 'conversation.assignee', 'conversation.tags'])
+                    ->where('id', '>', $lastId)
+                    ->whereIn('conversation_id', $visibleConversationIds)
+                    ->oldest('id')
+                    ->limit(100)
+                    ->get();
+
+                foreach ($messages as $message) {
+                    $lastId = max($lastId, (int) $message->id);
+                    $this->writeStreamMessage($lastId, $message);
+                }
+
+                echo ": heartbeat\n\n";
+                $this->flushStream();
+                sleep(1);
+            }
+        }, 200, $this->streamHeaders());
+    }
+
+    public function messageStream(Request $request, Conversation $conversation): StreamedResponse
+    {
+        abort_unless($this->visibility->canView($request->user(), $conversation), 403);
+
+        $lastId = max(0, $request->integer('after_id'));
+
+        return response()->stream(function () use ($conversation, $lastId): void {
+            $this->prepareStream();
+
+            $startedAt = time();
+            echo "retry: 1000\n\n";
+            echo ': '.str_repeat(' ', 2048)."\n\n";
+            $this->flushStream();
+
+            while (! connection_aborted() && time() - $startedAt < 55) {
+                $messages = $conversation->messages()
+                    ->with(['sender', 'conversation.customer.channels', 'conversation.customer.tags', 'conversation.assignee', 'conversation.tags'])
+                    ->where('id', '>', $lastId)
+                    ->oldest('id')
+                    ->limit(100)
+                    ->get();
+
+                foreach ($messages as $message) {
+                    $lastId = max($lastId, (int) $message->id);
+                    $this->writeStreamMessage($lastId, $message);
+                }
+
+                echo ": heartbeat\n\n";
+                $this->flushStream();
+                sleep(1);
+            }
+        }, 200, $this->streamHeaders());
     }
 
     public function sendMessage(Request $request, Conversation $conversation, SendMessageAction $action): JsonResponse
@@ -617,6 +687,48 @@ class MobileApiController extends ApiController
         $request->user()->unreadNotifications->markAsRead();
 
         return response()->json(status: 204);
+    }
+
+    private function prepareStream(): void
+    {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
+        if (function_exists('session_write_close')) {
+            @session_write_close();
+        }
+    }
+
+    private function streamHeaders(): array
+    {
+        return [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache, no-transform',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ];
+    }
+
+    private function writeStreamMessage(int $lastId, Message $message): void
+    {
+        $payload = [
+            'message' => $this->messagePayload($message),
+            'conversation' => $message->conversation ? $this->conversationPayload($message->conversation) : null,
+        ];
+
+        echo 'id: '.$lastId."\n";
+        echo "event: message\n";
+        echo 'data: '.json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n\n";
+    }
+
+    private function flushStream(): void
+    {
+        if (ob_get_level() > 0) {
+            @ob_flush();
+        }
+
+        @flush();
     }
 
     private function conversationPayload(Conversation $conversation): array
@@ -1296,6 +1408,8 @@ class MobileApiController extends ApiController
                 rawurlencode((string) $reverb['key']),
             ),
             'auth_url' => url('/api/mobile/broadcasting/auth'),
+            'inbox_stream_url' => url('/api/mobile/conversations/stream'),
+            'conversation_stream_url_pattern' => url('/api/mobile/conversations/{conversation_id}/messages/stream'),
             'inbox_channel' => 'private-crm.user.'.$request->user()->id.'.conversations',
             'conversation_channel_pattern' => 'private-crm.conversation.{conversation_id}',
             'events' => ['message.created', 'message.updated', 'message.deleted'],
