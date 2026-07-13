@@ -19,6 +19,7 @@ use Modules\Conversation\Support\AssignmentType;
 use Modules\Conversation\Support\ConversationAction;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Botpress\Jobs\ResumeBotAfterIdleJob;
+use Modules\Message\Jobs\SendCustomerIdleFollowUpJob;
 use Modules\Message\Models\Message;
 
 class ConversationService
@@ -181,6 +182,7 @@ class ConversationService
 
         if (! $isWhisper) {
             ResumeBotAfterIdleJob::dispatchFor($message, 'agent_reply');
+            SendCustomerIdleFollowUpJob::dispatchFor($message);
         }
     }
 

@@ -12,6 +12,7 @@ use Modules\Botpress\Models\BotpressConversationLink;
 use Modules\Conversation\Models\Conversation;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Events\NewMessageEvent;
+use Modules\Message\Jobs\SendCustomerIdleFollowUpJob;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 
@@ -596,6 +597,7 @@ class BotpressChatService
         }
 
         SendOutboundMessageJob::dispatch($message->id);
+        SendCustomerIdleFollowUpJob::dispatchFor($message);
         Log::info('Botpress outbound message queued', [
             'conversation_id' => $conversation->id,
             'stored_message_id' => $message->id,
@@ -722,6 +724,7 @@ class BotpressChatService
         }
 
         SendOutboundMessageJob::dispatch($message->id);
+        SendCustomerIdleFollowUpJob::dispatchFor($message);
         Log::info('Botpress outbound message queued', [
             'conversation_id' => $conversation->id,
             'stored_message_id' => $message->id,

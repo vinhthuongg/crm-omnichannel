@@ -33,6 +33,7 @@ return [
         'response_poll_attempts' => (int) env('BOTPRESS_RESPONSE_POLL_ATTEMPTS', 24),
         'response_poll_delay_ms' => (int) env('BOTPRESS_RESPONSE_POLL_DELAY_MS', 1000),
         'idle_resume_minutes' => (int) env('BOTPRESS_IDLE_RESUME_MINUTES', 2),
+        'customer_idle_follow_up_minutes' => (int) env('CUSTOMER_IDLE_FOLLOW_UP_MINUTES', 3),
     ],
     'nim' => [
         'api_key' => env('NVIDIA_NIM_API_KEY', env('NVIDIA_API_KEY')),
