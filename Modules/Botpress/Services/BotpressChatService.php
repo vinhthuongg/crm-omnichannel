@@ -148,8 +148,17 @@ class BotpressChatService
 
             $replies = $this->filterBotRepliesForCustomer($conversation, $replies);
 
-            foreach ($replies as $reply) {
-                $message = $this->storeBotReply($conversation, $link, $reply);
+            $sessionQuickReplyContent = $this->botReplySessionContent($replies);
+            $lastReplyIndex = count($replies) - 1;
+
+            foreach ($replies as $index => $reply) {
+                $message = $this->storeBotReply(
+                    $conversation,
+                    $link,
+                    $reply,
+                    includeQuickReplies: $index === $lastReplyIndex,
+                    quickReplySourceContent: $sessionQuickReplyContent,
+                );
 
                 if (! $message) {
                     Log::info('Botpress relay reply skipped because it was already stored', [
@@ -544,7 +553,13 @@ class BotpressChatService
         return trim((string) preg_replace('/\s+/u', ' ', mb_strtolower($content)));
     }
 
-    private function storeBotReply(Conversation $conversation, BotpressConversationLink $link, array $reply): ?Message
+    private function storeBotReply(
+        Conversation $conversation,
+        BotpressConversationLink $link,
+        array $reply,
+        bool $includeQuickReplies = true,
+        ?string $quickReplySourceContent = null,
+    ): ?Message
     {
         $content = trim((string) data_get($reply, 'payload.text', ''));
 
@@ -563,7 +578,7 @@ class BotpressChatService
             return null;
         }
 
-        $message = DB::transaction(function () use ($conversation, $link, $reply, $content, $clientMessageId): Message {
+        $message = DB::transaction(function () use ($conversation, $link, $reply, $content, $clientMessageId, $includeQuickReplies, $quickReplySourceContent): Message {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
@@ -571,11 +586,11 @@ class BotpressChatService
                 'channel' => 'facebook',
                 'content' => $content,
                 'message_type' => 'text',
-                'attachments' => $this->botAttachments($conversation, $content, [
+                'attachments' => $this->botAttachments($conversation, $quickReplySourceContent ?: $content, [
                     'type' => 'metadata',
                     'name' => 'botpress',
                     'payload' => ['message' => $reply],
-                ], $reply),
+                ], $reply, $includeQuickReplies),
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -767,9 +782,9 @@ class BotpressChatService
         ];
     }
 
-    private function botAttachments(Conversation $conversation, string $content, array $metadata, array $payload = []): array
+    private function botAttachments(Conversation $conversation, string $content, array $metadata, array $payload = [], bool $includeQuickReplies = true): array
     {
-        if (! (bool) config('services.botpress.generate_quick_replies', true)) {
+        if (! $includeQuickReplies || ! (bool) config('services.botpress.generate_quick_replies', true)) {
             return [$metadata];
         }
 
@@ -786,6 +801,14 @@ class BotpressChatService
                 'quick_replies' => $quickReplies,
             ],
         ];
+    }
+
+    private function botReplySessionContent(array $replies): string
+    {
+        return collect($replies)
+            ->map(fn (array $reply): string => trim((string) data_get($reply, 'payload.text', '')))
+            ->filter()
+            ->implode("\n\n");
     }
 
     private function quickRepliesForBotMessage(Conversation $conversation, string $content, array $payload = []): array
