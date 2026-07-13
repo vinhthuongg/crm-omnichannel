@@ -9,6 +9,11 @@ use RuntimeException;
 
 class FacebookMessengerService
 {
+    private const QUICK_REPLY_TEXT_LIMIT = 1024;
+    private const QUICK_REPLY_TITLE_LIMIT = 20;
+    private const QUICK_REPLY_COUNT_LIMIT = 13;
+    private const QUICK_REPLY_PAYLOAD_LIMIT = 1000;
+
     public function __construct(private readonly Http $http)
     {
     }
@@ -118,6 +123,8 @@ class FacebookMessengerService
 
     private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken = null): array
     {
+        $message = $this->normalizeTextPayload($message);
+
         if (! empty($message['quick_replies'])) {
             Log::warning('Facebook text payload includes quick replies', [
                 'recipient_id' => $recipientId,
@@ -156,6 +163,64 @@ class FacebookMessengerService
 
         $response->throw();
         return $response->json();
+    }
+
+    private function normalizeTextPayload(array $message): array
+    {
+        $quickReplies = $this->normalizeQuickReplies((array) ($message['quick_replies'] ?? []));
+
+        if ($quickReplies === []) {
+            unset($message['quick_replies']);
+
+            return $message;
+        }
+
+        $originalText = (string) ($message['text'] ?? '');
+        $message['text'] = mb_substr($originalText, 0, self::QUICK_REPLY_TEXT_LIMIT);
+        $message['quick_replies'] = $quickReplies;
+
+        if (mb_strlen($originalText) > self::QUICK_REPLY_TEXT_LIMIT) {
+            Log::info('Facebook quick reply text truncated to Messenger limit', [
+                'original_length' => mb_strlen($originalText),
+                'limit' => self::QUICK_REPLY_TEXT_LIMIT,
+            ]);
+        }
+
+        return $message;
+    }
+
+    private function normalizeQuickReplies(array $quickReplies): array
+    {
+        return collect($quickReplies)
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(function (array $item): ?array {
+                $contentType = (string) ($item['content_type'] ?? 'text');
+
+                if ($contentType === 'user_phone_number') {
+                    return ['content_type' => 'user_phone_number'];
+                }
+
+                if ($contentType !== 'text') {
+                    return null;
+                }
+
+                $title = trim((string) ($item['title'] ?? ''));
+
+                if ($title === '') {
+                    return null;
+                }
+
+                return [
+                    'content_type' => 'text',
+                    'title' => mb_substr($title, 0, self::QUICK_REPLY_TITLE_LIMIT),
+                    'payload' => mb_substr(trim((string) ($item['payload'] ?? $title)), 0, self::QUICK_REPLY_PAYLOAD_LIMIT),
+                ];
+            })
+            ->filter()
+            ->unique(fn (array $item): string => ($item['content_type'] ?? '').'|'.($item['title'] ?? ''))
+            ->take(self::QUICK_REPLY_COUNT_LIMIT)
+            ->values()
+            ->all();
     }
 
     public function profile(string $psid, ?string $pageAccessToken = null): array
