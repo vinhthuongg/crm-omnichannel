@@ -521,13 +521,13 @@ class BotpressChatService
                 continue;
             }
 
-            if ($normalized === $previous || str_contains($normalized, $previous) || str_contains($previous, $normalized)) {
+            if ($normalized === $previous) {
                 return true;
             }
 
             similar_text($normalized, $previous, $percent);
 
-            if ($percent >= 82) {
+            if ($percent >= 94) {
                 return true;
             }
         }
