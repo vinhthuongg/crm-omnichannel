@@ -16,9 +16,7 @@
             --green: #15803d;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -27,23 +25,16 @@
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
-        a {
-            color: var(--blue);
-            text-decoration: none;
-        }
+        a { color: inherit; text-decoration: none; }
 
         .page {
-            max-width: 1280px;
+            max-width: 1360px;
             margin: 0 auto;
             padding: 28px 20px 48px;
         }
 
         .topbar {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 18px;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         h1 {
@@ -59,35 +50,29 @@
             font-weight: 500;
         }
 
-        .sub {
-            margin: 0;
+        .sub, .meta, .message-line {
             color: var(--muted);
         }
 
-        .button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            padding: 0 18px;
+        .notice {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
             border: 1px solid var(--line);
-            border-radius: 10px;
-            background: var(--panel);
-            color: var(--text);
-            font: inherit;
-            cursor: pointer;
+            background: #eff6ff;
         }
 
-        .button.primary {
-            border-color: var(--red);
-            background: var(--red);
-            color: #ffffff;
+        .notice.error {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #991b1b;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+            grid-template-columns: 360px minmax(0, 1fr) 360px;
             gap: 16px;
+            align-items: start;
         }
 
         .panel {
@@ -111,45 +96,18 @@
             padding: 18px 20px;
         }
 
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .status {
-            padding: 12px;
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            background: #f8fafc;
-        }
-
-        .label {
-            display: block;
-            color: var(--muted);
-            font-size: 12px;
-            margin-bottom: 6px;
-        }
-
-        .value {
-            word-break: break-word;
-        }
-
-        .ok {
-            color: var(--green);
-        }
-
-        .warn {
-            color: var(--red);
-        }
-
         .conversation {
             display: grid;
             grid-template-columns: 1fr auto;
-            gap: 14px;
+            gap: 12px;
             padding: 16px 20px;
             border-bottom: 1px solid var(--line);
+            transition: background .15s ease;
+        }
+
+        .conversation:hover,
+        .conversation.active {
+            background: #eff6ff;
         }
 
         .conversation:last-child {
@@ -158,19 +116,16 @@
 
         .conversation-name {
             margin-bottom: 6px;
-            font-size: 17px;
+            font-size: 16px;
+            font-weight: 500;
         }
 
-        .meta,
         .message-line {
-            color: var(--muted);
+            margin-top: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             font-size: 13px;
-        }
-
-        .message-list {
-            display: grid;
-            gap: 6px;
-            margin-top: 10px;
         }
 
         .pill {
@@ -182,6 +137,65 @@
             color: var(--muted);
             font-size: 12px;
             white-space: nowrap;
+        }
+
+        .chat-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+        }
+
+        .chat-scroll {
+            max-height: 68vh;
+            overflow: auto;
+            padding: 18px 20px;
+            background:
+                radial-gradient(circle, rgba(37, 99, 235, .12) 1px, transparent 1px) 0 0 / 22px 22px,
+                #fbfdff;
+        }
+
+        .bubble-row {
+            display: flex;
+            margin-bottom: 14px;
+        }
+
+        .bubble-row.out {
+            justify-content: flex-end;
+        }
+
+        .bubble {
+            max-width: min(620px, 78%);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 10px 12px;
+            background: #fff;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+
+        .bubble-row.out .bubble {
+            background: #eaf2ff;
+            border-color: #c7d8f8;
+        }
+
+        .bubble-row.whisper .bubble {
+            background: #fff7ed;
+            border-color: #fed7aa;
+        }
+
+        .bubble-author {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .bubble-time {
+            display: block;
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: right;
         }
 
         .kb-list {
@@ -207,8 +221,7 @@
             gap: 12px;
         }
 
-        input,
-        textarea {
+        input, textarea {
             width: 100%;
             border: 1px solid #cbd5e1;
             border-radius: 10px;
@@ -219,33 +232,41 @@
         }
 
         textarea {
-            min-height: 150px;
+            min-height: 140px;
             resize: vertical;
         }
 
-        .notice {
-            margin-bottom: 14px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            background: #eff6ff;
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 18px;
+            border: 1px solid var(--red);
+            border-radius: 10px;
+            background: var(--red);
+            color: #fff;
+            font: inherit;
+            cursor: pointer;
         }
 
-        .notice.error {
-            background: #fff1f2;
-            border-color: #fecdd3;
-            color: #991b1b;
-        }
-
-        @media (max-width: 900px) {
-            .topbar,
+        @media (max-width: 1100px) {
             .grid {
-                grid-template-columns: 1fr;
-                display: grid;
+                grid-template-columns: 320px minmax(0, 1fr);
             }
 
-            .status-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+            .side-panel {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chat-scroll {
+                max-height: none;
             }
         }
     </style>
@@ -253,13 +274,8 @@
 <body>
     <main class="page">
         <header class="topbar">
-            <div>
-                <h1>Quản trị Chatbot</h1>
-                <p class="sub">Link này dùng để xem nhanh hội thoại Botpress và gửi tài liệu mới vào luồng tri thức.</p>
-            </div>
-            @if ($studioUrl !== '')
-                <a class="button primary" href="{{ $studioUrl }}" target="_blank" rel="noreferrer">Mở Botpress</a>
-            @endif
+            <h1>Quản trị Chatbot</h1>
+            <p class="sub">Xem hội thoại chatbot và gửi thêm tài liệu cho kho tri thức.</p>
         </header>
 
         @if (session('status'))
@@ -269,29 +285,6 @@
         @if (session('error'))
             <div class="notice error">{{ session('error') }}</div>
         @endif
-
-        <section class="status-grid" aria-label="Trạng thái tích hợp">
-            <article class="status">
-                <span class="label">Botpress</span>
-                <span class="value {{ $integration['enabled'] ? 'ok' : 'warn' }}">{{ $integration['enabled'] ? 'Đang bật' : 'Đang tắt' }}</span>
-            </article>
-            <article class="status">
-                <span class="label">API key</span>
-                <span class="value {{ $integration['has_api_key'] ? 'ok' : 'warn' }}">{{ $integration['has_api_key'] ? 'Đã cấu hình' : 'Chưa có' }}</span>
-            </article>
-            <article class="status">
-                <span class="label">Webhook ID</span>
-                <span class="value">{{ $integration['webhook_id'] ?: 'Chưa có' }}</span>
-            </article>
-            <article class="status">
-                <span class="label">Callback</span>
-                <span class="value">{{ $integration['prefer_callback'] ? 'Ưu tiên callback' : 'Polling' }}</span>
-            </article>
-            <article class="status">
-                <span class="label">Knowledge upload</span>
-                <span class="value {{ $canUploadKnowledge ? 'ok' : 'warn' }}">{{ $canUploadKnowledge ? 'Sẵn sàng' : 'Chưa cấu hình' }}</span>
-            </article>
-        </section>
 
         <div class="grid">
             <section class="panel">
@@ -304,32 +297,63 @@
                         @php
                             $conversation = $link->conversation;
                             $customer = $conversation?->customer;
+                            $lastMessage = ($conversation?->messages ?? collect())->first();
+                            $isActive = $selectedConversation?->id === $conversation?->id;
                         @endphp
-                        <article class="conversation">
+                        <a class="conversation {{ $isActive ? 'active' : '' }}" href="{{ route('botpress.admin.conversations.show', ['token' => $token, 'conversation' => $link->conversation_id]) }}">
                             <div>
                                 <div class="conversation-name">{{ $customer?->name ?: 'Khách hàng #'.$link->conversation_id }}</div>
-                                <div class="meta">
-                                    CRM #{{ $link->conversation_id }} · Botpress {{ $link->botpress_conversation_id ?: 'chưa có id' }}
-                                </div>
-                                <div class="message-list">
-                                    @foreach (($conversation?->messages ?? collect())->sortByDesc('id')->take(3) as $message)
-                                        <div class="message-line">
-                                            {{ $message->senderName() }}: {{ \Illuminate\Support\Str::limit((string) $message->content, 120) }}
-                                        </div>
-                                    @endforeach
+                                <div class="meta">{{ $conversation?->status ?: 'Đang xử lý' }}</div>
+                                <div class="message-line">
+                                    {{ $lastMessage ? $lastMessage->senderName().': '.\Illuminate\Support\Str::limit((string) $lastMessage->content, 90) : 'Chưa có tin nhắn' }}
                                 </div>
                             </div>
-                            <span class="pill">{{ optional($conversation?->last_message_at)->format('d/m H:i') ?: 'Chưa có tin' }}</span>
-                        </article>
+                            <span class="pill">{{ optional($conversation?->last_message_at)->format('d/m H:i') ?: 'Mới' }}</span>
+                        </a>
                     @empty
                         <div class="panel-body">
-                            <p class="sub">Chưa có hội thoại Botpress nào được đồng bộ về CRM.</p>
+                            <p class="sub">Chưa có hội thoại nào được đồng bộ.</p>
                         </div>
                     @endforelse
                 </div>
             </section>
 
-            <aside class="panel">
+            <section class="panel">
+                <div class="panel-header chat-header">
+                    <div>
+                        <h2>{{ $selectedConversation?->customer?->name ?: 'Chọn hội thoại' }}</h2>
+                        @if ($selectedConversation)
+                            <p class="sub">Trạng thái: {{ $selectedConversation->status }} · {{ $selectedConversation->messages->count() }} tin gần nhất</p>
+                        @else
+                            <p class="sub">Bấm một hội thoại bên trái để xem chi tiết.</p>
+                        @endif
+                    </div>
+                    @if ($selectedConversation?->assignee)
+                        <span class="pill">{{ $selectedConversation->assignee->name }}</span>
+                    @endif
+                </div>
+                <div class="chat-scroll">
+                    @if ($selectedConversation)
+                        @foreach ($selectedConversation->messages->sortBy('id') as $message)
+                            @php
+                                $isOutbound = in_array($message->sender_type, ['system', 'user'], true);
+                                $isWhisper = $message->message_type === 'whisper' || $message->channel === 'internal';
+                            @endphp
+                            <div class="bubble-row {{ $isOutbound ? 'out' : '' }} {{ $isWhisper ? 'whisper' : '' }}">
+                                <div class="bubble">
+                                    <span class="bubble-author">{{ $message->senderName() }}</span>
+                                    {{ $message->content ?: '[Tệp đính kèm]' }}
+                                    <span class="bubble-time">{{ optional($message->created_at)->format('H:i d/m/Y') }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    @else
+                        <p class="sub">Chưa chọn hội thoại.</p>
+                    @endif
+                </div>
+            </section>
+
+            <aside class="panel side-panel">
                 <div class="panel-header">
                     <h2>Knowledge Bases</h2>
                 </div>
@@ -352,18 +376,18 @@
                     <form method="post" action="{{ route('botpress.admin.knowledge.store', ['token' => $token]) }}">
                         @csrf
                         <label>
-                            <span class="label">Tiêu đề</span>
+                            <span class="meta">Tiêu đề</span>
                             <input name="title" value="{{ old('title') }}" required maxlength="160" placeholder="Ví dụ: Bảng giá Vios tháng này">
                         </label>
                         <label>
-                            <span class="label">URL tài liệu hoặc website</span>
+                            <span class="meta">URL tài liệu hoặc website</span>
                             <input name="source_url" value="{{ old('source_url') }}" type="url" placeholder="https://...">
                         </label>
                         <label>
-                            <span class="label">Nội dung ghi chú thêm</span>
+                            <span class="meta">Nội dung ghi chú thêm</span>
                             <textarea name="content" placeholder="Dán nội dung nếu không dùng URL">{{ old('content') }}</textarea>
                         </label>
-                        <button class="button primary" type="submit">Gửi vào Botpress</button>
+                        <button class="button" type="submit">Gửi tài liệu</button>
                     </form>
                 </div>
             </aside>

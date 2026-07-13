@@ -17,7 +17,7 @@ class BotpressAdminController extends Controller
         abort_unless(request()->user()?->can('user.manage'), 403);
 
         $token = $this->shareToken();
-        abort_if($token === '', 404, 'Botpress admin token is not configured.');
+        abort_if($token === '', 404, 'Chatbot admin token is not configured.');
 
         return redirect()->route('botpress.admin.public', ['token' => $token]);
     }
@@ -26,14 +26,14 @@ class BotpressAdminController extends Controller
     {
         $this->guardToken($token);
 
-        return view('botpress.admin', [
-            'token' => $token,
-            'studioUrl' => trim((string) config('services.botpress.studio_url', '')),
-            'integration' => $this->integrationStatus(),
-            'conversations' => $this->conversations(),
-            'knowledgeBases' => $this->knowledgeBases(),
-            'canUploadKnowledge' => filled(config('services.botpress.knowledge_webhook_url')),
-        ]);
+        return $this->view($token);
+    }
+
+    public function show(string $token, int $conversation): View
+    {
+        $this->guardToken($token);
+
+        return $this->view($token, $conversation);
     }
 
     public function storeKnowledge(string $token, Request $request): RedirectResponse
@@ -50,7 +50,7 @@ class BotpressAdminController extends Controller
 
         $webhookUrl = trim((string) config('services.botpress.knowledge_webhook_url', ''));
         if ($webhookUrl === '') {
-            return back()->with('error', 'Chưa cấu hình BOTPRESS_KNOWLEDGE_WEBHOOK_URL để nhận tài liệu từ xa.');
+            return back()->with('error', 'Chưa cấu hình webhook nhận tài liệu từ xa.');
         }
 
         $secret = trim((string) config('services.botpress.knowledge_webhook_secret', ''));
@@ -60,37 +60,49 @@ class BotpressAdminController extends Controller
             'source_url' => $validated['source_url'] ?? null,
             'content' => $validated['content'] ?? null,
             'submitted_at' => now()->toIso8601String(),
-            'source' => 'crm_botpress_admin',
+            'source' => 'crm_chatbot_admin',
         ];
 
         try {
-            $request = Http::timeout(20)->acceptJson();
+            $http = Http::timeout(20)->acceptJson();
 
             if ($secret !== '') {
-                $request = $request->withHeaders([
-                    'X-CRM-Secret' => $secret,
-                ]);
+                $http = $http->withHeaders(['X-CRM-Secret' => $secret]);
             }
 
-            $response = $request->post($webhookUrl, $payload);
+            $response = $http->post($webhookUrl, $payload);
 
             if (! $response->successful()) {
-                Log::warning('Botpress knowledge webhook failed', [
+                Log::warning('Chatbot knowledge webhook failed', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
 
-                return back()->with('error', 'Botpress chưa nhận tài liệu. HTTP '.$response->status().': '.mb_substr($response->body(), 0, 300));
+                return back()->with('error', 'Chưa nhận được tài liệu. HTTP '.$response->status().': '.mb_substr($response->body(), 0, 300));
             }
         } catch (\Throwable $exception) {
-            Log::warning('Botpress knowledge webhook exception', [
+            Log::warning('Chatbot knowledge webhook exception', [
                 'error' => $exception->getMessage(),
             ]);
 
-            return back()->with('error', 'Không gửi được tài liệu sang Botpress: '.$exception->getMessage());
+            return back()->with('error', 'Không gửi được tài liệu: '.$exception->getMessage());
         }
 
-        return back()->with('status', 'Đã gửi tài liệu sang Botpress để xử lý.');
+        return back()->with('status', 'Đã gửi tài liệu để xử lý.');
+    }
+
+    private function view(string $token, ?int $conversationId = null): View
+    {
+        $conversations = $this->conversations();
+        $selectedConversation = $conversationId ? $this->selectedConversation($conversationId) : $conversations->first()?->conversation;
+
+        return view('botpress.admin', [
+            'token' => $token,
+            'conversations' => $conversations,
+            'selectedConversation' => $selectedConversation,
+            'knowledgeBases' => $this->knowledgeBases(),
+            'canUploadKnowledge' => filled(config('services.botpress.knowledge_webhook_url')),
+        ]);
     }
 
     private function guardToken(string $token): void
@@ -105,45 +117,44 @@ class BotpressAdminController extends Controller
         return trim((string) config('services.botpress.admin_token', ''));
     }
 
-    private function integrationStatus(): array
-    {
-        return [
-            'enabled' => (bool) config('services.botpress.enabled', false),
-            'base_url' => (string) config('services.botpress.base_url', ''),
-            'webhook_id' => (string) config('services.botpress.webhook_id', ''),
-            'has_api_key' => filled(config('services.botpress.api_key')),
-            'prefer_callback' => (bool) config('services.botpress.prefer_callback', true),
-        ];
-    }
-
     private function conversations()
     {
         return BotpressConversationLink::query()
             ->with([
                 'conversation.customer',
-                'conversation.messages' => fn ($query) => $query->latest('id')->limit(6),
+                'conversation.messages' => fn ($query) => $query->latest('id')->limit(1),
             ])
             ->latest('updated_at')
             ->limit(50)
             ->get();
     }
 
+    private function selectedConversation(int $conversationId)
+    {
+        return BotpressConversationLink::query()
+            ->where('conversation_id', $conversationId)
+            ->with([
+                'conversation.customer',
+                'conversation.assignee',
+                'conversation.tags',
+                'conversation.messages' => fn ($query) => $query->latest('id')->limit(80),
+            ])
+            ->firstOrFail()
+            ->conversation;
+    }
+
     private function knowledgeBases(): array
     {
-        $webhookId = trim((string) config('services.botpress.webhook_id', ''));
-
         return [
             [
-                'name' => 'Botpress Knowledge Bases',
-                'status' => 'Cấu hình trong Botpress',
-                'description' => $webhookId !== ''
-                    ? 'Webhook Chat ID: '.$webhookId
-                    : 'Chưa cấu hình BOTPRESS_WEBHOOK_ID.',
+                'name' => 'Kho tri thức chính',
+                'status' => 'Đang sử dụng',
+                'description' => 'Nguồn dữ liệu dùng để chatbot trả lời khách hàng.',
             ],
             [
                 'name' => 'Tài liệu gửi từ CRM',
-                'status' => filled(config('services.botpress.knowledge_webhook_url')) ? 'Sẵn sàng nhận tài liệu' : 'Chưa cấu hình webhook nhận tài liệu',
-                'description' => 'Form bên dưới gửi URL hoặc nội dung tài liệu sang Botpress qua webhook riêng.',
+                'status' => filled(config('services.botpress.knowledge_webhook_url')) ? 'Sẵn sàng nhận tài liệu' : 'Chưa cấu hình nhận tài liệu',
+                'description' => 'Có thể thêm URL hoặc dán nội dung tài liệu từ xa.',
             ],
         ];
     }
