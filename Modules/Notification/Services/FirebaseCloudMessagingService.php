@@ -29,7 +29,7 @@ class FirebaseCloudMessagingService
             return;
         }
 
-        $projectId = (string) config('services.firebase.project_id');
+        $projectId = (string) $this->credential('project_id');
         $response = Http::withToken($this->accessToken())
             ->timeout((int) config('services.firebase.timeout', 10))
             ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
@@ -73,9 +73,9 @@ class FirebaseCloudMessagingService
     public function enabled(): bool
     {
         return (bool) config('services.firebase.enabled')
-            && filled(config('services.firebase.project_id'))
-            && filled(config('services.firebase.client_email'))
-            && filled(config('services.firebase.private_key'));
+            && filled($this->credential('project_id'))
+            && filled($this->credential('client_email'))
+            && filled($this->credential('private_key'));
     }
 
     private function accessToken(): string
@@ -85,9 +85,9 @@ class FirebaseCloudMessagingService
             $assertion = $this->base64UrlEncode(json_encode(['alg' => 'RS256', 'typ' => 'JWT']))
                 .'.'.
                 $this->base64UrlEncode(json_encode([
-                    'iss' => config('services.firebase.client_email'),
+                    'iss' => $this->credential('client_email'),
                     'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
-                    'aud' => config('services.firebase.token_uri', 'https://oauth2.googleapis.com/token'),
+                    'aud' => $this->tokenUri(),
                     'iat' => $now,
                     'exp' => $now + 3600,
                 ]));
@@ -97,7 +97,7 @@ class FirebaseCloudMessagingService
 
             $response = Http::asForm()
                 ->timeout((int) config('services.firebase.timeout', 10))
-                ->post(config('services.firebase.token_uri', 'https://oauth2.googleapis.com/token'), [
+                ->post($this->tokenUri(), [
                     'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                     'assertion' => $jwt,
                 ])
@@ -109,7 +109,66 @@ class FirebaseCloudMessagingService
 
     private function privateKey(): string
     {
-        return str_replace('\n', "\n", (string) config('services.firebase.private_key'));
+        return str_replace('\n', "\n", (string) $this->credential('private_key'));
+    }
+
+    private function credential(string $key): ?string
+    {
+        $credentials = $this->credentials();
+
+        return $credentials[$key] ?? config("services.firebase.{$key}");
+    }
+
+    private function credentials(): array
+    {
+        return Cache::rememberForever('firebase.fcm.credentials', function (): array {
+            $path = (string) config('services.firebase.credentials');
+
+            if (blank($path)) {
+                return [];
+            }
+
+            $resolvedPath = $this->resolveCredentialsPath($path);
+
+            if (! $resolvedPath || ! is_readable($resolvedPath)) {
+                Log::warning('Firebase credentials file is not readable', ['path' => $path]);
+
+                return [];
+            }
+
+            $credentials = json_decode((string) file_get_contents($resolvedPath), true);
+
+            if (! is_array($credentials)) {
+                Log::warning('Firebase credentials file is invalid JSON', ['path' => $resolvedPath]);
+
+                return [];
+            }
+
+            return $credentials;
+        });
+    }
+
+    private function resolveCredentialsPath(string $path): ?string
+    {
+        $candidates = [
+            $path,
+            base_path($path),
+            storage_path($path),
+            storage_path('app/'.$path),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function tokenUri(): string
+    {
+        return (string) ($this->credential('token_uri') ?: 'https://oauth2.googleapis.com/token');
     }
 
     private function base64UrlEncode(string $value): string
