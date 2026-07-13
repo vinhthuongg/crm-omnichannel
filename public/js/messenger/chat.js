@@ -2661,12 +2661,12 @@
             }
         }
 
-        pollingTimer = window.setTimeout(runPollingLoop, 30000);
+        pollingTimer = window.setTimeout(runPollingLoop, 5000);
     }
 
     function startPolling() {
         if (!pollingTimer && realtimeMode !== 'websocket') {
-            console.info('CRM messenger realtime fallback: polling every 30s');
+            console.info('CRM messenger realtime fallback: polling every 5s');
             pollingTimer = window.setTimeout(runPollingLoop, 0);
         }
     }

@@ -321,8 +321,9 @@ class BotpressChatService
         string $afterMessageId = '',
     ): array
     {
-        $attempts = max(1, (int) config('services.botpress.response_poll_attempts', 24));
-        $delayMs = max(100, (int) config('services.botpress.response_poll_delay_ms', 1000));
+        $attempts = max(1, (int) config('services.botpress.response_poll_attempts', 18));
+        $delayMs = max(100, (int) config('services.botpress.response_poll_delay_ms', 300));
+        $stableThreshold = max(1, (int) config('services.botpress.response_poll_stable_attempts', 1));
         $foundReplies = [];
         $stableAttempts = 0;
 
@@ -367,6 +368,7 @@ class BotpressChatService
                 'reply_found' => $foundReplies !== [],
                 'reply_count' => count($foundReplies),
                 'stable_attempts' => $stableAttempts,
+                'stable_threshold' => $stableThreshold,
                 'latest_messages' => collect($messages)
                     ->take(5)
                     ->map(fn (array $message): array => [
@@ -378,7 +380,7 @@ class BotpressChatService
                     ->all(),
             ]);
 
-            if ($foundReplies !== [] && $stableAttempts >= 2) {
+            if ($foundReplies !== [] && $stableAttempts >= $stableThreshold) {
                 return array_values($foundReplies);
             }
         }
