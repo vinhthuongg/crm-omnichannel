@@ -4,6 +4,7 @@ namespace Modules\Message\Services;
 
 use Illuminate\Support\Arr;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Conversation\Models\Conversation;
@@ -161,12 +162,47 @@ class OutboundMessageService
                 continue;
             }
 
-            $response = $this->facebook->sendAttachment(
-                $recipientId,
-                (string) ($attachment['url'] ?? ''),
-                $type,
-                $pageAccessToken,
-            );
+            try {
+                $response = $this->facebook->sendAttachment(
+                    $recipientId,
+                    (string) ($attachment['url'] ?? ''),
+                    $type,
+                    $pageAccessToken,
+                );
+            } catch (RequestException $exception) {
+                if (! $this->isFacebookAttachmentUploadError($exception)) {
+                    throw $exception;
+                }
+
+                Log::warning('Facebook could not fetch attachment URL, retrying with local upload', [
+                    'recipient_id' => $recipientId,
+                    'attachment_type' => $type,
+                    'attachment_url' => (string) ($attachment['url'] ?? ''),
+                    'status' => $exception->response->status(),
+                    'body' => $exception->response->body(),
+                ]);
+
+                $tmpPath = $this->downloadRemoteAttachment($attachment);
+
+                try {
+                    $response = $this->facebook->sendLocalAttachment(
+                        $recipientId,
+                        $tmpPath,
+                        $type,
+                        (string) ($attachment['mime_type'] ?? ''),
+                        (string) ($attachment['name'] ?? basename($tmpPath)),
+                        $pageAccessToken,
+                    );
+                } finally {
+                    @unlink($tmpPath);
+                }
+
+                if (! empty($response['facebook_attachment_id'])) {
+                    $sentAttachments[$index] = [
+                        'facebook_attachment_id' => (string) $response['facebook_attachment_id'],
+                    ];
+                }
+            }
         }
 
         if ($sentAttachments) {
@@ -188,6 +224,51 @@ class OutboundMessageService
                 || str_contains($message, 'ứng dụng khác')
                 || str_contains($message, 'ung dung khac')
             );
+    }
+
+    private function isFacebookAttachmentUploadError(RequestException $exception): bool
+    {
+        $payload = $exception->response->json();
+        $error = is_array($payload) ? (array) Arr::get($payload, 'error', []) : [];
+        $message = mb_strtolower((string) Arr::get($error, 'message', ''));
+
+        return (int) Arr::get($error, 'code') === 100
+            && (
+                (int) Arr::get($error, 'error_subcode') === 2018047
+                || str_contains($message, 'could not upload')
+                || str_contains($message, 'không thể tải file')
+                || str_contains($message, 'khong the tai file')
+            );
+    }
+
+    private function downloadRemoteAttachment(array $attachment): string
+    {
+        $url = (string) ($attachment['url'] ?? '');
+
+        if ($url === '') {
+            throw new RuntimeException('Attachment URL is empty.');
+        }
+
+        $response = Http::connectTimeout(10)
+            ->timeout(45)
+            ->get($url)
+            ->throw();
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'crm_botpress_attachment_');
+
+        if ($tmpPath === false) {
+            throw new RuntimeException('Cannot create temporary file for attachment upload.');
+        }
+
+        file_put_contents($tmpPath, $response->body());
+
+        Log::info('Remote attachment downloaded for Facebook local upload', [
+            'attachment_url' => $url,
+            'bytes' => filesize($tmpPath) ?: null,
+            'content_type' => $response->header('Content-Type'),
+        ]);
+
+        return $tmpPath;
     }
 
     private function quickReplies(array $attachments): array
