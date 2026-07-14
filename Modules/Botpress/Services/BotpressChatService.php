@@ -201,11 +201,13 @@ class BotpressChatService
 
         $conversationId = $this->extractCrmConversationId($payload);
         $content = $this->extractReplyText($payload);
+        $attachments = $this->botpressAttachments($payload);
 
-        if (! $conversationId || ! $content) {
+        if (! $conversationId || (! $content && $attachments === [])) {
             Log::warning('Botpress callback ignored because payload is missing conversation or text', [
                 'conversation_id' => $conversationId,
                 'has_text' => filled($content),
+                'attachments_count' => count($attachments),
                 'payload' => mb_substr(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', 0, 2000),
             ]);
 
@@ -237,6 +239,7 @@ class BotpressChatService
             Log::info('Botpress callback ignored because another bot reply was just queued', [
                 'conversation_id' => $conversationId,
                 'content' => mb_substr($content, 0, 160),
+                'attachments_count' => count($attachments),
             ]);
 
             return null;
@@ -251,7 +254,7 @@ class BotpressChatService
             ?: sha1($conversationId.'|'.$content.'|'.json_encode($payload))
         );
 
-        return $this->storeExternalBotReply($conversation, $content, 'botpress_callback_'.$sourceId, [
+        return $this->storeExternalBotReply($conversation, (string) $content, 'botpress_callback_'.$sourceId, [
             'type' => 'metadata',
             'name' => 'botpress_callback',
             'payload' => $payload,
@@ -387,6 +390,8 @@ class BotpressChatService
                         'id' => (string) data_get($message, 'id', ''),
                         'userId' => (string) data_get($message, 'userId', ''),
                         'text' => mb_substr(trim((string) data_get($message, 'payload.text', '')), 0, 120),
+                        'payload_type' => (string) data_get($message, 'payload.type', ''),
+                        'attachments_count' => count($this->botpressAttachments($message)),
                     ])
                     ->values()
                     ->all(),
@@ -423,7 +428,8 @@ class BotpressChatService
             return false;
         }
 
-        if (trim((string) data_get($message, 'payload.text', '')) === '') {
+        if (trim((string) data_get($message, 'payload.text', '')) === ''
+            && $this->botpressAttachments($message) === []) {
             return false;
         }
 
@@ -475,20 +481,22 @@ class BotpressChatService
 
         foreach ($replies as $reply) {
             $content = trim((string) data_get($reply, 'payload.text', ''));
+            $attachments = $this->botpressAttachments($reply);
             $normalized = $this->normalizeReplyText($content);
 
-            if ($content === '' || $this->shouldSkipBotReply($content)) {
+            if (($content === '' && $attachments === []) || ($content !== '' && $this->shouldSkipBotReply($content))) {
                 Log::info('Botpress relay reply skipped by content filter', [
                     'conversation_id' => $conversation->id,
                     'botpress_reply_id' => (string) data_get($reply, 'id', ''),
                     'reason' => $content === '' ? 'empty' : 'unwanted_detail',
                     'reply_preview' => mb_substr($content, 0, 240),
+                    'payload_type' => (string) data_get($reply, 'payload.type', ''),
                 ]);
 
                 continue;
             }
 
-            if ($this->isDuplicateBotReply($normalized, [...$existingTexts, ...array_keys($accepted)])) {
+            if ($normalized !== '' && $this->isDuplicateBotReply($normalized, [...$existingTexts, ...array_keys($accepted)])) {
                 Log::info('Botpress relay reply skipped by duplicate filter', [
                     'conversation_id' => $conversation->id,
                     'botpress_reply_id' => (string) data_get($reply, 'id', ''),
@@ -498,7 +506,7 @@ class BotpressChatService
                 continue;
             }
 
-            $accepted[$normalized] = $reply;
+            $accepted[$normalized !== '' ? $normalized : (string) data_get($reply, 'id', spl_object_id((object) $reply))] = $reply;
         }
 
         return array_values($accepted);
@@ -563,8 +571,9 @@ class BotpressChatService
     ): ?Message
     {
         $content = trim((string) data_get($reply, 'payload.text', ''));
+        $botpressAttachments = $this->botpressAttachments($reply);
 
-        if ($content === '') {
+        if ($content === '' && $botpressAttachments === []) {
             return null;
         }
 
@@ -579,19 +588,21 @@ class BotpressChatService
             return null;
         }
 
-        $message = DB::transaction(function () use ($conversation, $link, $reply, $content, $clientMessageId, $includeQuickReplies, $quickReplySourceContent): Message {
+        $message = DB::transaction(function () use ($conversation, $link, $reply, $content, $clientMessageId, $includeQuickReplies, $quickReplySourceContent, $botpressAttachments): Message {
+            $attachments = $this->botAttachments($conversation, $quickReplySourceContent ?: $content, [
+                'type' => 'metadata',
+                'name' => 'botpress',
+                'payload' => ['message' => $reply],
+            ], $reply, $includeQuickReplies);
+
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
                 'sender_id' => null,
                 'channel' => 'facebook',
                 'content' => $content,
-                'message_type' => 'text',
-                'attachments' => $this->botAttachments($conversation, $quickReplySourceContent ?: $content, [
-                    'type' => 'metadata',
-                    'name' => 'botpress',
-                    'payload' => ['message' => $reply],
-                ], $reply, $includeQuickReplies),
+                'message_type' => $botpressAttachments === [] ? 'text' : 'attachment',
+                'attachments' => [...$attachments, ...$botpressAttachments],
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -625,6 +636,7 @@ class BotpressChatService
             'queue' => $this->sendOutboundSync() ? 'sync' : 'outbound',
             'channel' => $message->channel,
             'content_preview' => mb_substr($content, 0, 240),
+            'attachments_count' => count($botpressAttachments),
         ]);
 
         return $message;
@@ -715,15 +727,19 @@ class BotpressChatService
             ]);
         }
 
-        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata, $payload): Message {
+        $botpressAttachments = $this->botpressAttachments($payload);
+
+        $message = DB::transaction(function () use ($conversation, $content, $clientMessageId, $metadata, $payload, $botpressAttachments): Message {
+            $attachments = $this->botAttachments($conversation, $content, $metadata, $payload);
+
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
                 'sender_id' => null,
                 'channel' => 'facebook',
                 'content' => $content,
-                'message_type' => 'text',
-                'attachments' => $this->botAttachments($conversation, $content, $metadata, $payload),
+                'message_type' => $botpressAttachments === [] ? 'text' : 'attachment',
+                'attachments' => [...$attachments, ...$botpressAttachments],
                 'client_message_id' => $clientMessageId,
                 'outbound_status' => 'queued',
             ]);
@@ -752,6 +768,7 @@ class BotpressChatService
             'queue' => $this->sendOutboundSync() ? 'sync' : 'outbound',
             'channel' => $message->channel,
             'content_preview' => mb_substr($content, 0, 240),
+            'attachments_count' => count($botpressAttachments),
         ]);
 
         return $message;
@@ -802,6 +819,116 @@ class BotpressChatService
                 'quick_replies' => $quickReplies,
             ],
         ];
+    }
+
+    private function botpressAttachments(array $message): array
+    {
+        $attachments = [];
+        $payload = data_get($message, 'payload')
+            ?: data_get($message, 'data.payload')
+            ?: $message;
+
+        $this->collectBotpressAttachments((array) $payload, $attachments);
+
+        return collect($attachments)
+            ->filter(fn (array $attachment): bool => (string) ($attachment['url'] ?? '') !== '')
+            ->unique('url')
+            ->values()
+            ->all();
+    }
+
+    private function collectBotpressAttachments(mixed $node, array &$attachments): void
+    {
+        if (! is_array($node)) {
+            return;
+        }
+
+        $url = $this->botpressAttachmentUrl($node);
+
+        if ($url !== '') {
+            $attachments[] = $this->botpressAttachmentFromNode($node, $url);
+        }
+
+        foreach ($node as $value) {
+            if (is_array($value)) {
+                $this->collectBotpressAttachments($value, $attachments);
+            }
+        }
+    }
+
+    private function botpressAttachmentUrl(array $node): string
+    {
+        foreach ([
+            'imageUrl',
+            'image_url',
+            'fileUrl',
+            'file_url',
+            'downloadUrl',
+            'download_url',
+            'mediaUrl',
+            'media_url',
+            'src',
+            'url',
+            'image.url',
+            'file.url',
+            'media.url',
+        ] as $path) {
+            $value = data_get($node, $path);
+
+            if (is_string($value) && $this->isPublicAttachmentUrl($value)) {
+                return trim($value);
+            }
+        }
+
+        return '';
+    }
+
+    private function botpressAttachmentFromNode(array $node, string $url): array
+    {
+        $mimeType = (string) (data_get($node, 'mimeType') ?: data_get($node, 'mime_type') ?: '');
+        $type = $this->botpressAttachmentType($node, $mimeType, $url);
+        $name = (string) (
+            data_get($node, 'name')
+            ?: data_get($node, 'title')
+            ?: data_get($node, 'filename')
+            ?: data_get($node, 'fileName')
+            ?: basename((string) parse_url($url, PHP_URL_PATH))
+        );
+
+        return [
+            'name' => $name !== '' ? $name : ucfirst($type),
+            'url' => $url,
+            'type' => $type,
+            'mime_type' => $mimeType,
+            'payload' => [
+                'source' => 'botpress',
+                'raw' => $node,
+            ],
+        ];
+    }
+
+    private function botpressAttachmentType(array $node, string $mimeType, string $url): string
+    {
+        $payloadType = Str::of((string) data_get($node, 'type', ''))->lower()->toString();
+        $extension = Str::of((string) pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION))->lower()->toString();
+
+        return match (true) {
+            in_array($payloadType, ['image', 'video', 'audio', 'file'], true) => $payloadType,
+            str_starts_with($mimeType, 'image/') => 'image',
+            str_starts_with($mimeType, 'video/') => 'video',
+            str_starts_with($mimeType, 'audio/') => 'audio',
+            in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true) => 'image',
+            in_array($extension, ['mp4', 'mov', 'webm', 'm4v'], true) => 'video',
+            in_array($extension, ['mp3', 'wav', 'ogg', 'm4a'], true) => 'audio',
+            default => 'file',
+        };
+    }
+
+    private function isPublicAttachmentUrl(string $url): bool
+    {
+        $url = trim($url);
+
+        return Str::startsWith($url, 'https://');
     }
 
     private function botReplySessionContent(array $replies): string
