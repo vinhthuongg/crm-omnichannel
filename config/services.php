@@ -37,6 +37,7 @@ return [
         'send_outbound_sync' => env('BOTPRESS_SEND_OUTBOUND_SYNC', true),
         'generate_quick_replies' => env('BOTPRESS_GENERATE_QUICK_REPLIES', true),
         'idle_resume_minutes' => (int) env('BOTPRESS_IDLE_RESUME_MINUTES', 2),
+        'echo_pause_minutes' => (int) env('BOTPRESS_ECHO_PAUSE_MINUTES', 3),
         'customer_idle_follow_up_minutes' => (int) env('CUSTOMER_IDLE_FOLLOW_UP_MINUTES', 3),
         'studio_url' => env('BOTPRESS_STUDIO_URL'),
         'knowledge_webhook_url' => env('BOTPRESS_KNOWLEDGE_WEBHOOK_URL'),

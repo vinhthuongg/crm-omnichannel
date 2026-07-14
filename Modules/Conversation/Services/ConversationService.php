@@ -186,6 +186,30 @@ class ConversationService
         }
     }
 
+    public function pauseAutomationForFacebookEcho(Conversation $conversation, Message $message): void
+    {
+        $automationState = (array) ($conversation->automation_state ?? []);
+        $automationState = [
+            ...$automationState,
+            'paused_by_user_at' => $message->created_at?->toISOString() ?? now()->toISOString(),
+            'paused_by_user_message_id' => $message->id,
+            'paused_by_echo_at' => $message->created_at?->toISOString() ?? now()->toISOString(),
+            'paused_by_echo_message_id' => $message->id,
+        ];
+
+        $conversation->forceFill([
+            'last_message_at' => $message->created_at,
+            'last_read_at' => now(),
+            'status' => in_array(ConversationStatus::normalize($conversation->status), [ConversationStatus::CLOSED], true)
+                ? ConversationStatus::CLOSED
+                : ConversationStatus::WAITING_CUSTOMER,
+            'unread_messages_count' => 0,
+            'automation_state' => $automationState,
+        ])->save();
+
+        ResumeBotAfterIdleJob::dispatchFor($message, 'facebook_echo');
+    }
+
     private function applyAssignment(Conversation $conversation, User $assignee, User $actor, string $type): Conversation
     {
         return DB::transaction(function () use ($conversation, $assignee, $actor, $type): Conversation {

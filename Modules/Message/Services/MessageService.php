@@ -171,6 +171,7 @@ class MessageService
             return $stored;
         });
 
+        $this->conversations->pauseAutomationForFacebookEcho($conversation, $stored);
         $this->intents->classifyMessage($stored);
         $this->broadcastNewMessage($stored);
         $this->queueCustomerVectorRefresh($conversation->customer);

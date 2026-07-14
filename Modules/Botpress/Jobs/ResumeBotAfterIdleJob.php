@@ -33,7 +33,9 @@ class ResumeBotAfterIdleJob implements ShouldQueue
 
     public static function dispatchFor(Message $message, string $trigger): void
     {
-        $minutes = max(1, (int) config('services.botpress.idle_resume_minutes', 2));
+        $minutes = $trigger === 'facebook_echo'
+            ? max(1, (int) config('services.botpress.echo_pause_minutes', 3))
+            : max(1, (int) config('services.botpress.idle_resume_minutes', 2));
 
         self::dispatch((int) $message->conversation_id, (int) $message->id, $trigger)
             ->delay(now()->addMinutes($minutes));
@@ -58,6 +60,12 @@ class ResumeBotAfterIdleJob implements ShouldQueue
 
         if ($this->trigger === 'agent_reply' && $this->isAgentVisibleMessage($latest)) {
             $this->resumeAutomation($conversation, 'customer_idle_after_agent_reply', false);
+
+            return;
+        }
+
+        if ($this->trigger === 'facebook_echo' && $this->isFacebookEchoMessage($latest)) {
+            $this->resumeAutomation($conversation, 'facebook_echo_idle_after_external_reply', false);
 
             return;
         }
@@ -107,5 +115,13 @@ class ResumeBotAfterIdleJob implements ShouldQueue
         return $message->sender_type === 'user'
             && $message->message_type !== 'whisper'
             && $message->channel !== 'internal';
+    }
+
+    private function isFacebookEchoMessage(Message $message): bool
+    {
+        return $message->sender_type === 'system'
+            && $message->channel === 'facebook'
+            && collect($message->attachments ?? [])
+                ->contains(fn ($attachment): bool => is_array($attachment) && (bool) data_get($attachment, 'payload.is_echo'));
     }
 }
