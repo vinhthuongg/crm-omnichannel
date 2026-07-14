@@ -5,6 +5,7 @@ namespace Modules\Botpress\Services;
 use App\Services\GroqQuickReplySuggestionService;
 use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -847,6 +848,22 @@ class BotpressChatService
 
     private function sendOutbound(Message $message): void
     {
+        if (Cache::get('crm_load_test_skip_botpress_outbound')) {
+            $message->forceFill([
+                'outbound_status' => 'load_test_skipped',
+                'outbound_error' => null,
+                'sent_at' => now(),
+            ])->save();
+
+            Log::info('Botpress outbound skipped for CRM load test', [
+                'conversation_id' => $message->conversation_id,
+                'message_id' => $message->id,
+                'channel' => $message->channel,
+            ]);
+
+            return;
+        }
+
         if (! $this->sendOutboundSync()) {
             SendOutboundMessageJob::dispatch($message->id);
 
