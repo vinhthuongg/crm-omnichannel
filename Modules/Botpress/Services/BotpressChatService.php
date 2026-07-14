@@ -338,7 +338,7 @@ class BotpressChatService
     {
         $attempts = max(1, (int) config('services.botpress.response_poll_attempts', 18));
         $delayMs = max(100, (int) config('services.botpress.response_poll_delay_ms', 300));
-        $stableThreshold = max(1, (int) config('services.botpress.response_poll_stable_attempts', 1));
+        $stableThreshold = max(2, (int) config('services.botpress.response_poll_stable_attempts', 1));
         $foundReplies = [];
         $stableAttempts = 0;
 
@@ -369,6 +369,9 @@ class BotpressChatService
             }
 
             $stableAttempts = count($foundReplies) > $previousCount ? 0 : $stableAttempts + 1;
+            $hasMediaReplies = collect($foundReplies)
+                ->contains(fn (array $reply): bool => $this->botpressAttachments($reply) !== []);
+            $effectiveStableThreshold = $hasMediaReplies ? max($stableThreshold, 3) : $stableThreshold;
 
             Log::info('Botpress reply poll attempt', [
                 'botpress_conversation_id' => $link->botpress_conversation_id,
@@ -383,7 +386,8 @@ class BotpressChatService
                 'reply_found' => $foundReplies !== [],
                 'reply_count' => count($foundReplies),
                 'stable_attempts' => $stableAttempts,
-                'stable_threshold' => $stableThreshold,
+                'stable_threshold' => $effectiveStableThreshold,
+                'has_media_replies' => $hasMediaReplies,
                 'latest_messages' => collect($messages)
                     ->take(5)
                     ->map(fn (array $message): array => [
@@ -392,12 +396,17 @@ class BotpressChatService
                         'text' => mb_substr(trim((string) data_get($message, 'payload.text', '')), 0, 120),
                         'payload_type' => (string) data_get($message, 'payload.type', ''),
                         'attachments_count' => count($this->botpressAttachments($message)),
+                        'attachment_urls' => collect($this->botpressAttachments($message))
+                            ->pluck('url')
+                            ->values()
+                            ->all(),
+                        'payload_keys' => array_keys((array) data_get($message, 'payload', [])),
                     ])
                     ->values()
                     ->all(),
             ]);
 
-            if ($foundReplies !== [] && $stableAttempts >= $stableThreshold) {
+            if ($foundReplies !== [] && $stableAttempts >= $effectiveStableThreshold) {
                 return array_values($foundReplies);
             }
         }
