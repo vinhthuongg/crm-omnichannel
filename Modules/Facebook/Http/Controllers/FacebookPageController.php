@@ -9,7 +9,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Modules\Facebook\Actions\ConnectFacebookPageAction;
-use Modules\Facebook\Actions\ImportFacebookPageMessagesAction;
 use Modules\Facebook\Actions\ListFacebookPagesAction;
 use Modules\Facebook\DTO\FacebookPageData;
 use Modules\Facebook\Models\FacebookPage;
@@ -90,29 +89,20 @@ class FacebookPageController extends Controller
             ]);
         }
 
-        try {
-            $syncStats = app(ImportFacebookPageMessagesAction::class)->execute($request->user(), $page, 10);
-        } catch (\Throwable $exception) {
-            $syncStats = null;
-            report($exception);
-        }
-
         if ($request->expectsJson()) {
             return response()->json([
                 'data' => [
                     'page_id' => $page->page_id,
                     'page_name' => $page->page_name,
                     'page_avatar' => $page->page_avatar,
-                    'sync' => $syncStats,
+                    'sync' => null,
                 ],
             ], 201);
         }
 
-        $status = $syncStats
-            ? "Facebook page connected. Synced {$syncStats['messages']} messages."
-            : 'Facebook page connected. Khong dong bo duoc lich su tin nhan, hay thu nut Dong bo tin nhan.';
-
-        return redirect()->route('crm.conversations')->with('status', $status);
+        return redirect()
+            ->route('crm.conversations')
+            ->with('status', 'Facebook page connected. Lich su tin nhan se khong duoc dong bo tu dong.');
     }
 
     public function sync(Request $request, FacebookPage $facebookPage, ImportFacebookPageMessagesAction $action): RedirectResponse|JsonResponse
