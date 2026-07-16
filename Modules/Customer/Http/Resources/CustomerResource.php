@@ -14,6 +14,7 @@ class CustomerResource extends JsonResource
             'name' => $this->name,
             'avatar' => $this->avatar,
             'phone' => $this->phone,
+            'phone_collected_at' => $this->phone_collected_at?->toISOString(),
             'email' => $this->email,
             'channels' => CustomerChannelResource::collection($this->whenLoaded('channels')),
             'created_at' => $this->created_at?->toISOString(),

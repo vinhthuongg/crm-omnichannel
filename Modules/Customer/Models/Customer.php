@@ -15,6 +15,7 @@ class Customer extends Model
         'name',
         'avatar',
         'phone',
+        'phone_collected_at',
         'email',
         'is_potential',
         'potential_marked_at',
@@ -22,9 +23,27 @@ class Customer extends Model
     ];
 
     protected $casts = [
+        'phone_collected_at' => 'datetime',
         'is_potential' => 'boolean',
         'potential_marked_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Customer $customer): void {
+            $phone = trim((string) $customer->phone);
+
+            if ($phone === '') {
+                $customer->phone_collected_at = null;
+
+                return;
+            }
+
+            if (! $customer->phone_collected_at && $customer->isDirty('phone')) {
+                $customer->phone_collected_at = now();
+            }
+        });
+    }
 
     public function channels(): HasMany
     {
