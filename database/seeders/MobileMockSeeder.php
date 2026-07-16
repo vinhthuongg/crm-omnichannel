@@ -9,13 +9,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Modules\Conversation\Models\Conversation;
-use Modules\Conversation\Models\ConversationReplySuggestion;
 use Modules\Conversation\Models\ConversationActivity;
+use Modules\Conversation\Models\ConversationReplySuggestion;
 use Modules\Conversation\Models\Tag;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Customer\Models\Customer;
-use Modules\Customer\Models\CustomerChannel;
-use Modules\Customer\Models\CustomerNote;
 use Modules\Customer\Models\CustomerTag;
 use Modules\Message\Models\Message;
 use Modules\Search\Services\VectorSearchService;
@@ -32,13 +30,13 @@ class MobileMockSeeder extends Seeder
         Tag::ensureDefaults();
         $customerTags = $this->ensureCustomerTags();
 
-        $baseRows = $this->rows($agent, $page?->page_id, $page?->page_name);
-
-        foreach ($baseRows as $index => $row) {
+        foreach ($this->rows($agent, $page?->page_id, $page?->page_name) as $index => $row) {
             $this->seedRow($row, $customerTags, $agent, $index);
         }
 
-        app(VectorSearchService::class)->rebuildCustomers(Customer::query()->with(['channels', 'tags', 'notes', 'conversations.messages'])->get());
+        app(VectorSearchService::class)->rebuildCustomers(
+            Customer::query()->with(['channels', 'tags', 'notes', 'conversations.messages'])->get(),
+        );
     }
 
     private function ensureAgent(): User
@@ -116,6 +114,9 @@ class MobileMockSeeder extends Seeder
     private function seedRow(array $row, array $customerTags, User $agent, int $index): void
     {
         $now = CarbonImmutable::now();
+        $customerCreatedAt = $row['customer_created_at'] ?? $now->subDays(random_int(1, 30));
+        $conversationCreatedAt = $row['conversation_created_at'] ?? $row['conversation_started_at'] ?? $now->subMinutes($row['last_message_minutes_ago'] + random_int(20, 240));
+
         $customer = Customer::query()->create([
             'name' => $row['customer_name'],
             'avatar' => $row['avatar'],
@@ -127,6 +128,13 @@ class MobileMockSeeder extends Seeder
             'potential_marked_by' => $row['is_potential'] ? $agent->id : null,
         ]);
 
+        DB::table('customers')
+            ->where('id', $customer->id)
+            ->update([
+                'created_at' => $customerCreatedAt,
+                'updated_at' => $customerCreatedAt,
+            ]);
+
         $customer->channels()->create([
             'channel' => $row['channel'],
             'external_id' => $row['external_id'],
@@ -134,6 +142,7 @@ class MobileMockSeeder extends Seeder
                 'mock' => true,
                 'channel' => $row['channel'],
                 'facebook_page_id' => $row['facebook_page_id'],
+                'facebook_page_name' => $row['facebook_page_name'] ?? null,
                 'source' => 'seed',
             ],
         ]);
@@ -160,18 +169,25 @@ class MobileMockSeeder extends Seeder
             'assigned_to' => $row['assigned_to'] ? $agent->id : null,
             'assigned_by' => $row['assigned_to'] ? $agent->id : null,
             'assigned_type' => $row['assigned_to'] ? 'manual' : null,
-            'claimed_at' => $row['assigned_to'] ? $now->subMinutes(30 - $index * 3) : null,
+            'claimed_at' => $row['assigned_to'] ? $now->subMinutes(30 - $index) : null,
             'owner_shift_id' => null,
             'queue_shift_id' => null,
             'status' => $row['status'],
             'last_message_at' => $now->subMinutes($row['last_message_minutes_ago']),
             'unread_messages_count' => $row['unread_count'],
             'automation_state' => $row['automation_state'] ?? null,
-            'last_read_at' => $row['unread_count'] > 0 ? $now->subMinutes($row['last_message_minutes_ago'] + 2) : $now->subMinutes($row['last_message_minutes_ago'] - 1),
+            'last_read_at' => $row['unread_count'] > 0 ? $now->subMinutes($row['last_message_minutes_ago'] + 2) : $now->subMinutes(max(1, $row['last_message_minutes_ago'] - 1)),
             'resolved_at' => $row['status'] === ConversationStatus::CLOSED ? $now->subMinutes($row['last_message_minutes_ago']) : null,
             'first_response_at' => $row['first_response_minutes_ago'] !== null ? $now->subMinutes($row['first_response_minutes_ago']) : null,
             'closed_at' => $row['status'] === ConversationStatus::CLOSED ? $now->subMinutes($row['last_message_minutes_ago']) : null,
         ]);
+
+        DB::table('conversations')
+            ->where('id', $conversation->id)
+            ->update([
+                'created_at' => $conversationCreatedAt,
+                'updated_at' => $conversationCreatedAt,
+            ]);
 
         $conversationTagIds = collect($row['conversation_tags'] ?? [])
             ->map(fn (string $name): int => (int) DB::table('tags')->where('name', $name)->value('id'))
@@ -192,9 +208,6 @@ class MobileMockSeeder extends Seeder
         $messages = collect($row['messages'])
             ->sortByDesc('minutes_ago')
             ->values();
-
-        $lastMessage = null;
-        $firstNonCustomerMessage = null;
 
         foreach ($messages as $messageRow) {
             $createdAt = $now->subMinutes((int) $messageRow['minutes_ago']);
@@ -223,17 +236,9 @@ class MobileMockSeeder extends Seeder
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);
-
-            if ($lastMessage === null || (int) $messageRow['minutes_ago'] < (int) $lastMessage['minutes_ago']) {
-                $lastMessage = $messageRow;
-            }
-
-            if ($firstNonCustomerMessage === null && $messageRow['sender_type'] !== 'customer') {
-                $firstNonCustomerMessage = $messageRow;
-            }
         }
 
-        if ($lastMessage && ($row['status'] === ConversationStatus::CLOSED)) {
+        if ($row['status'] === ConversationStatus::CLOSED) {
             ConversationActivity::query()->create([
                 'conversation_id' => $conversation->id,
                 'action' => 'status.changed',
@@ -243,7 +248,7 @@ class MobileMockSeeder extends Seeder
             ]);
         }
 
-        if ($lastMessage && ! empty($row['reply_suggestions'])) {
+        if (! empty($row['reply_suggestions'])) {
             $lastCustomerMessage = Message::query()
                 ->where('conversation_id', $conversation->id)
                 ->where('sender_type', 'customer')
@@ -279,299 +284,472 @@ class MobileMockSeeder extends Seeder
         );
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function rows(User $agent, ?string $facebookPageId, ?string $facebookPageName): array
     {
         $facebookPageId ??= '950608971471401';
         $facebookPageName ??= 'Old Thread';
 
-        return [
-            [
-                'customer_name' => 'Vinh Thuong Truong',
-                'avatar' => 'https://i.pravatar.cc/240?img=12',
-                'phone' => '0936778029',
-                'phone_collected_at' => CarbonImmutable::now()->subDays(1),
-                'email' => 'vinh.thuong@example.com',
-                'is_potential' => true,
-                'potential_marked_at' => CarbonImmutable::now()->subHours(12),
-                'channel' => 'facebook',
-                'external_id' => 'mock_fb_1001',
-                'facebook_page_id' => $facebookPageId,
-                'external_conversation_id' => 'mock_conv_1001',
-                'botpress_user_id' => 'mock_bp_user_1001',
-                'botpress_user_key' => 'mock_bp_key_1001',
-                'botpress_conversation_id' => 'mock_bp_conv_1001',
-                'botpress_last_message_id' => 'mock_bp_msg_1001',
-                'status' => ConversationStatus::CUSTOMER_WAITING,
-                'assigned_to' => true,
-                'unread_count' => 2,
-                'last_message_minutes_ago' => 4,
-                'first_response_minutes_ago' => 18,
-                'customer_tags' => [Tag::DEFAULT_QUOTE, Tag::DEFAULT_INSTALLMENT],
-                'conversation_tags' => [Tag::DEFAULT_QUOTE, Tag::DEFAULT_INSTALLMENT],
-                'note' => 'Khach muon tham khao Vios va can tra gop.',
-                'note_by' => true,
-                'messages' => [
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Vios giá bao nhiêu?',
-                        'minutes_ago' => 19,
-                        'external_message_id' => 'mock_cust_1001_a',
-                    ],
-                    [
-                        'sender_type' => 'system',
-                        'content' => 'Anh/chị dự định đăng ký xe tại tỉnh/thành phố nào để em tính giá lăn bánh chính xác nhất cho từng phiên bản nhé?',
-                        'minutes_ago' => 17,
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_bot_1001_a',
-                    ],
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Đăng ký Kiên Giang.',
-                        'minutes_ago' => 4,
-                        'external_message_id' => 'mock_cust_1001_b',
-                    ],
-                ],
-                'reply_suggestions' => [
-                    'Giá lăn bánh Vios ở Kiên Giang?',
-                    'Tư vấn trả góp Vios',
-                    'Hỗ trợ báo giá chi tiết',
-                ],
-            ],
-            [
-                'customer_name' => 'Lê Thị Mai',
-                'avatar' => 'https://i.pravatar.cc/240?img=32',
-                'phone' => '0901234567',
-                'phone_collected_at' => CarbonImmutable::now()->subHours(3),
-                'email' => 'mai.le@example.com',
-                'is_potential' => false,
-                'potential_marked_at' => null,
-                'channel' => 'facebook',
-                'external_id' => 'mock_fb_1002',
-                'facebook_page_id' => $facebookPageId,
-                'external_conversation_id' => 'mock_conv_1002',
-                'botpress_user_id' => 'mock_bp_user_1002',
-                'botpress_user_key' => 'mock_bp_key_1002',
-                'botpress_conversation_id' => 'mock_bp_conv_1002',
-                'botpress_last_message_id' => 'mock_bp_msg_1002',
-                'status' => ConversationStatus::WAITING_CUSTOMER,
-                'assigned_to' => true,
-                'unread_count' => 0,
-                'last_message_minutes_ago' => 9,
-                'first_response_minutes_ago' => 27,
-                'customer_tags' => [Tag::DEFAULT_TEST_DRIVE, Tag::DEFAULT_PHONE],
-                'conversation_tags' => [Tag::DEFAULT_TEST_DRIVE],
-                'note' => 'Khach muon lai thu Yaris Cross trong tuan nay.',
-                'note_by' => true,
-                'messages' => [
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Em muốn đặt lịch lái thử Yaris Cross.',
-                        'minutes_ago' => 28,
-                        'external_message_id' => 'mock_cust_1002_a',
-                    ],
-                    [
-                        'sender_type' => 'user',
-                        'sender_id' => $agent->id,
-                        'content' => 'Dạ em đã ghi nhận lịch lái thử, anh/chị cho em xin ngày mong muốn ạ.',
-                        'minutes_ago' => 20,
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_user_1002_a',
-                    ],
-                ],
-                'reply_suggestions' => [
-                    'Chốt lịch lái thử',
-                    'Cần em gọi xác nhận không?',
-                    'Gửi địa chỉ showroom',
-                ],
-            ],
-            [
-                'customer_name' => 'Nguyễn Văn An',
-                'avatar' => 'https://i.pravatar.cc/240?img=15',
-                'phone' => null,
-                'phone_collected_at' => null,
-                'email' => null,
-                'is_potential' => false,
-                'potential_marked_at' => null,
-                'channel' => 'facebook',
-                'external_id' => 'mock_fb_1003',
-                'facebook_page_id' => $facebookPageId,
-                'external_conversation_id' => 'mock_conv_1003',
-                'botpress_user_id' => 'mock_bp_user_1003',
-                'botpress_user_key' => 'mock_bp_key_1003',
-                'botpress_conversation_id' => 'mock_bp_conv_1003',
-                'botpress_last_message_id' => 'mock_bp_msg_1003',
-                'status' => ConversationStatus::BOT_CONSULTING,
-                'assigned_to' => false,
-                'unread_count' => 0,
-                'last_message_minutes_ago' => 6,
-                'first_response_minutes_ago' => null,
-                'customer_tags' => [Tag::DEFAULT_CONSULTING],
-                'conversation_tags' => [Tag::DEFAULT_CONSULTING],
-                'note' => 'Bot dang tu van dong xe gia dinh 7 cho.',
-                'note_by' => false,
-                'messages' => [
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Anh cần xe cho gia đình 7 chỗ.',
-                        'minutes_ago' => 24,
-                        'external_message_id' => 'mock_cust_1003_a',
-                    ],
-                    [
-                        'sender_type' => 'system',
-                        'content' => 'Anh tham khảo Veloz Cross hoặc Avanza Premio nhé.',
-                        'minutes_ago' => 19,
-                        'message_type' => 'attachment',
-                        'attachments' => [
-                            [
-                                'type' => 'image',
-                                'name' => 've-loz-cross.jpg',
-                                'url' => 'https://picsum.photos/seed/veloz-cross/900/600',
-                                'mime_type' => 'image/jpeg',
-                                'payload' => [
-                                    'image_data' => [
-                                        'url' => 'https://picsum.photos/seed/veloz-cross/900/600',
-                                    ],
-                                ],
-                            ],
-                        ],
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_bot_1003_a',
-                    ],
-                    [
-                        'sender_type' => 'system',
-                        'content' => 'Mời anh xem hình thực tế Veloz Cross nhé.',
-                        'minutes_ago' => 6,
-                        'message_type' => 'attachment',
-                        'attachments' => [
-                            [
-                                'type' => 'file',
-                                'name' => 'brochure-veloz.pdf',
-                                'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                                'mime_type' => 'application/pdf',
-                                'payload' => [
-                                    'file_url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                                ],
-                            ],
-                        ],
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_bot_1003_b',
-                    ],
-                ],
-                'reply_suggestions' => [
-                    'Xe 7 chỗ nào phù hợp?',
-                    'Gửi thêm hình thực tế',
-                    'So sánh Veloz và Avanza',
-                ],
-            ],
-            [
-                'customer_name' => 'Trần Thuỳ Linh',
-                'avatar' => 'https://i.pravatar.cc/240?img=47',
-                'phone' => '0988888777',
-                'phone_collected_at' => CarbonImmutable::now()->subDays(2),
-                'email' => 'linh.tran@example.com',
-                'is_potential' => true,
-                'potential_marked_at' => CarbonImmutable::now()->subDay(),
-                'channel' => 'facebook',
-                'external_id' => 'mock_fb_1004',
-                'facebook_page_id' => $facebookPageId,
-                'external_conversation_id' => 'mock_conv_1004',
-                'botpress_user_id' => 'mock_bp_user_1004',
-                'botpress_user_key' => 'mock_bp_key_1004',
-                'botpress_conversation_id' => 'mock_bp_conv_1004',
-                'botpress_last_message_id' => 'mock_bp_msg_1004',
-                'status' => ConversationStatus::WAITING_CUSTOMER,
-                'assigned_to' => true,
-                'unread_count' => 1,
-                'last_message_minutes_ago' => 11,
-                'first_response_minutes_ago' => 24,
-                'customer_tags' => [Tag::DEFAULT_PHONE, Tag::DEFAULT_APPOINTMENT],
-                'conversation_tags' => [Tag::DEFAULT_PHONE, Tag::DEFAULT_APPOINTMENT],
-                'note' => 'Da co SDT va dang cho xac nhan lich hen.',
-                'note_by' => true,
-                'messages' => [
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Em muốn đặt lịch xem xe vào cuối tuần.',
-                        'minutes_ago' => 31,
-                        'external_message_id' => 'mock_cust_1004_a',
-                    ],
-                    [
-                        'sender_type' => 'user',
-                        'sender_id' => $agent->id,
-                        'content' => 'Dạ em sẽ giữ lịch cho anh/chị, mình cho em xin khung giờ phù hợp nhé.',
-                        'minutes_ago' => 24,
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_user_1004_a',
-                    ],
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Chiều chủ nhật nhé.',
-                        'minutes_ago' => 11,
-                        'external_message_id' => 'mock_cust_1004_b',
-                    ],
-                ],
-                'reply_suggestions' => [
-                    'Xác nhận giờ hẹn',
-                    'Gửi địa chỉ showroom',
-                    'Cần em gọi lại không?',
-                ],
-            ],
-            [
-                'customer_name' => 'Phạm Minh Khoa',
-                'avatar' => 'https://i.pravatar.cc/240?img=56',
-                'phone' => '0912345678',
-                'phone_collected_at' => CarbonImmutable::now()->subHours(5),
-                'email' => null,
-                'is_potential' => false,
-                'potential_marked_at' => null,
-                'channel' => 'facebook',
-                'external_id' => 'mock_fb_1005',
-                'facebook_page_id' => $facebookPageId,
-                'external_conversation_id' => 'mock_conv_1005',
-                'botpress_user_id' => 'mock_bp_user_1005',
-                'botpress_user_key' => 'mock_bp_key_1005',
-                'botpress_conversation_id' => 'mock_bp_conv_1005',
-                'botpress_last_message_id' => 'mock_bp_msg_1005',
-                'status' => ConversationStatus::CLOSED,
-                'assigned_to' => true,
-                'unread_count' => 0,
-                'last_message_minutes_ago' => 42,
-                'first_response_minutes_ago' => 55,
-                'customer_tags' => [Tag::DEFAULT_PHONE, Tag::DEFAULT_QUOTE],
-                'conversation_tags' => [Tag::DEFAULT_QUOTE],
-                'note' => 'Da dong ho so va da dong hop dong.',
-                'note_by' => true,
-                'messages' => [
-                    [
-                        'sender_type' => 'customer',
-                        'content' => 'Cho em báo giá Camry.',
-                        'minutes_ago' => 60,
-                        'external_message_id' => 'mock_cust_1005_a',
-                    ],
-                    [
-                        'sender_type' => 'system',
-                        'content' => 'Dạ em gửi anh/chị báo giá và thông tin ưu đãi ngay ạ.',
-                        'minutes_ago' => 55,
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_bot_1005_a',
-                    ],
-                    [
-                        'sender_type' => 'user',
-                        'sender_id' => $agent->id,
-                        'content' => 'Đã hỗ trợ xong, cảm ơn anh/chị.',
-                        'minutes_ago' => 42,
-                        'message_type' => 'whisper',
-                        'channel' => 'internal',
-                        'outbound_status' => 'sent',
-                        'external_message_id' => 'mock_user_1005_a',
-                    ],
-                ],
-                'reply_suggestions' => [
-                    'Gửi báo giá Camry',
-                    'Tư vấn trả góp',
-                    'Hẹn lái thử',
-                ],
-            ],
+        $names = [
+            'Vinh Thuong Truong',
+            'Le Thi Mai',
+            'Nguyen Van An',
+            'Tran Thu Linh',
+            'Pham Minh Khoa',
+            'Hoang Gia Bao',
+            'Doan Ngoc Han',
+            'Bui Quoc Huy',
+            'Vu Thu Trang',
+            'Dang Thanh Long',
+            'Nguyen Thi Phuong',
+            'Phan Quang Hieu',
+            'Le Gia Han',
+            'Tran Minh Tri',
+            'Hoang My Linh',
+            'Nguyen Hoang Nam',
+            'Pham Dieu My',
+            'Do Minh Tuan',
+            'Ngo Khanh Vy',
+            'Le Minh Duc',
+            'Tran Gia Bao',
+            'Vu Hong Ngoc',
+            'Nguyen Quoc Dat',
+            'Pham Thi Mai Anh',
+            'Do Huu Phuc',
+            'Tran Thi Kim Anh',
+            'Le Thanh Phat',
+            'Nguyen Chi Khang',
+            'Bui Thi Thanh Huyen',
+            'Hoang Tuan Anh',
         ];
+
+        $topics = [
+            'Vios',
+            'Raize',
+            'Veloz Cross',
+            'Yaris Cross',
+            'Camry',
+            'Hilux',
+            'Corolla Cross',
+            'Avanza Premio',
+            'Wigo',
+            'Land Cruiser',
+        ];
+
+        $rows = [];
+        $usedPhones = [];
+        $now = CarbonImmutable::now();
+
+        for ($i = 0; $i < 30; $i++) {
+            $seed = 1001 + $i;
+            $topic = $topics[$i % count($topics)];
+            $name = $names[$i];
+            $phone = $this->generatePhone($usedPhones);
+            $avatarIndex = (($i * 7) % 70) + 1;
+            $scenario = $i % 6;
+            $conversationAgeMinutes = random_int(300, 60 * 24 * 20);
+            $conversationCreatedAt = $now->subMinutes($conversationAgeMinutes);
+
+            $rows[] = array_merge(
+                [
+                    'customer_name' => $name,
+                    'avatar' => 'https://i.pravatar.cc/240?img='.$avatarIndex,
+                    'phone' => $phone,
+                    'phone_collected_at' => $conversationCreatedAt->addMinutes(random_int(5, min(240, $conversationAgeMinutes - 10))),
+                    'customer_created_at' => $conversationCreatedAt->subMinutes(random_int(15, 1440)),
+                    'conversation_created_at' => $conversationCreatedAt,
+                    'email' => Str::slug($name).'@example.com',
+                    'is_potential' => random_int(0, 1) === 1,
+                    'potential_marked_at' => null,
+                    'channel' => 'facebook',
+                    'external_id' => 'mock_fb_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
+                    'facebook_page_id' => $facebookPageId,
+                    'facebook_page_name' => $facebookPageName,
+                    'external_conversation_id' => 'mock_conv_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
+                    'botpress_user_id' => 'mock_bp_user_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
+                    'botpress_user_key' => 'mock_bp_key_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
+                    'botpress_conversation_id' => 'mock_bp_conv_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
+                    'botpress_last_message_id' => 'mock_bp_msg_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
+                ],
+                $this->buildScenario($scenario, $seed, $topic, $agent),
+            );
+
+            if ($rows[$i]['is_potential']) {
+                $maxPotentialOffset = max(20, min(240, $conversationAgeMinutes - 10));
+                $rows[$i]['potential_marked_at'] = $conversationCreatedAt->addMinutes(random_int(20, $maxPotentialOffset));
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array{
+     *     status: string,
+     *     assigned_to: bool,
+     *     unread_count: int,
+     *     first_response_minutes_ago: ?int,
+     *     customer_tags: array<int, string>,
+     *     conversation_tags: array<int, string>,
+     *     note: string,
+     *     note_by: bool,
+     *     messages: array<int, array<string, mixed>>,
+     *     reply_suggestions: array<int, string>,
+     *     botpress_last_message_id: string,
+     *     automation_state: array<string, mixed>|null,
+     *     last_message_minutes_ago: int
+     * }
+     */
+    private function buildScenario(int $scenario, int $seed, string $topic, User $agent): array
+    {
+        return match ($scenario) {
+            0 => $this->scenarioQuoteWaiting($seed, $topic),
+            1 => $this->scenarioWaitingCustomer($seed, $topic, $agent),
+            2 => $this->scenarioBotConsulting($seed, $topic),
+            3 => $this->scenarioClosed($seed, $topic, $agent),
+            4 => $this->scenarioAttachment($seed, $topic),
+            default => $this->scenarioWhisper($seed, $topic, $agent),
+        };
+    }
+
+    private function scenarioQuoteWaiting(int $seed, string $topic): array
+    {
+        $lastAgo = random_int(4, 24);
+
+        return [
+            'status' => ConversationStatus::CUSTOMER_WAITING,
+            'assigned_to' => true,
+            'unread_count' => random_int(1, 4),
+            'first_response_minutes_ago' => $lastAgo + random_int(20, 60),
+            'customer_tags' => [Tag::DEFAULT_QUOTE, Tag::DEFAULT_INSTALLMENT, Tag::DEFAULT_PHONE],
+            'conversation_tags' => [Tag::DEFAULT_QUOTE, Tag::DEFAULT_INSTALLMENT],
+            'note' => 'Khách đang xin báo giá và trả góp cho '.$topic.'.',
+            'note_by' => true,
+            'messages' => [
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Anh/chị muốn xem giá '.$topic.'.',
+                    'minutes_ago' => $lastAgo + 90,
+                    'external_message_id' => 'mock_quote_'.$seed.'_cust_a',
+                ],
+                [
+                    'sender_type' => 'system',
+                    'content' => 'Dạ em gửi anh/chị báo giá sơ bộ cho '.$topic.' ạ.',
+                    'minutes_ago' => $lastAgo + 40,
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_quote_'.$seed.'_bot_a',
+                ],
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Cho em xem ưu đãi và mức trả trước nhé.',
+                    'minutes_ago' => $lastAgo,
+                    'external_message_id' => 'mock_quote_'.$seed.'_cust_b',
+                ],
+            ],
+            'reply_suggestions' => [
+                'Xem báo giá '.$topic,
+                'Tư vấn trả góp',
+                'Gửi ưu đãi',
+            ],
+            'botpress_last_message_id' => 'mock_quote_'.$seed.'_bot_a',
+            'automation_state' => null,
+            'last_message_minutes_ago' => $lastAgo,
+        ];
+    }
+
+    private function scenarioWaitingCustomer(int $seed, string $topic, User $agent): array
+    {
+        $lastAgo = random_int(8, 60);
+
+        return [
+            'status' => ConversationStatus::WAITING_CUSTOMER,
+            'assigned_to' => true,
+            'unread_count' => 0,
+            'first_response_minutes_ago' => $lastAgo + random_int(25, 70),
+            'customer_tags' => [Tag::DEFAULT_TEST_DRIVE, Tag::DEFAULT_PHONE],
+            'conversation_tags' => [Tag::DEFAULT_TEST_DRIVE],
+            'note' => 'Đã tư vấn xong và đang chờ khách phản hồi lịch cho '.$topic.'.',
+            'note_by' => true,
+            'messages' => [
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Anh/chị quan tâm '.$topic.' cho gia đình.',
+                    'minutes_ago' => $lastAgo + 180,
+                    'external_message_id' => 'mock_wait_'.$seed.'_cust_a',
+                ],
+                [
+                    'sender_type' => 'user',
+                    'sender_id' => $agent->id,
+                    'content' => 'Dạ em đã ghi nhận, anh/chị cho em xin thời gian thuận tiện nhé.',
+                    'minutes_ago' => $lastAgo,
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_wait_'.$seed.'_agent_a',
+                ],
+            ],
+            'reply_suggestions' => [
+                'Xác nhận lịch',
+                'Gửi địa chỉ showroom',
+                'Cần em gọi xác nhận không?',
+            ],
+            'botpress_last_message_id' => 'mock_wait_'.$seed.'_agent_a',
+            'automation_state' => null,
+            'last_message_minutes_ago' => $lastAgo,
+        ];
+    }
+
+    private function scenarioBotConsulting(int $seed, string $topic): array
+    {
+        $lastAgo = random_int(3, 18);
+
+        return [
+            'status' => ConversationStatus::BOT_CONSULTING,
+            'assigned_to' => false,
+            'unread_count' => 0,
+            'first_response_minutes_ago' => $lastAgo + random_int(30, 90),
+            'customer_tags' => [Tag::DEFAULT_CONSULTING, Tag::DEFAULT_PHONE],
+            'conversation_tags' => [Tag::DEFAULT_CONSULTING],
+            'note' => 'Bot đang tư vấn về '.$topic.' và đã gửi ảnh minh họa.',
+            'note_by' => false,
+            'messages' => [
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Anh cần thêm thông tin về '.$topic.'.',
+                    'minutes_ago' => $lastAgo + 140,
+                    'external_message_id' => 'mock_bot_'.$seed.'_cust_a',
+                ],
+                [
+                    'sender_type' => 'system',
+                    'content' => 'Anh tham khảo '.$topic.' nhé, em gửi thêm hình thực tế.',
+                    'minutes_ago' => $lastAgo + 40,
+                    'message_type' => 'attachment',
+                    'attachments' => [
+                        [
+                            'type' => 'image',
+                            'name' => 'toyota-'.$seed.'.jpg',
+                            'url' => 'https://picsum.photos/seed/mock-'.$seed.'/900/600',
+                            'mime_type' => 'image/jpeg',
+                            'payload' => [
+                                'image_data' => [
+                                    'url' => 'https://picsum.photos/seed/mock-'.$seed.'/900/600',
+                                ],
+                            ],
+                        ],
+                    ],
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_bot_'.$seed.'_bot_a',
+                ],
+                [
+                    'sender_type' => 'system',
+                    'content' => 'Nếu cần, em có thể gửi thêm brochure hoặc bảng màu.',
+                    'minutes_ago' => $lastAgo,
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_bot_'.$seed.'_bot_b',
+                ],
+            ],
+            'reply_suggestions' => [
+                'Xem thêm hình',
+                'Gửi brochure',
+                'So sánh các mẫu',
+            ],
+            'botpress_last_message_id' => 'mock_bot_'.$seed.'_bot_b',
+            'automation_state' => null,
+            'last_message_minutes_ago' => $lastAgo,
+        ];
+    }
+
+    private function scenarioClosed(int $seed, string $topic, User $agent): array
+    {
+        $lastAgo = random_int(30, 180);
+
+        return [
+            'status' => ConversationStatus::CLOSED,
+            'assigned_to' => true,
+            'unread_count' => 0,
+            'first_response_minutes_ago' => $lastAgo + random_int(60, 150),
+            'customer_tags' => [Tag::DEFAULT_APPOINTMENT, Tag::DEFAULT_PHONE],
+            'conversation_tags' => [Tag::DEFAULT_APPOINTMENT, Tag::DEFAULT_PHONE],
+            'note' => 'Khách đã xác nhận và cuộc hội thoại đã đóng.',
+            'note_by' => true,
+            'messages' => [
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Anh/chị muốn chốt lịch hẹn cho '.$topic.'.',
+                    'minutes_ago' => $lastAgo + 240,
+                    'external_message_id' => 'mock_closed_'.$seed.'_cust_a',
+                ],
+                [
+                    'sender_type' => 'system',
+                    'content' => 'Dạ em đã ghi nhận lịch hẹn cho anh/chị ạ.',
+                    'minutes_ago' => $lastAgo + 110,
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_closed_'.$seed.'_bot_a',
+                ],
+                [
+                    'sender_type' => 'user',
+                    'sender_id' => $agent->id,
+                    'content' => 'Em đã hoàn tất lịch hẹn, cảm ơn anh/chị.',
+                    'minutes_ago' => $lastAgo + 20,
+                    'message_type' => 'whisper',
+                    'channel' => 'internal',
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_closed_'.$seed.'_user_a',
+                ],
+                [
+                    'sender_type' => 'user',
+                    'sender_id' => $agent->id,
+                    'content' => 'Hẹn gặp anh/chị tại showroom theo lịch đã xác nhận.',
+                    'minutes_ago' => $lastAgo,
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_closed_'.$seed.'_user_b',
+                ],
+            ],
+            'reply_suggestions' => [
+                'Xác nhận lịch',
+                'Gửi địa chỉ',
+                'Đóng hội thoại',
+            ],
+            'botpress_last_message_id' => 'mock_closed_'.$seed.'_bot_a',
+            'automation_state' => null,
+            'last_message_minutes_ago' => $lastAgo,
+        ];
+    }
+
+    private function scenarioAttachment(int $seed, string $topic): array
+    {
+        $lastAgo = random_int(5, 36);
+
+        return [
+            'status' => ConversationStatus::CUSTOMER_WAITING,
+            'assigned_to' => true,
+            'unread_count' => random_int(1, 2),
+            'first_response_minutes_ago' => $lastAgo + random_int(25, 80),
+            'customer_tags' => [Tag::DEFAULT_QUOTE, Tag::DEFAULT_CONSULTING],
+            'conversation_tags' => [Tag::DEFAULT_QUOTE, Tag::DEFAULT_CONSULTING],
+            'note' => 'Khách đang xem hình và tài liệu về '.$topic.'.',
+            'note_by' => true,
+            'messages' => [
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Anh/chị gửi thêm hình thực tế giúp em với.',
+                    'minutes_ago' => $lastAgo + 180,
+                    'external_message_id' => 'mock_attach_'.$seed.'_cust_a',
+                ],
+                [
+                    'sender_type' => 'system',
+                    'content' => 'Dạ em gửi anh/chị một số hình Toyota thực tế nhé.',
+                    'minutes_ago' => $lastAgo + 90,
+                    'message_type' => 'attachment',
+                    'attachments' => [
+                        [
+                            'type' => 'image',
+                            'name' => 'toyota-'.$seed.'-gallery.jpg',
+                            'url' => 'https://picsum.photos/seed/attach-'.$seed.'/900/600',
+                            'mime_type' => 'image/jpeg',
+                            'payload' => [
+                                'image_data' => [
+                                    'url' => 'https://picsum.photos/seed/attach-'.$seed.'/900/600',
+                                ],
+                            ],
+                        ],
+                    ],
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_attach_'.$seed.'_bot_a',
+                ],
+                [
+                    'sender_type' => 'system',
+                    'content' => 'Em gửi thêm brochure chi tiết để anh/chị xem nhanh hơn.',
+                    'minutes_ago' => $lastAgo + 30,
+                    'message_type' => 'attachment',
+                    'attachments' => [
+                        [
+                            'type' => 'file',
+                            'name' => 'brochure-'.$seed.'.pdf',
+                            'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                            'mime_type' => 'application/pdf',
+                            'payload' => [
+                                'file_url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                            ],
+                        ],
+                    ],
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_attach_'.$seed.'_bot_b',
+                ],
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Đẹp quá, cho em xin giá bản cao nhất nhé.',
+                    'minutes_ago' => $lastAgo,
+                    'external_message_id' => 'mock_attach_'.$seed.'_cust_b',
+                ],
+            ],
+            'reply_suggestions' => [
+                'Gửi giá bản cao nhất',
+                'So sánh các phiên bản',
+                'Gửi thêm hình',
+            ],
+            'botpress_last_message_id' => 'mock_attach_'.$seed.'_bot_b',
+            'automation_state' => null,
+            'last_message_minutes_ago' => $lastAgo,
+        ];
+    }
+
+    private function scenarioWhisper(int $seed, string $topic, User $agent): array
+    {
+        $lastAgo = random_int(6, 72);
+
+        return [
+            'status' => ConversationStatus::CUSTOMER_WAITING,
+            'assigned_to' => true,
+            'unread_count' => random_int(1, 3),
+            'first_response_minutes_ago' => $lastAgo + random_int(20, 45),
+            'customer_tags' => [Tag::DEFAULT_PHONE, Tag::DEFAULT_APPOINTMENT],
+            'conversation_tags' => [Tag::DEFAULT_PHONE],
+            'note' => 'Nhân viên có ghi chú nội bộ và đang chờ khách phản hồi.',
+            'note_by' => true,
+            'messages' => [
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Anh/chị cần em hỗ trợ '.$topic.' thêm.',
+                    'minutes_ago' => $lastAgo + 120,
+                    'external_message_id' => 'mock_whisper_'.$seed.'_cust_a',
+                ],
+                [
+                    'sender_type' => 'user',
+                    'sender_id' => $agent->id,
+                    'content' => 'Thì thầm: khách đang cân nhắc, ưu tiên nhắn lại sau 3 phút.',
+                    'minutes_ago' => $lastAgo + 20,
+                    'message_type' => 'whisper',
+                    'channel' => 'internal',
+                    'outbound_status' => 'sent',
+                    'external_message_id' => 'mock_whisper_'.$seed.'_user_a',
+                ],
+                [
+                    'sender_type' => 'customer',
+                    'content' => 'Để em xem thêm rồi phản hồi lại.',
+                    'minutes_ago' => $lastAgo,
+                    'external_message_id' => 'mock_whisper_'.$seed.'_cust_b',
+                ],
+            ],
+            'reply_suggestions' => [
+                'Nhắc khách phản hồi',
+                'Ghi chú nội bộ',
+                'Đợi khách',
+            ],
+            'botpress_last_message_id' => 'mock_whisper_'.$seed.'_user_a',
+            'automation_state' => null,
+            'last_message_minutes_ago' => $lastAgo,
+        ];
+    }
+
+    private function generatePhone(array &$usedPhones): string
+    {
+        do {
+            $phone = '09'.str_pad((string) random_int(10000000, 99999999), 8, '0', STR_PAD_LEFT);
+        } while (in_array($phone, $usedPhones, true));
+
+        $usedPhones[] = $phone;
+
+        return $phone;
     }
 }
