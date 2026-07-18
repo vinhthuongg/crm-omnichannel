@@ -270,7 +270,9 @@ class BotpressChatService
         }
 
         $customer = $conversation->customer;
-        $userId = 'crm_conversation_'.$conversation->id.'_customer_'.$customer->id;
+        $baseUserId = 'crm_conversation_'.$conversation->id.'_customer_'.$customer->id;
+        $userId = $baseUserId;
+        $conversationExternalId = 'crm_conversation_'.$conversation->id;
         $userKey = $link?->botpress_user_key ?: $this->userKeyFor($userId);
 
         if ($this->usesManualAuth()) {
@@ -287,20 +289,43 @@ class BotpressChatService
                 : $response->throw()->json();
             $botpressUserId = (string) data_get($userResponse, 'user.id', $userId);
         } else {
-            $response = $this->client()->post('/users', [
-                'id' => $userId,
-                'name' => (string) ($customer->name ?: $userId),
-                'pictureUrl' => (string) ($customer->avatar ?: ''),
-                'profile' => json_encode([
-                    'crm_customer_id' => $customer->id,
-                    'facebook_page_id' => $conversation->facebook_page_id,
-                ], JSON_UNESCAPED_SLASHES),
-            ]);
-            $userResponse = $response->successful() || $response->status() === 409
-                ? ($response->json() ?: ['user' => ['id' => $userId]])
-                : $response->throw()->json();
+            $userResponse = null;
+
+            for ($attempt = 0; $attempt < 6; $attempt++) {
+                $userId = $attempt === 0 ? $baseUserId : $baseUserId.'_v'.($attempt + 1);
+                $conversationExternalId = $attempt === 0 ? 'crm_conversation_'.$conversation->id : 'crm_conversation_'.$conversation->id.'_v'.($attempt + 1);
+
+                $response = $this->client()->post('/users', [
+                    'id' => $userId,
+                    'name' => (string) ($customer->name ?: $userId),
+                    'pictureUrl' => (string) ($customer->avatar ?: ''),
+                    'profile' => json_encode([
+                        'crm_customer_id' => $customer->id,
+                        'facebook_page_id' => $conversation->facebook_page_id,
+                    ], JSON_UNESCAPED_SLASHES),
+                ]);
+
+                if ($response->successful()) {
+                    $userResponse = $response->json();
+                    $userKey = (string) data_get($userResponse, 'key', '');
+                    break;
+                }
+
+                if ($response->status() !== 409) {
+                    $userResponse = $response->throw()->json();
+                    break;
+                }
+
+                Log::info('Botpress user already exists without reusable key, retrying with replacement user id', [
+                    'conversation_id' => $conversation->id,
+                    'customer_id' => $customer->id,
+                    'user_id' => $userId,
+                    'attempt' => $attempt + 1,
+                ]);
+            }
+
+            $userResponse ??= ['user' => ['id' => $userId]];
             $botpressUserId = (string) data_get($userResponse, 'user.id', $userId);
-            $userKey = (string) data_get($userResponse, 'key', $userKey);
         }
 
         if ($userKey === '') {
@@ -308,7 +333,7 @@ class BotpressChatService
         }
 
         $conversationHttpResponse = $this->client($userKey)->post('/conversations/get-or-create', [
-            'id' => 'crm_conversation_'.$conversation->id,
+            'id' => $conversationExternalId,
         ])->throw();
         $conversationResponse = $conversationHttpResponse->json();
         $botpressConversationId = (string) data_get($conversationResponse, 'conversation.id', '');
