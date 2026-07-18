@@ -281,8 +281,10 @@ class BotpressChatService
                     'crm_customer_id' => $customer->id,
                     'facebook_page_id' => $conversation->facebook_page_id,
                 ], JSON_UNESCAPED_SLASHES),
-            ])->throw();
-            $userResponse = $response->json();
+            ]);
+            $userResponse = $response->successful() || $response->status() === 409
+                ? ($response->json() ?: ['user' => ['id' => $userId]])
+                : $response->throw()->json();
             $botpressUserId = (string) data_get($userResponse, 'user.id', $userId);
         } else {
             $response = $this->client()->post('/users', [
@@ -293,8 +295,10 @@ class BotpressChatService
                     'crm_customer_id' => $customer->id,
                     'facebook_page_id' => $conversation->facebook_page_id,
                 ], JSON_UNESCAPED_SLASHES),
-            ])->throw();
-            $userResponse = $response->json();
+            ]);
+            $userResponse = $response->successful() || $response->status() === 409
+                ? ($response->json() ?: ['user' => ['id' => $userId]])
+                : $response->throw()->json();
             $botpressUserId = (string) data_get($userResponse, 'user.id', $userId);
             $userKey = (string) data_get($userResponse, 'key', $userKey);
         }
