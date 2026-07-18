@@ -107,7 +107,9 @@ Trả về JSON duy nhất:
 Luật:
 - Tạo 6-10 nút, tiếng Việt có dấu.
 - title tối đa 20 ký tự, là câu khách có thể bấm, không phải danh mục cứng. Ví dụ: "Trả trước 150tr?", "Hồ sơ cần gì?", "Mai lái thử được?".
-- payload là một câu đầy đủ nói rõ ý định khách khi bấm.
+- payload là một câu đầy đủ nói rõ ý định khách khi bấm và phải khớp tuyệt đối với title.
+- Nếu title là "Thông số xe?" thì payload phải nói khách muốn xem thông số/trang bị, không được thành ưu đãi/khuyến mãi.
+- Nếu title là "Ưu đãi xe này?" thì payload phải nói khách muốn xem ưu đãi/khuyến mãi, không được thành thông số.
 - Bám sát tin nhắn bot vừa gửi và 6 tin gần nhất. Không nhảy sang chủ đề khác.
 - Nếu đang nói về mẫu xe nào thì giữ đúng mẫu xe đó.
 - Nếu bot xin số điện thoại hoặc cần liên hệ, có thể tạo nút "Gửi số cho em".
@@ -147,6 +149,8 @@ PROMPT;
                     return null;
                 }
 
+                $payload = $this->payloadAlignedWithTitle($title, $payload);
+
                 return [
                     'content_type' => 'text',
                     'title' => mb_substr($title, 0, self::MAX_TITLE_LENGTH),
@@ -158,5 +162,73 @@ PROMPT;
             ->take(self::MAX_REPLIES)
             ->values()
             ->all();
+    }
+
+    private function payloadAlignedWithTitle(string $title, string $payload): string
+    {
+        $titleIntent = $this->intent($title);
+        $payloadIntent = $this->intent($payload);
+
+        if ($titleIntent !== null && ($payloadIntent === null || $payloadIntent !== $titleIntent)) {
+            return $this->payloadForIntent($titleIntent);
+        }
+
+        return $payload !== '' ? $payload : $title;
+    }
+
+    private function intent(string $text): ?string
+    {
+        $normalized = str($text)
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/[^a-z0-9\s]+/', ' ')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->toString();
+
+        foreach ($this->intentKeywords() as $intent => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (str_contains($normalized, $keyword)) {
+                    return $intent;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function payloadForIntent(string $intent): string
+    {
+        return match ($intent) {
+            'specs' => 'Khách muốn xem thông số kỹ thuật, trang bị và đặc điểm của mẫu xe đang được tư vấn.',
+            'promotion' => 'Khách muốn hỏi ưu đãi và khuyến mãi hiện tại cho mẫu xe đang được tư vấn.',
+            'price' => 'Khách muốn hỏi giá niêm yết hoặc giá lăn bánh của mẫu xe đang được tư vấn.',
+            'finance' => 'Khách muốn hỏi phương án trả góp cho mẫu xe đang được tư vấn.',
+            'documents' => 'Khách muốn biết hồ sơ và giấy tờ cần chuẩn bị để mua xe.',
+            'colors' => 'Khách muốn hỏi mẫu xe đang được tư vấn còn những màu nào.',
+            'test_drive' => 'Khách muốn đặt lịch lái thử hoặc hỏi điều kiện lái thử mẫu xe đang quan tâm.',
+            'appointment' => 'Khách muốn đặt lịch hẹn để được Toyota Kiên Giang hỗ trợ.',
+            'compare' => 'Khách muốn so sánh mẫu xe đang được tư vấn với mẫu xe khác.',
+            'availability' => 'Khách muốn hỏi xe còn hàng hoặc thời gian giao xe.',
+            'phone' => 'Khách muốn để lại số điện thoại để nhân viên Toyota Kiên Giang liên hệ tư vấn.',
+            default => 'Khách muốn được tư vấn tiếp theo đúng nội dung nút đã chọn.',
+        };
+    }
+
+    private function intentKeywords(): array
+    {
+        return [
+            'specs' => ['thong so', 'trang bi', 'dong co', 'kich thuoc', 'noi that', 'ngoai that', 'an toan', 'tieu hao', 'option'],
+            'promotion' => ['uu dai', 'khuyen mai', 'giam gia', 'qua tang', 'chuong trinh'],
+            'price' => ['gia', 'lan banh', 'bao gia', 'niem yet'],
+            'finance' => ['tra gop', 'lai suat', 'vay', 'tra truoc', 'ngan hang', 'gop'],
+            'documents' => ['ho so', 'giay to', 'cccd', 'cmnd', 'thu tuc'],
+            'colors' => ['mau', 'mau nao', 'mau xe'],
+            'test_drive' => ['lai thu', 'test drive'],
+            'appointment' => ['dat lich', 'lich hen', 'hen lich', 'showroom'],
+            'compare' => ['so sanh', 'khac gi', 'hon gi'],
+            'availability' => ['con xe', 'con hang', 'giao xe', 'co san'],
+            'phone' => ['so dien thoai', 'sdt', 'gui so', 'de lai so', 'goi lai', 'lien he'],
+        ];
     }
 }

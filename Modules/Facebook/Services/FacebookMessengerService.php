@@ -5,6 +5,7 @@ namespace Modules\Facebook\Services;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class FacebookMessengerService
@@ -210,10 +211,13 @@ class FacebookMessengerService
                     return null;
                 }
 
+                $payload = trim((string) ($item['payload'] ?? $title));
+                $payload = $this->payloadAlignedWithTitle($title, $payload);
+
                 return [
                     'content_type' => 'text',
                     'title' => mb_substr($title, 0, self::QUICK_REPLY_TITLE_LIMIT),
-                    'payload' => mb_substr(trim((string) ($item['payload'] ?? $title)), 0, self::QUICK_REPLY_PAYLOAD_LIMIT),
+                    'payload' => mb_substr($payload, 0, self::QUICK_REPLY_PAYLOAD_LIMIT),
                 ];
             })
             ->filter()
@@ -221,6 +225,82 @@ class FacebookMessengerService
             ->take(self::QUICK_REPLY_COUNT_LIMIT)
             ->values()
             ->all();
+    }
+
+    private function payloadAlignedWithTitle(string $title, string $payload): string
+    {
+        $titleIntent = $this->quickReplyIntent($title);
+        $payloadIntent = $this->quickReplyIntent($payload);
+
+        if ($titleIntent !== null && ($payloadIntent === null || $payloadIntent !== $titleIntent)) {
+            $fixedPayload = $this->payloadForQuickReplyIntent($titleIntent);
+
+            Log::info('Facebook quick reply payload aligned with title', [
+                'title' => mb_substr($title, 0, self::QUICK_REPLY_TITLE_LIMIT),
+                'old_payload' => mb_substr($payload, 0, 160),
+                'new_payload' => $fixedPayload,
+            ]);
+
+            return $fixedPayload;
+        }
+
+        return $payload !== '' ? $payload : $title;
+    }
+
+    private function quickReplyIntent(string $text): ?string
+    {
+        $normalized = Str::of($text)
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/[^a-z0-9\s]+/', ' ')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->toString();
+
+        foreach ($this->quickReplyIntentKeywords() as $intent => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (str_contains($normalized, $keyword)) {
+                    return $intent;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function payloadForQuickReplyIntent(string $intent): string
+    {
+        return match ($intent) {
+            'specs' => 'Khách muốn xem thông số kỹ thuật, trang bị và đặc điểm của mẫu xe đang được tư vấn.',
+            'promotion' => 'Khách muốn hỏi ưu đãi và khuyến mãi hiện tại cho mẫu xe đang được tư vấn.',
+            'price' => 'Khách muốn hỏi giá niêm yết hoặc giá lăn bánh của mẫu xe đang được tư vấn.',
+            'finance' => 'Khách muốn hỏi phương án trả góp cho mẫu xe đang được tư vấn.',
+            'documents' => 'Khách muốn biết hồ sơ và giấy tờ cần chuẩn bị để mua xe.',
+            'colors' => 'Khách muốn hỏi mẫu xe đang được tư vấn còn những màu nào.',
+            'test_drive' => 'Khách muốn đặt lịch lái thử hoặc hỏi điều kiện lái thử mẫu xe đang quan tâm.',
+            'appointment' => 'Khách muốn đặt lịch hẹn để được Toyota Kiên Giang hỗ trợ.',
+            'compare' => 'Khách muốn so sánh mẫu xe đang được tư vấn với mẫu xe khác.',
+            'availability' => 'Khách muốn hỏi xe còn hàng hoặc thời gian giao xe.',
+            'phone' => 'Khách muốn để lại số điện thoại để nhân viên Toyota Kiên Giang liên hệ tư vấn.',
+            default => 'Khách muốn được tư vấn tiếp theo đúng nội dung nút đã chọn.',
+        };
+    }
+
+    private function quickReplyIntentKeywords(): array
+    {
+        return [
+            'specs' => ['thong so', 'trang bi', 'dong co', 'kich thuoc', 'noi that', 'ngoai that', 'an toan', 'tieu hao', 'option'],
+            'promotion' => ['uu dai', 'khuyen mai', 'giam gia', 'qua tang', 'chuong trinh'],
+            'price' => ['gia', 'lan banh', 'bao gia', 'niem yet'],
+            'finance' => ['tra gop', 'lai suat', 'vay', 'tra truoc', 'ngan hang', 'gop'],
+            'documents' => ['ho so', 'giay to', 'cccd', 'cmnd', 'thu tuc'],
+            'colors' => ['mau', 'mau nao', 'mau xe'],
+            'test_drive' => ['lai thu', 'test drive'],
+            'appointment' => ['dat lich', 'lich hen', 'hen lich', 'showroom'],
+            'compare' => ['so sanh', 'khac gi', 'hon gi'],
+            'availability' => ['con xe', 'con hang', 'giao xe', 'co san'],
+            'phone' => ['so dien thoai', 'sdt', 'gui so', 'de lai so', 'goi lai', 'lien he'],
+        ];
     }
 
     public function profile(string $psid, ?string $pageAccessToken = null): array
