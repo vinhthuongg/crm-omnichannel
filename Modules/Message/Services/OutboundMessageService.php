@@ -128,82 +128,101 @@ class OutboundMessageService
                 continue;
             }
 
-            $type = (string) ($attachment['type'] ?? $this->facebookAttachmentType((string) ($attachment['mime_type'] ?? '')));
-
-            if (! empty($attachment['facebook_attachment_id'])) {
-                $response = $this->facebook->sendAttachmentId(
-                    $recipientId,
-                    (string) $attachment['facebook_attachment_id'],
-                    $type,
-                    $pageAccessToken,
-                );
-
-                continue;
-            }
-
-            $localPath = $this->publicAttachmentPath($attachment);
-
-            if ($localPath) {
-                $response = $this->facebook->sendLocalAttachment(
-                    $recipientId,
-                    $localPath,
-                    $type,
-                    (string) ($attachment['mime_type'] ?? ''),
-                    (string) ($attachment['name'] ?? basename($localPath)),
-                    $pageAccessToken,
-                );
-
-                if (! empty($response['facebook_attachment_id'])) {
-                    $sentAttachments[$index] = [
-                        'facebook_attachment_id' => (string) $response['facebook_attachment_id'],
-                    ];
-                }
-
-                continue;
-            }
-
             try {
-                $response = $this->facebook->sendAttachment(
-                    $recipientId,
-                    (string) ($attachment['url'] ?? ''),
-                    $type,
-                    $pageAccessToken,
-                );
-            } catch (RequestException $exception) {
-                if (! $this->isFacebookAttachmentUploadError($exception)) {
-                    throw $exception;
-                }
+                $type = (string) ($attachment['type'] ?? $this->facebookAttachmentType((string) ($attachment['mime_type'] ?? '')));
 
-                Log::warning('Facebook could not fetch attachment URL, retrying with local upload', [
-                    'recipient_id' => $recipientId,
-                    'attachment_type' => $type,
-                    'attachment_url' => (string) ($attachment['url'] ?? ''),
-                    'status' => $exception->response->status(),
-                    'body' => $exception->response->body(),
-                ]);
-
-                $tmpPath = $this->downloadRemoteAttachment($attachment);
-
-                try {
-                    $response = $this->facebook->sendLocalAttachment(
+                if (! empty($attachment['facebook_attachment_id'])) {
+                    $response = $this->facebook->sendAttachmentId(
                         $recipientId,
-                        $tmpPath,
+                        (string) $attachment['facebook_attachment_id'],
                         $type,
-                        (string) ($attachment['mime_type'] ?? ''),
-                        (string) ($attachment['name'] ?? basename($tmpPath)),
                         $pageAccessToken,
                     );
-                } finally {
-                    @unlink($tmpPath);
+
+                    continue;
                 }
 
-                if (! empty($response['facebook_attachment_id'])) {
-                    $sentAttachments[$index] = [
-                        'facebook_attachment_id' => (string) $response['facebook_attachment_id'],
-                    ];
+                $localPath = $this->publicAttachmentPath($attachment);
+
+                if ($localPath) {
+                    $response = $this->facebook->sendLocalAttachment(
+                        $recipientId,
+                        $localPath,
+                        $type,
+                        (string) ($attachment['mime_type'] ?? ''),
+                        (string) ($attachment['name'] ?? basename($localPath)),
+                        $pageAccessToken,
+                    );
+
+                    if (! empty($response['facebook_attachment_id'])) {
+                        $sentAttachments[$index] = [
+                            'facebook_attachment_id' => (string) $response['facebook_attachment_id'],
+                        ];
+                    }
+
+                    continue;
                 }
+
+                try {
+                    $response = $this->facebook->sendAttachment(
+                        $recipientId,
+                        (string) ($attachment['url'] ?? ''),
+                        $type,
+                        $pageAccessToken,
+                    );
+                } catch (RequestException $exception) {
+                    if (! $this->isFacebookAttachmentUploadError($exception)) {
+                        throw $exception;
+                    }
+
+                    Log::warning('Facebook could not fetch attachment URL, retrying with local upload', [
+                        'recipient_id' => $recipientId,
+                        'attachment_type' => $type,
+                        'attachment_url' => (string) ($attachment['url'] ?? ''),
+                        'status' => $exception->response->status(),
+                        'body' => $exception->response->body(),
+                    ]);
+
+                    $tmpPath = $this->downloadRemoteAttachment($attachment);
+
+                    try {
+                        $response = $this->facebook->sendLocalAttachment(
+                            $recipientId,
+                            $tmpPath,
+                            $type,
+                            (string) ($attachment['mime_type'] ?? ''),
+                            (string) ($attachment['name'] ?? basename($tmpPath)),
+                            $pageAccessToken,
+                        );
+                    } finally {
+                        @unlink($tmpPath);
+                    }
+
+                    if (! empty($response['facebook_attachment_id'])) {
+                        $sentAttachments[$index] = [
+                            'facebook_attachment_id' => (string) $response['facebook_attachment_id'],
+                        ];
+                    }
+                }
+            } catch (\Throwable $exception) {
+                Log::warning('Facebook attachment send failed but text reply was preserved', [
+                    'recipient_id' => $recipientId,
+                    'attachment_type' => (string) ($attachment['type'] ?? ''),
+                    'attachment_name' => (string) ($attachment['name'] ?? ''),
+                    'attachment_url' => (string) ($attachment['url'] ?? ''),
+                    ...$this->exceptionContext($exception),
+                ]);
+                continue;
             }
         }
+
+        if ($response === [] && $sentAttachments === [] && $content !== '') {
+            Log::warning('Facebook outbound sent text-only fallback after all attachments failed', [
+                'recipient_id' => $recipientId,
+                'content_preview' => mb_substr($content, 0, 200),
+                'attachments_count' => count($attachments),
+            ]);
+                }
 
         if ($sentAttachments) {
             $response['_sent_attachments'] = $sentAttachments;

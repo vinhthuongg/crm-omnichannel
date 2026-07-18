@@ -507,20 +507,10 @@ class BotpressChatService
     private function filterBotRepliesForCustomer(Conversation $conversation, array $replies): array
     {
         $accepted = [];
-        $existingTexts = $conversation->messages()
-            ->where('sender_type', 'system')
-            ->latest('created_at')
-            ->limit(8)
-            ->pluck('content')
-            ->map(fn (?string $content): string => $this->normalizeReplyText((string) $content))
-            ->filter()
-            ->values()
-            ->all();
 
         foreach ($replies as $reply) {
             $content = trim((string) data_get($reply, 'payload.text', ''));
             $attachments = $this->botpressAttachments($reply);
-            $normalized = $this->normalizeReplyText($content);
 
             if (($content === '' && $attachments === []) || ($content !== '' && $this->shouldSkipBotReply($content))) {
                 Log::info('Botpress relay reply skipped by content filter', [
@@ -534,17 +524,7 @@ class BotpressChatService
                 continue;
             }
 
-            if ($normalized !== '' && $this->isDuplicateBotReply($normalized, [...$existingTexts, ...array_keys($accepted)])) {
-                Log::info('Botpress relay reply skipped by duplicate filter', [
-                    'conversation_id' => $conversation->id,
-                    'botpress_reply_id' => (string) data_get($reply, 'id', ''),
-                    'reply_preview' => mb_substr($content, 0, 240),
-                ]);
-
-                continue;
-            }
-
-            $accepted[$normalized !== '' ? $normalized : (string) data_get($reply, 'id', spl_object_id((object) $reply))] = $reply;
+            $accepted[(string) data_get($reply, 'id', spl_object_id((object) $reply))] = $reply;
         }
 
         return array_values($accepted);
@@ -566,38 +546,6 @@ class BotpressChatService
         }
 
         return false;
-    }
-
-    private function isDuplicateBotReply(string $normalized, array $previousTexts): bool
-    {
-        if ($normalized === '') {
-            return true;
-        }
-
-        foreach ($previousTexts as $previous) {
-            $previous = $this->normalizeReplyText((string) $previous);
-
-            if ($previous === '') {
-                continue;
-            }
-
-            if ($normalized === $previous) {
-                return true;
-            }
-
-            similar_text($normalized, $previous, $percent);
-
-            if ($percent >= 94) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function normalizeReplyText(string $content): string
-    {
-        return trim((string) preg_replace('/\s+/u', ' ', mb_strtolower($content)));
     }
 
     private function storeBotReply(
