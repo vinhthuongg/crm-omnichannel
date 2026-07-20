@@ -64,13 +64,10 @@ class HandleFacebookWebhookAction
             $pageToken = $page?->page_access_token;
             $profile = $this->cachedCustomerProfile($senderId);
 
-            $this->sendTypingOnForInbound($senderId, $page);
-
             if ($this->shouldFetchProfile($profile) && $page && $pageToken) {
                 try {
-                    $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
-
                     if ($page->token_status !== 'valid') {
+                        $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
                         $debugToken = $this->tokens->validatePageToken($pageToken);
                         $this->pages->markValid($page, $debugToken);
                     }
@@ -120,15 +117,6 @@ class HandleFacebookWebhookAction
         ]);
 
         return $lastMessage;
-    }
-
-    private function sendTypingOnForInbound(string $senderId, ?FacebookPage $page): void
-    {
-        if (! $page?->page_access_token || $senderId === '') {
-            return;
-        }
-
-        $this->facebook->sendTypingOn($senderId, $page->page_access_token);
     }
 
     private function sendTypingOffForEcho(array $event): void

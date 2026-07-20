@@ -155,11 +155,7 @@ class FacebookMessengerService
                 'error' => $exception->getMessage(),
             ]);
 
-            return [
-                'recipient_id' => $recipientId,
-                'message_id' => null,
-                'delivery_status' => 'sent_response_timeout',
-            ];
+            throw $exception;
         }
 
         $response->throw();
@@ -312,8 +308,8 @@ class FacebookMessengerService
         try {
             $accessToken = $this->token($pageAccessToken);
             $response = $this->http
-                ->connectTimeout(5)
-                ->timeout(10)
+                ->connectTimeout(1)
+                ->timeout(3)
                 ->get($this->graphUrl("/{$psid}"), [
                     'fields' => 'name,first_name,last_name,profile_pic',
                     'access_token' => $accessToken,

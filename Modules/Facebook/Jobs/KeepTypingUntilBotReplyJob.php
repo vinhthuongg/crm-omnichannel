@@ -38,7 +38,7 @@ class KeepTypingUntilBotReplyJob implements ShouldQueue
     public static function start(Conversation $conversation, int $inboundMessageId, string $recipientId, string $pageId): void
     {
         self::dispatch((int) $conversation->id, $inboundMessageId, $recipientId, $pageId)
-            ->delay(now()->addSeconds(self::INTERVAL_SECONDS));
+            ->onQueue('default');
     }
 
     public function handle(FacebookMessengerService $facebook): void
@@ -79,7 +79,7 @@ class KeepTypingUntilBotReplyJob implements ShouldQueue
             ->where(function ($query): void {
                 $query->where(function ($query): void {
                     $query->where('sender_type', 'system')
-                        ->where('outbound_status', 'sent');
+                        ->whereIn('outbound_status', ['sent', 'sent_partial']);
                 })->orWhere(function ($query): void {
                     $query->where('sender_type', 'user')
                         ->where('message_type', '!=', 'whisper')

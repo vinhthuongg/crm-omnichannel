@@ -21,11 +21,11 @@ class SendOutboundMessageJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 3;
 
     public int $timeout = 120;
 
-    public array $backoff = [];
+    public array $backoff = [2, 5, 15];
 
     public function __construct(public readonly int $messageId)
     {
@@ -72,7 +72,9 @@ class SendOutboundMessageJob implements ShouldQueue
             return;
         }
 
-        if ($message->outbound_status !== 'queued') {
+        $retryingInterruptedSend = $message->outbound_status === 'sending' && $this->attempts() > 1;
+
+        if ($message->outbound_status !== 'queued' && ! $retryingInterruptedSend) {
             Log::info('Outbound job skipped because message is not queued', [
                 'message_id' => $message->id,
                 'conversation_id' => $message->conversation_id,
@@ -120,13 +122,17 @@ class SendOutboundMessageJob implements ShouldQueue
                 $message->attachments ?? [],
             );
             $sentAttachments = $outbound->lastResponse()['_sent_attachments'] ?? [];
+            $failedAttachments = $outbound->lastResponse()['_failed_attachments'] ?? [];
             $attachments = $message->attachments ?? [];
+            $isPartial = $failedAttachments !== [];
 
             $message->forceFill([
                 'external_message_id' => $externalMessageId,
                 'attachments' => $this->mergeSentAttachments($attachments, $sentAttachments),
-                'outbound_status' => 'sent',
-                'outbound_error' => null,
+                'outbound_status' => $isPartial ? 'sent_partial' : 'sent',
+                'outbound_error' => $isPartial
+                    ? 'Mot so tep dinh kem khong gui duoc: '.collect($failedAttachments)->pluck('error')->filter()->implode(' | ')
+                    : null,
                 'sent_at' => now(),
             ])->save();
             event(new MessageUpdatedEvent($message));
@@ -137,6 +143,7 @@ class SendOutboundMessageJob implements ShouldQueue
                 'channel' => $message->channel,
                 'sender_type' => $message->sender_type,
                 'external_message_id' => $externalMessageId,
+                'failed_attachments_count' => count($failedAttachments),
             ]);
 
             if ($message->sender_type === 'system') {

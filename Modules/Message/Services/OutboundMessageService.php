@@ -116,6 +116,7 @@ class OutboundMessageService
                 : $this->facebook->sendText($recipientId, $content, $pageAccessToken))
             : [];
         $sentAttachments = [];
+        $failedAttachments = [];
 
         foreach ($attachments as $index => $attachment) {
             if (($attachment['type'] ?? '') === 'quick_reply') {
@@ -205,6 +206,12 @@ class OutboundMessageService
                     }
                 }
             } catch (\Throwable $exception) {
+                $failedAttachments[$index] = [
+                    'name' => (string) ($attachment['name'] ?? ''),
+                    'url' => (string) ($attachment['url'] ?? ''),
+                    'error' => $exception->getMessage(),
+                ];
+
                 Log::warning('Facebook attachment send failed but text reply was preserved', [
                     'recipient_id' => $recipientId,
                     'attachment_type' => (string) ($attachment['type'] ?? ''),
@@ -226,6 +233,10 @@ class OutboundMessageService
 
         if ($sentAttachments) {
             $response['_sent_attachments'] = $sentAttachments;
+        }
+
+        if ($failedAttachments) {
+            $response['_failed_attachments'] = $failedAttachments;
         }
 
         return $response;
@@ -327,9 +338,11 @@ class OutboundMessageService
         }
 
         try {
-            $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
-            $debugToken = $this->tokens->validatePageToken($page->page_access_token);
-            $this->facebookPages->markValid($page, $debugToken);
+            if ($page->token_status !== 'valid') {
+                $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
+                $debugToken = $this->tokens->validatePageToken($page->page_access_token);
+                $this->facebookPages->markValid($page, $debugToken);
+            }
         } catch (\Throwable $exception) {
             $this->facebookPages->markInvalid($page, $exception->getMessage());
             throw new RuntimeException('Facebook page token khong hop le. Vui long reconnect fanpage: '.$exception->getMessage(), previous: $exception);
@@ -372,5 +385,17 @@ class OutboundMessageService
         };
 
         return $id ? (string) $id : null;
+    }
+
+    private function exceptionContext(\Throwable $exception): array
+    {
+        $context = ['error' => $exception->getMessage()];
+
+        if ($exception instanceof RequestException && $exception->response) {
+            $context['status'] = $exception->response->status();
+            $context['body'] = mb_substr($exception->response->body(), 0, 2000);
+        }
+
+        return $context;
     }
 }

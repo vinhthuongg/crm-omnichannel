@@ -14,6 +14,7 @@ use Modules\Customer\Models\CustomerChannel;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\DTO\InboundMessageData;
 use Modules\Message\Events\NewMessageEvent;
+use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
 use Modules\Conversation\Services\WorkShiftService;
@@ -25,7 +26,6 @@ class MessageService
 {
     public function __construct(
         private readonly MessageRepository $repository,
-        private readonly OutboundMessageService $outbound,
         private readonly WorkShiftService $shifts,
         private readonly ConversationService $conversations,
         private readonly ConversationIntentService $intents,
@@ -251,10 +251,20 @@ class MessageService
 
     public function sendFromUser(Conversation $conversation, User $user, array $data): Message
     {
-        $externalMessageId = $this->outbound->sendText($conversation, $data['channel'], (string) ($data['content'] ?? ''));
-
-        $message = DB::transaction(function () use ($conversation, $user, $data, $externalMessageId): Message {
-            $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'user', 'sender_id' => $user->id, 'channel' => $data['channel'], 'content' => $data['content'] ?? null, 'message_type' => $data['message_type'] ?? 'text', 'attachments' => $data['attachments'] ?? null, 'external_message_id' => $externalMessageId]);
+        $message = DB::transaction(function () use ($conversation, $user, $data): Message {
+            $attachments = array_values((array) ($data['attachments'] ?? []));
+            $message = $this->repository->create([
+                'conversation_id' => $conversation->id,
+                'sender_type' => 'user',
+                'sender_id' => $user->id,
+                'channel' => $data['channel'],
+                'content' => $data['content'] ?? null,
+                'message_type' => $data['message_type'] ?? ($attachments !== [] ? 'attachment' : 'text'),
+                'attachments' => $attachments,
+                'external_message_id' => null,
+                'outbound_status' => 'queued',
+                'outbound_error' => null,
+            ]);
             $this->conversations->recordOutboundMessage($conversation, $message);
             $this->markConversationAsConsulting($conversation);
 
@@ -262,6 +272,7 @@ class MessageService
         });
 
         $this->broadcastNewMessage($message);
+        SendOutboundMessageJob::dispatch((int) $message->id);
         $this->queueCustomerVectorRefresh($conversation->customer);
 
         return $message;

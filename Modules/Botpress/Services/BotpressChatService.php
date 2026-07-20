@@ -185,6 +185,8 @@ class BotpressChatService
                 'message_id' => $inbound->id,
                 ...$this->exceptionContext($exception),
             ]);
+
+            throw $exception;
         }
     }
 
@@ -235,16 +237,6 @@ class BotpressChatService
             return null;
         }
 
-        if ($this->recentBotCallbackExists($conversation)) {
-            Log::info('Botpress callback ignored because another bot reply was just queued', [
-                'conversation_id' => $conversationId,
-                'content' => mb_substr($content, 0, 160),
-                'attachments_count' => count($attachments),
-            ]);
-
-            return null;
-        }
-
         $sourceId = (string) (
             data_get($payload, 'id')
             ?: data_get($payload, 'data.id')
@@ -254,7 +246,7 @@ class BotpressChatService
             ?: sha1($conversationId.'|'.$content.'|'.json_encode($payload))
         );
 
-        return $this->storeExternalBotReply($conversation, (string) $content, 'botpress_callback_'.$sourceId, [
+        return $this->storeExternalBotReply($conversation, (string) $content, 'botpress_'.$sourceId, [
             'type' => 'metadata',
             'name' => 'botpress_callback',
             'payload' => $payload,
@@ -1414,17 +1406,6 @@ class BotpressChatService
                 return $role.': '.mb_substr($content, 0, 240);
             })
             ->implode("\n");
-    }
-
-    private function recentBotCallbackExists(Conversation $conversation): bool
-    {
-        return Message::query()
-            ->where('conversation_id', $conversation->id)
-            ->where('sender_type', 'system')
-            ->where('channel', 'facebook')
-            ->where('client_message_id', 'like', 'botpress_callback_%')
-            ->where('created_at', '>=', now()->subSeconds(8))
-            ->exists();
     }
 
     private function client(?string $userKey = null): \Illuminate\Http\Client\PendingRequest

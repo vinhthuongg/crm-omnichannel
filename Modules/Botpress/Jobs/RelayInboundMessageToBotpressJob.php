@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Modules\Botpress\Services\BotpressChatService;
 use Modules\Message\Models\Message;
@@ -18,9 +19,11 @@ class RelayInboundMessageToBotpressJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 3;
 
-    public int $timeout = 60;
+    public int $timeout = 120;
+
+    public array $backoff = [2, 5, 15];
 
     public function __construct(public readonly int $messageId)
     {
@@ -45,7 +48,11 @@ class RelayInboundMessageToBotpressJob implements ShouldQueue
             return;
         }
 
-        $botpress->relayCustomerMessage($message);
+        $conversationId = (int) $message->conversation_id;
+
+        Cache::lock('botpress-relay:'.$conversationId, 130)->block(10, function () use ($botpress, $message): void {
+            $botpress->relayCustomerMessage($message);
+        });
 
         Log::warning('Botpress relay job completed', [
             'message_id' => $this->messageId,
