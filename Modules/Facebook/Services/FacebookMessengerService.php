@@ -126,6 +126,15 @@ class FacebookMessengerService
     {
         $message = $this->normalizeTextPayload($message);
 
+        if (isset($message['text'])) {
+            $message['text'] = MessengerTextFormatter::format((string) $message['text']);
+        }
+
+        $quickReplies = (array) ($message['quick_replies'] ?? []);
+        if ($quickReplies !== [] && mb_strlen((string) ($message['text'] ?? '')) > self::QUICK_REPLY_TEXT_LIMIT) {
+            return $this->sendLongTextWithQuickReplies($recipientId, $message, $pageAccessToken);
+        }
+
         if (! empty($message['quick_replies'])) {
             Log::warning('Facebook text payload includes quick replies', [
                 'recipient_id' => $recipientId,
@@ -162,6 +171,53 @@ class FacebookMessengerService
         return $response->json();
     }
 
+    private function sendLongTextWithQuickReplies(string $recipientId, array $message, ?string $pageAccessToken): array
+    {
+        $text = (string) $message['text'];
+        $chunks = $this->splitText($text, self::QUICK_REPLY_TEXT_LIMIT);
+        $quickReplies = (array) $message['quick_replies'];
+
+        foreach (array_slice($chunks, 0, -1) as $chunk) {
+            $this->sendTextPayload($recipientId, ['text' => $chunk], $pageAccessToken);
+        }
+
+        $lastChunk = end($chunks) ?: '';
+        $message['text'] = $lastChunk;
+
+        Log::info('Facebook long text split before quick replies', [
+            'recipient_id' => $recipientId,
+            'chunks_count' => count($chunks),
+            'original_length' => mb_strlen($text),
+        ]);
+
+        return $this->sendTextPayload($recipientId, [
+            'text' => $lastChunk,
+            'quick_replies' => $quickReplies,
+        ], $pageAccessToken);
+    }
+
+    private function splitText(string $text, int $limit): array
+    {
+        $chunks = [];
+        while (mb_strlen($text) > $limit) {
+            $candidate = mb_substr($text, 0, $limit);
+            $breakAt = max(
+                mb_strrpos($candidate, "\n\n") ?: 0,
+                mb_strrpos($candidate, "\n") ?: 0,
+                mb_strrpos($candidate, ' ') ?: 0,
+            );
+            $breakAt = $breakAt > 0 ? $breakAt : $limit;
+            $chunks[] = trim(mb_substr($text, 0, $breakAt));
+            $text = ltrim(mb_substr($text, $breakAt));
+        }
+
+        if ($text !== '' || $chunks === []) {
+            $chunks[] = trim($text);
+        }
+
+        return array_values(array_filter($chunks, static fn (string $chunk): bool => $chunk !== ''));
+    }
+
     private function normalizeTextPayload(array $message): array
     {
         $quickReplies = $this->normalizeQuickReplies((array) ($message['quick_replies'] ?? []));
@@ -173,11 +229,10 @@ class FacebookMessengerService
         }
 
         $originalText = (string) ($message['text'] ?? '');
-        $message['text'] = mb_substr($originalText, 0, self::QUICK_REPLY_TEXT_LIMIT);
         $message['quick_replies'] = $quickReplies;
 
         if (mb_strlen($originalText) > self::QUICK_REPLY_TEXT_LIMIT) {
-            Log::info('Facebook quick reply text truncated to Messenger limit', [
+            Log::info('Facebook quick reply text will be split before sending', [
                 'original_length' => mb_strlen($originalText),
                 'limit' => self::QUICK_REPLY_TEXT_LIMIT,
             ]);
