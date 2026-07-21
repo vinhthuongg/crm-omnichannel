@@ -5,6 +5,7 @@ namespace Modules\Botpress\Services;
 use App\Services\GroqQuickReplySuggestionService;
 use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -109,7 +110,7 @@ class BotpressChatService
                 ],
             ];
 
-            $sendResponse = $this->client($link->botpress_user_key)->post('/messages', $sendPayload)->throw();
+            $sendResponse = $this->sendCustomerMessage($link, $sendPayload);
             $sentBotpressMessage = (array) data_get($sendResponse->json(), 'message', []);
             $sentBotpressMessageId = (string) data_get($sentBotpressMessage, 'id', '');
             $sentBotpressCreatedAt = (string) data_get($sentBotpressMessage, 'createdAt', '');
@@ -256,16 +257,29 @@ class BotpressChatService
     private function ensureLink(Conversation $conversation): BotpressConversationLink
     {
         $link = BotpressConversationLink::query()->where('conversation_id', $conversation->id)->first();
+        $integrationSuffix = $this->integrationSuffix();
+        $customer = $conversation->customer;
+        $baseUserId = 'crm_conversation_'.$conversation->id.'_customer_'.$customer->id.'_bot_'.$integrationSuffix;
+        $belongsToCurrentBot = $link
+            && Str::startsWith((string) $link->botpress_user_id, $baseUserId);
 
-        if ($link?->botpress_user_key && $link->botpress_conversation_id) {
+        if ($belongsToCurrentBot && $link->botpress_user_key && $link->botpress_conversation_id) {
             return $link;
         }
 
-        $customer = $conversation->customer;
-        $baseUserId = 'crm_conversation_'.$conversation->id.'_customer_'.$customer->id;
         $userId = $baseUserId;
-        $conversationExternalId = 'crm_conversation_'.$conversation->id;
-        $userKey = $link?->botpress_user_key ?: $this->userKeyFor($userId);
+        $conversationExternalId = 'crm_conversation_'.$conversation->id.'_bot_'.$integrationSuffix;
+        $userKey = $belongsToCurrentBot && $link?->botpress_user_key
+            ? (string) $link->botpress_user_key
+            : $this->userKeyFor($userId);
+
+        if ($link && ! $belongsToCurrentBot) {
+            Log::info('Botpress integration changed, replacing stale conversation link', [
+                'conversation_id' => $conversation->id,
+                'previous_botpress_user_id' => $link->botpress_user_id,
+                'current_webhook_fingerprint' => $integrationSuffix,
+            ]);
+        }
 
         if ($this->usesManualAuth()) {
             $response = $this->client($userKey)->post('/users/get-or-create', [
@@ -285,7 +299,9 @@ class BotpressChatService
 
             for ($attempt = 0; $attempt < 6; $attempt++) {
                 $userId = $attempt === 0 ? $baseUserId : $baseUserId.'_v'.($attempt + 1);
-                $conversationExternalId = $attempt === 0 ? 'crm_conversation_'.$conversation->id : 'crm_conversation_'.$conversation->id.'_v'.($attempt + 1);
+                $conversationExternalId = $attempt === 0
+                    ? 'crm_conversation_'.$conversation->id.'_bot_'.$integrationSuffix
+                    : 'crm_conversation_'.$conversation->id.'_bot_'.$integrationSuffix.'_v'.($attempt + 1);
 
                 $response = $this->client()->post('/users', [
                     'id' => $userId,
@@ -347,6 +363,67 @@ class BotpressChatService
                 ],
             ],
         );
+    }
+
+    private function sendCustomerMessage(BotpressConversationLink $link, array $payload): Response
+    {
+        try {
+            return $this->client((string) $link->botpress_user_key)
+                ->post('/messages', $payload)
+                ->throw();
+        } catch (RequestException $exception) {
+            if (! $this->isParticipantForbidden($exception)) {
+                throw $exception;
+            }
+
+            $this->replaceBotpressConversation($link);
+            $payload['conversationId'] = $link->botpress_conversation_id;
+
+            Log::warning('Botpress participant mismatch recovered with a new conversation', [
+                'conversation_id' => $link->conversation_id,
+                'botpress_user_id' => $link->botpress_user_id,
+                'botpress_conversation_id' => $link->botpress_conversation_id,
+            ]);
+
+            return $this->client((string) $link->botpress_user_key)
+                ->post('/messages', $payload)
+                ->throw();
+        }
+    }
+
+    private function isParticipantForbidden(RequestException $exception): bool
+    {
+        $response = $exception->response;
+
+        return $response?->status() === 403
+            && str_contains(Str::lower($response->body()), 'not a participant');
+    }
+
+    private function replaceBotpressConversation(BotpressConversationLink $link): void
+    {
+        $externalId = 'crm_conversation_'.$link->conversation_id
+            .'_bot_'.$this->integrationSuffix()
+            .'_recovery_'.Str::lower(Str::random(10));
+        $response = $this->client((string) $link->botpress_user_key)
+            ->post('/conversations/get-or-create', ['id' => $externalId])
+            ->throw();
+        $botpressConversationId = (string) $response->json('conversation.id', '');
+
+        if ($botpressConversationId === '') {
+            throw new \RuntimeException(
+                'Botpress recovery conversation response did not include conversation.id: status='
+                .$response->status().' body='.$response->body()
+            );
+        }
+
+        $link->forceFill([
+            'botpress_conversation_id' => $botpressConversationId,
+            'last_botpress_message_id' => null,
+            'last_payload' => [
+                'source' => 'participant_mismatch_recovery',
+                'conversation' => $response->json('conversation'),
+            ],
+        ])->save();
     }
 
     private function waitForBotReplies(
@@ -1452,6 +1529,11 @@ class BotpressChatService
         $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
 
         return $path !== '' ? basename($path) : '';
+    }
+
+    private function integrationSuffix(): string
+    {
+        return substr(hash('sha256', $this->webhookId()), 0, 10);
     }
 
     private function userKeyFor(string $userId): string
