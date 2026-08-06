@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `conversations`, `conversation_activities`; lưu các trường `assigned_by`, `assigned_to`, `users`, `assigned_type`, `owner_shift_id`, `claimed_at`, `work_shifts`, `queue_shift_id`, `resolved_at`, `last_read_at` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('conversations', function (Blueprint $table): void {
@@ -57,6 +58,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `conversations`, `conversation_activities` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('conversation_activities');
@@ -80,6 +82,7 @@ return new class extends Migration
         });
     }
 
+    /** Chuẩn hóa kiểu cột status để hỗ trợ các trạng thái vòng đời mới trên MySQL và SQLite. */
     private function normalizeStatusColumn(): void
     {
         if (DB::getDriverName() !== 'mysql') {

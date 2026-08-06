@@ -2,244 +2,69 @@
 
 namespace Modules\Facebook\Services;
 
-use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\URL;
 use Modules\Facebook\DTO\FacebookPageData;
 use Modules\Facebook\DTO\FacebookUserData;
 use RuntimeException;
 
 class FacebookOAuthService
 {
-    public function __construct(
-        private readonly Http $http,
-        private readonly FacebookTokenValidationService $tokens,
-    ) {
-    }
+    /** Khởi tạo luồng OAuth với cấu hình, Graph client và dịch vụ kiểm tra token. */
+    public function __construct(private readonly FacebookOAuthConfig $config, private readonly FacebookOAuthGraphClient $graph,
+        private readonly FacebookTokenValidationService $tokens) {}
 
-    public function authorizationUrl(string $state): string
-    {
-        $this->ensureConfigured();
+    /** Trả về URL bắt đầu luồng cấp quyền Facebook kèm state chống CSRF. */
+    public function authorizationUrl(string $state): string { return $this->config->authorizationUrl($state); }
 
-        $params = [
-            'client_id' => $this->appId(),
-            'redirect_uri' => $this->redirectUri(),
-            'state' => $state,
-            'response_type' => 'code',
-        ];
-        $configId = $this->loginConfigId();
-
-        if ($configId !== '') {
-            $params['config_id'] = $configId;
-        }
-
-        $scopes = $configId === '' ? $this->scopes() : [];
-
-        if ($scopes !== []) {
-            $params['scope'] = implode(',', $scopes);
-        }
-
-        return 'https://www.facebook.com/'.$this->graphVersion().'/dialog/oauth?'.http_build_query($params);
-    }
-
+    /** Đổi code và tạo DTO người dùng Facebook đã xác thực. */
     public function userFromCode(string $code): FacebookUserData
     {
-        $token = $this->exchangeCode($code);
+        $token = $this->graph->exchangeCode($code);
         $accessToken = (string) Arr::get($token, 'access_token');
-
-        if ($accessToken === '') {
-            throw new RuntimeException('Facebook did not return an access token.');
-        }
-
+        if ($accessToken === '') throw new RuntimeException('Facebook did not return an access token.');
         $this->tokens->validateUserToken($accessToken);
-
-        $profile = $this->graphGet('/me', $accessToken, [
-            'fields' => 'id,name,email',
-        ]);
-
-        return new FacebookUserData(
-            (string) Arr::get($profile, 'id'),
-            (string) Arr::get($profile, 'name', 'Facebook User'),
-            Arr::get($profile, 'email'),
-            $accessToken,
-            Arr::get($token, 'refresh_token'),
-        );
+        $profile = $this->graph->get('/me', $accessToken, ['fields' => 'id,name,email']);
+        return new FacebookUserData((string) Arr::get($profile, 'id'), (string) Arr::get($profile, 'name', 'Facebook User'),
+            Arr::get($profile, 'email'), $accessToken, Arr::get($token, 'refresh_token'));
     }
 
-    /**
-     * @return array<int, FacebookPageData>
-     */
+    /** Lấy toàn bộ Page mà người dùng có quyền quản trị qua các trang phân trang. */
     public function pages(string $userAccessToken): array
     {
         $this->tokens->validateUserToken($userAccessToken);
-
         $pages = [];
-        $url = $this->graphUrl('/me/accounts');
-        $params = [
-            'fields' => 'id,name,access_token,picture{url}',
-            'limit' => 100,
-            'access_token' => $userAccessToken,
-        ];
-
+        $url = $this->config->graphUrl('/me/accounts');
+        $params = ['fields' => 'id,name,access_token,picture{url}', 'limit' => 100, 'access_token' => $userAccessToken];
         do {
-            $params['access_token'] = $userAccessToken;
-            $response = $this->http
-                ->connectTimeout(5)
-                ->timeout(15)
-                ->get($url, $params);
-            $response->throw();
-            $payload = $response->json();
-
+            $payload = $this->graph->getUrl($url, $params + ['access_token' => $userAccessToken]);
             foreach ((array) Arr::get($payload, 'data', []) as $page) {
-                $pageToken = (string) Arr::get($page, 'access_token');
-
-                if ($pageToken === '') {
-                    continue;
-                }
-
-                $this->tokens->validatePageToken($pageToken);
-
-                $pages[] = new FacebookPageData(
-                    (string) Arr::get($page, 'id'),
-                    (string) Arr::get($page, 'name'),
-                    $pageToken,
-                    Arr::get($page, 'picture.data.url'),
-                );
+                $token = (string) Arr::get($page, 'access_token');
+                if ($token === '') continue;
+                $this->tokens->validatePageToken($token);
+                $pages[] = new FacebookPageData((string) Arr::get($page, 'id'), (string) Arr::get($page, 'name'), $token, Arr::get($page, 'picture.data.url'));
             }
-
             $url = Arr::get($payload, 'paging.next');
             $params = [];
         } while ($url);
-
         return $pages;
     }
 
+    /** Lấy URL ảnh đại diện của Page nếu Facebook cung cấp. */
     public function pagePicture(string $pageId, string $pageAccessToken): ?string
     {
         $this->tokens->validatePageToken($pageAccessToken);
-
-        $payload = $this->graphGet("/{$pageId}", $pageAccessToken, [
-            'fields' => 'picture{url}',
-        ]);
-
-        return Arr::get($payload, 'picture.data.url');
+        return Arr::get($this->graph->get("/{$pageId}", $pageAccessToken, ['fields' => 'picture{url}']), 'picture.data.url');
     }
 
+    /** Đăng ký Page vào webhook cho các sự kiện Messenger cần thiết. */
     public function subscribePage(string $pageId, string $pageAccessToken): void
     {
         $this->tokens->validatePageToken($pageAccessToken);
-
-        $response = $this->http
-            ->connectTimeout(5)
-            ->timeout(15)
-            ->asForm()
-            ->post($this->graphUrl("/{$pageId}/subscribed_apps"), [
-                'subscribed_fields' => 'messages,message_echoes,messaging_postbacks,message_deliveries,message_reads,messaging_customer_information',
-                'access_token' => $pageAccessToken,
-            ]);
-
         try {
-            $response->throw();
-        } catch (\Throwable $exception) {
-            if (! str_contains($exception->getMessage(), 'message_echoes')) {
-                throw $exception;
-            }
-
-            $response = $this->http
-                ->connectTimeout(5)
-                ->timeout(15)
-                ->asForm()
-                ->post($this->graphUrl("/{$pageId}/subscribed_apps"), [
-                    'subscribed_fields' => 'messages,messaging_postbacks,message_deliveries,message_reads',
-                    'access_token' => $pageAccessToken,
-                ]);
-
-            $response->throw();
-        }
-    }
-
-    private function exchangeCode(string $code): array
-    {
-        $this->ensureConfigured();
-
-        $response = $this->http
-            ->connectTimeout(5)
-            ->timeout(15)
-            ->get($this->graphUrl('/oauth/access_token'), [
-                'client_id' => $this->appId(),
-                'client_secret' => $this->appSecret(),
-                'redirect_uri' => $this->redirectUri(),
-                'code' => $code,
-            ]);
-
-        $response->throw();
-
-        return $response->json();
-    }
-
-    private function graphGet(string $path, string $accessToken, array $params = []): array
-    {
-        $response = $this->http
-            ->connectTimeout(5)
-            ->timeout(15)
-            ->get($this->graphUrl($path), array_merge($params, [
-                'access_token' => $accessToken,
-            ]));
-
-        $response->throw();
-
-        return $response->json();
-    }
-
-    private function graphUrl(string $path): string
-    {
-        return 'https://graph.facebook.com/'.$this->graphVersion().$path;
-    }
-
-    private function graphVersion(): string
-    {
-        return (string) config('services.facebook.graph_version', 'v25.0');
-    }
-
-    private function appId(): string
-    {
-        return (string) config('services.facebook.client_id');
-    }
-
-    private function appSecret(): string
-    {
-        return (string) config('services.facebook.client_secret');
-    }
-
-    private function redirectUri(): string
-    {
-        return (string) (config('services.facebook.redirect') ?: URL::route('facebook.callback'));
-    }
-
-    private function loginConfigId(): string
-    {
-        return (string) config('services.facebook.login_config_id', '');
-    }
-
-    private function scopes(): array
-    {
-        $scopes = config('services.facebook.scopes', ['email']);
-
-        return is_array($scopes) ? $scopes : ['email'];
-    }
-
-    private function ensureConfigured(): void
-    {
-        if ($this->appId() === '') {
-            throw new RuntimeException('FACEBOOK_CLIENT_ID is missing in .env.');
-        }
-
-        if ($this->appSecret() === '') {
-            throw new RuntimeException('FACEBOOK_CLIENT_SECRET or FACEBOOK_APP_SECRET is missing in .env.');
-        }
-
-        if ($this->redirectUri() === '') {
-            throw new RuntimeException('FACEBOOK_REDIRECT_URI is missing in .env.');
+            $this->graph->subscribe($pageId, $pageAccessToken, 'messages,message_echoes,messaging_postbacks,message_deliveries,message_reads,messaging_customer_information');
+        } catch (\Throwable $e) {
+            if (! str_contains($e->getMessage(), 'message_echoes')) throw $e;
+            $this->graph->subscribe($pageId, $pageAccessToken, 'messages,messaging_postbacks,message_deliveries,message_reads');
         }
     }
 }

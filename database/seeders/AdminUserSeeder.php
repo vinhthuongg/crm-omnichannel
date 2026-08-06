@@ -7,6 +7,7 @@ use Illuminate\Database\Seeder;
 
 class AdminUserSeeder extends Seeder
 {
+    /** Tạo tài khoản quản trị mặc định và gán vai trò Admin để đăng nhập quản lý hệ thống. */
     public function run(): void
     {
         $this->call(RolesAndPermissionsSeeder::class);

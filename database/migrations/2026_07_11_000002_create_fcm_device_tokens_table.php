@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `fcm_device_tokens`; lưu các trường `user_id`, `token`, `platform`, `device_id`, `app_version`, `last_used_at` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::create('fcm_device_tokens', function (Blueprint $table): void {
@@ -22,6 +23,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `fcm_device_tokens` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('fcm_device_tokens');

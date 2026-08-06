@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureFacebookPageConnected
 {
+    /** Nhận FacebookPageRepository để đọc và lưu dữ liệu; FacebookTokenValidationService để kiểm tra token còn hiệu lực và đúng Facebook App; FacebookOAuthService để tạo URL đăng nhập, đổi code và lấy danh sách Page. */
     public function __construct(
         private readonly FacebookPageRepository $pages,
         private readonly FacebookTokenValidationService $tokens,
@@ -19,6 +20,7 @@ class EnsureFacebookPageConnected
     ) {
     }
 
+    /** Kiểm tra Page trong route còn kết nối/token hợp lệ trước khi cho request tiếp tục. */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -58,6 +60,7 @@ class EnsureFacebookPageConnected
         return $this->invalidTokenResponse($request);
     }
 
+    /** Kiểm tra kết nối Facebook Page và tạo phản hồi lỗi tại bước ensureValidToken. */
     private function ensureValidToken(FacebookPage $page): void
     {
         $this->tokens->ensurePageBelongsToMessengerApp($page->messenger_app_id);
@@ -80,6 +83,7 @@ class EnsureFacebookPageConnected
         }
     }
 
+    /** Kiểm tra kết nối Facebook Page và tạo phản hồi lỗi tại bước missingPageResponse. */
     private function missingPageResponse(Request $request): Response
     {
         if ($request->expectsJson()) {
@@ -93,6 +97,7 @@ class EnsureFacebookPageConnected
         ]);
     }
 
+    /** Kiểm tra kết nối Facebook Page và tạo phản hồi lỗi tại bước invalidTokenResponse. */
     private function invalidTokenResponse(Request $request): Response
     {
         if ($request->expectsJson()) {

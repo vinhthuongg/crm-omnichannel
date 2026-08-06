@@ -31,6 +31,7 @@ final class MessengerTextFormatter
         return trim($text);
     }
 
+    /** Chuyển văn bản hoặc ký tự sang kiểu chữ đậm tương thích Messenger. */
     private static function bold(string $text): string
     {
         $text = trim($text);
@@ -46,6 +47,7 @@ final class MessengerTextFormatter
         return $result;
     }
 
+    /** Chuyển văn bản hoặc ký tự sang kiểu chữ đậm tương thích Messenger. */
     private static function boldCharacter(string $character): string
     {
         $codePoint = mb_ord($character, 'UTF-8');

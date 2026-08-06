@@ -10,6 +10,7 @@ use Modules\Zalo\Actions\HandleZaloWebhookAction;
 
 class ZaloWebhookController extends ApiController
 {
+    /** Tiếp nhận webhook Zalo, xử lý tin đến và trả message vừa lưu. */
     public function __invoke(Request $request, HandleZaloWebhookAction $action): JsonResponse
     {
         $message = $action->execute($request->all());

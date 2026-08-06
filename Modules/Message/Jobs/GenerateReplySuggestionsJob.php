@@ -22,6 +22,7 @@ class GenerateReplySuggestionsJob implements ShouldQueue
 
     public int $timeout = 25;
 
+    /** Lưu ID hội thoại, tin nguồn và cờ tạo lại để sinh gợi ý đúng phiên bản tin nhắn. */
     public function __construct(
         private readonly int $conversationId,
         private readonly int $messageId,
@@ -29,6 +30,7 @@ class GenerateReplySuggestionsJob implements ShouldQueue
     ) {
     }
 
+    /** Nạp hội thoại, gọi NIM sinh gợi ý và lưu cache theo tin khách mới nhất. */
     public function handle(ConversationReplySuggestionService $suggestions): void
     {
         $conversation = Conversation::query()

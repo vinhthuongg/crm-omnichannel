@@ -16,6 +16,7 @@ class ConversationReplySuggestion extends Model
         'generated_at',
     ];
 
+    /** Chuyển suggestions thành mảng và các mốc tạo/hết hạn thành datetime. */
     protected function casts(): array
     {
         return [
@@ -24,11 +25,13 @@ class ConversationReplySuggestion extends Model
         ];
     }
 
+    /** Liên kết bộ gợi ý với hội thoại dùng để tạo ngữ cảnh. */
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
     }
 
+    /** Liên kết bộ gợi ý với tin khách hàng làm nguồn sinh gợi ý. */
     public function message(): BelongsTo
     {
         return $this->belongsTo(Message::class);

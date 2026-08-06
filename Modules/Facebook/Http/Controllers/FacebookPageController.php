@@ -3,40 +3,37 @@
 namespace Modules\Facebook\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Services\CrmNavigationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Modules\Facebook\Actions\ConnectFacebookPageAction;
+use Modules\Facebook\Actions\ImportFacebookPageMessagesAction;
 use Modules\Facebook\Actions\ListFacebookPagesAction;
 use Modules\Facebook\DTO\FacebookPageData;
 use Modules\Facebook\Models\FacebookPage;
 use Modules\Facebook\Repositories\FacebookPageRepository;
+use Modules\Facebook\Services\FacebookAvailablePageSession;
 
 class FacebookPageController extends Controller
 {
+    /** Nhận CrmNavigationService để tạo menu phù hợp với quyền người dùng; FacebookAvailablePageSession để lưu và lấy Page người dùng vừa cấp quyền. */
+    public function __construct(private readonly CrmNavigationService $navigation, private readonly FacebookAvailablePageSession $availablePageSession)
+    {
+    }
+
+    /** Liệt kê Page có thể kết nối và Page đã kết nối dưới dạng HTML hoặc JSON. */
     public function index(Request $request, ListFacebookPagesAction $action, FacebookPageRepository $repository): View|JsonResponse
     {
         try {
-            $availablePages = $this->availablePages($action->execute($request->user()));
+            $availablePages = $this->availablePageSession->merge($action->execute($request->user()));
         } catch (\Throwable $exception) {
-            $availablePages = $this->availablePages([]);
+            $availablePages = $this->availablePageSession->merge([]);
             session()->flash('facebook_pages_error', $exception->getMessage());
         }
         $connectedPages = $repository->forUser($request->user())->keyBy('page_id');
-        session([
-            'facebook_available_pages' => collect($availablePages)
-                ->mapWithKeys(fn (FacebookPageData $page): array => [
-                    $page->id => [
-                        'page_id' => $page->id,
-                        'page_name' => $page->name,
-                        'page_access_token' => $page->accessToken,
-                        'page_avatar' => $page->avatar,
-                    ],
-                ])
-                ->all(),
-        ]);
+        $this->availablePageSession->store($availablePages);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -52,7 +49,7 @@ class FacebookPageController extends Controller
         return view('facebook_pages', [
             'currentUser' => $request->user(),
             'activeSection' => 'channels',
-            'navItems' => $this->navItems($request->user()),
+            'navItems' => $this->navigation->forUser($request->user()),
             'sidebar' => [
                 'team_name' => $request->user()->hasRole('Admin') ? 'CRM Admin Desk' : 'Assigned Inbox',
             ],
@@ -61,22 +58,14 @@ class FacebookPageController extends Controller
         ]);
     }
 
+    /** Lấy Page đã chọn từ session OAuth, kết nối Page và lưu token/webhook. */
     public function connect(Request $request, ConnectFacebookPageAction $action): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'page_id' => ['required', 'string'],
         ]);
-        $pagePayload = session('facebook_available_pages.'.$validated['page_id']);
-
-        abort_unless(is_array($pagePayload), 422, 'Fanpage is not available in current Facebook session.');
-
         try {
-            $page = $action->execute($request->user(), new FacebookPageData(
-                $pagePayload['page_id'],
-                $pagePayload['page_name'],
-                $pagePayload['page_access_token'],
-                $pagePayload['page_avatar'] ?? null,
-            ));
+            $page = $action->execute($request->user(), $this->availablePageSession->get($validated['page_id']));
         } catch (\Throwable $exception) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -105,6 +94,7 @@ class FacebookPageController extends Controller
             ->with('status', 'Facebook page connected. Lich su tin nhan se khong duoc dong bo tu dong.');
     }
 
+    /** Nhập lịch sử tin nhắn của Page được kết nối và trả thống kê đồng bộ. */
     public function sync(Request $request, FacebookPage $facebookPage, ImportFacebookPageMessagesAction $action): RedirectResponse|JsonResponse
     {
         try {
@@ -129,61 +119,4 @@ class FacebookPageController extends Controller
         return response()->json(['data' => $stats]);
     }
 
-    /**
-     * @param array<int, FacebookPageData> $configuredPages
-     * @return array<int, FacebookPageData>
-     */
-    private function availablePages(array $configuredPages): array
-    {
-        $pages = collect($configuredPages)->keyBy(fn (FacebookPageData $page): string => $page->id);
-
-        foreach ((array) session('facebook_available_pages', []) as $payload) {
-            if (! is_array($payload) || empty($payload['page_id']) || empty($payload['page_access_token'])) {
-                continue;
-            }
-
-            $page = new FacebookPageData(
-                (string) $payload['page_id'],
-                (string) ($payload['page_name'] ?? $payload['page_id']),
-                (string) $payload['page_access_token'],
-                $payload['page_avatar'] ?? null,
-            );
-
-            $pages->put($page->id, $page);
-        }
-
-        return $pages->values()->all();
-    }
-
-    private function navItems(User $user): array
-    {
-        if (! $user->can('user.manage')) {
-            return [
-                ['section' => 'conversations', 'label' => 'Hội thoại', 'route' => 'crm.conversations', 'icon' => 'forum'],
-                ['section' => 'notifications', 'label' => 'Thông báo', 'route' => 'crm.notifications', 'icon' => 'notifications'],
-                ['section' => 'settings', 'label' => 'Cài đặt', 'route' => 'crm.settings', 'icon' => 'settings'],
-            ];
-        }
-
-        $items = [
-            ['section' => 'dashboard', 'label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'dashboard'],
-            ['section' => 'conversations', 'label' => 'Conversations', 'route' => 'crm.conversations', 'icon' => 'forum'],
-            ['section' => 'customers', 'label' => 'Customers', 'route' => 'crm.customers', 'icon' => 'contacts'],
-            ['section' => 'channels', 'label' => 'Channels', 'route' => 'crm.channels', 'icon' => 'hub'],
-            ['section' => 'activity', 'label' => 'Activity Log', 'route' => 'crm.activity', 'icon' => 'history'],
-            ['section' => 'notifications', 'label' => 'Notifications', 'route' => 'crm.notifications', 'icon' => 'notifications'],
-            ['section' => 'settings', 'label' => 'Settings', 'route' => 'crm.settings', 'icon' => 'settings'],
-        ];
-
-        if ($user->can('user.manage')) {
-            array_splice($items, 4, 0, [[
-                'section' => 'work_shifts',
-                'label' => 'Shifts',
-                'route' => 'work-shifts.index',
-                'icon' => 'schedule',
-            ]]);
-        }
-
-        return $items;
-    }
 }

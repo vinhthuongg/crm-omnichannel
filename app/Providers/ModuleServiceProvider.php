@@ -22,11 +22,13 @@ use Modules\Message\Observers\MessageObserver;
 
 class ModuleServiceProvider extends ServiceProvider
 {
+    /** Đăng ký hoặc khởi động tài nguyên module trong giai đoạn register của service provider. */
     public function register(): void
     {
         $this->app->singleton(ActivityLogService::class);
     }
 
+    /** Đăng ký hoặc khởi động tài nguyên module trong giai đoạn boot của service provider. */
     public function boot(): void
     {
         Relation::enforceMorphMap([

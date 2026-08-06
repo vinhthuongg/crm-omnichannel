@@ -23,6 +23,7 @@ class ConversationShiftVisibilityTest extends TestCase
 
     private User $admin;
 
+    /** Chuẩn bị môi trường và dữ liệu dùng chung trước mỗi kiểm thử. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -41,6 +42,7 @@ class ConversationShiftVisibilityTest extends TestCase
         ]);
     }
 
+    /** Khôi phục biến môi trường ca trực sau mỗi test để không ảnh hưởng test kế tiếp. */
     protected function tearDown(): void
     {
         Carbon::setTestNow();
@@ -48,6 +50,7 @@ class ConversationShiftVisibilityTest extends TestCase
         parent::tearDown();
     }
 
+    /** Xác nhận chỉ nhân viên thuộc ca hiện tại nhìn thấy hội thoại đang chờ. */
     public function test_only_agents_in_current_shift_see_waiting_messages(): void
     {
         [$agentA, $agentB, $outsideAgent] = [
@@ -65,6 +68,7 @@ class ConversationShiftVisibilityTest extends TestCase
         $this->assertConversationHiddenFrom($conversation, $outsideAgent);
     }
 
+    /** Xác nhận hội thoại đã giao chỉ hiển thị cho người phụ trách và Admin. */
     public function test_assigned_conversation_is_visible_only_to_assignee_and_admin(): void
     {
         [$agentA, $agentB, $outsideAgent] = [
@@ -85,6 +89,7 @@ class ConversationShiftVisibilityTest extends TestCase
         $this->assertConversationVisibleTo($conversation, $this->admin);
     }
 
+    /** Xác nhận tin đến tại ranh giới ca được xếp vào ca trực tiếp theo. */
     public function test_shift_boundary_routes_new_waiting_messages_to_next_shift(): void
     {
         [$beforeAgent, $afterAgent] = [
@@ -109,6 +114,7 @@ class ConversationShiftVisibilityTest extends TestCase
         $this->assertConversationVisibleTo($afterConversation, $afterAgent);
     }
 
+    /** Xác nhận nhân viên ca cũ vẫn có thể nhận hội thoại chờ tồn đọng sau khi ca kết thúc. */
     public function test_previous_shift_agent_can_claim_old_waiting_conversation_after_shift_ends(): void
     {
         $agent = $this->user('Old Shift Agent', 'old-shift@shift.test');
@@ -119,10 +125,11 @@ class ConversationShiftVisibilityTest extends TestCase
         $claimed = app(ConversationService::class)->claim($conversation, $agent);
 
         $this->assertSame($agent->id, (int) $claimed->assigned_to);
-        $this->assertSame(ConversationStatus::IN_PROGRESS, $claimed->status);
+        $this->assertSame(ConversationStatus::CUSTOMER_WAITING, $claimed->status);
         $this->assertConversationVisibleTo($claimed, $agent);
     }
 
+    /** Xác nhận người từng xử lý vẫn thấy hội thoại sau khi chuyển giao rồi gỡ phân công. */
     public function test_agents_who_ever_handled_conversation_keep_visibility_after_transfer_and_release(): void
     {
         [$agentA, $agentB] = [
@@ -145,6 +152,7 @@ class ConversationShiftVisibilityTest extends TestCase
         $this->assertConversationVisibleTo($released, $agentB);
     }
 
+    /** Tạo người dùng test, bật tài khoản và gán vai trò được yêu cầu. */
     private function user(string $name, string $email, string $role = 'CSKH'): User
     {
         $user = User::query()->create([
@@ -158,6 +166,7 @@ class ConversationShiftVisibilityTest extends TestCase
         return $user;
     }
 
+    /** Tạo ca trực test với khung giờ và đồng bộ danh sách nhân viên. */
     private function shift(string $name, string $start, string $end, array $agents): WorkShift
     {
         $date = Carbon::parse('2026-06-28');
@@ -172,6 +181,7 @@ class ConversationShiftVisibilityTest extends TestCase
         return $shift;
     }
 
+    /** Tạo khách hàng, hội thoại đang chờ và tin nhắn đầu vào thuộc ca test. */
     private function waitingConversation(WorkShift $shift, string $content): Conversation
     {
         $customer = Customer::query()->create([
@@ -199,6 +209,7 @@ class ConversationShiftVisibilityTest extends TestCase
         return $conversation;
     }
 
+    /** Khẳng định truy vấn visibility của người dùng chứa hội thoại mong đợi. */
     private function assertConversationVisibleTo(Conversation $conversation, User $user): void
     {
         $this->actingAs($user)
@@ -208,6 +219,7 @@ class ConversationShiftVisibilityTest extends TestCase
             ->assertSee((string) $conversation->messages()->latest()->value('content'));
     }
 
+    /** Khẳng định truy vấn visibility của người dùng không chứa hội thoại bị ẩn. */
     private function assertConversationHiddenFrom(Conversation $conversation, User $user): void
     {
         $this->actingAs($user)

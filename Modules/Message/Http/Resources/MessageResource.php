@@ -8,6 +8,7 @@ use Modules\Conversation\Support\ConversationStatus;
 
 class MessageResource extends JsonResource
 {
+    /** Trả nội dung tin nhắn, trạng thái gửi và ngữ cảnh hội thoại đã chuẩn hóa cho API. */
     public function toArray(Request $request): array
     {
         return [
@@ -54,6 +55,7 @@ class MessageResource extends JsonResource
         ];
     }
 
+    /** Chuyển tài nguyên hiện tại thành dữ liệu phản hồi API. */
     private function conversationStatusPayload(): array
     {
         $status = ConversationStatus::normalize($this->conversation?->status);
@@ -65,6 +67,7 @@ class MessageResource extends JsonResource
         ];
     }
 
+    /** Chuẩn hóa từng attachment thành URL công khai, tên, MIME và metadata API. */
     private function normalizedAttachments(): array
     {
         return collect($this->attachments ?? [])
@@ -99,6 +102,7 @@ class MessageResource extends JsonResource
             ->all();
     }
 
+    /** Suy ra image, video, audio hoặc file từ type và MIME của attachment. */
     private function attachmentType(string $mimeType, string $type = '', array $attachment = []): string
     {
         return match (true) {

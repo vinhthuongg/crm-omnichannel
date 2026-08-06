@@ -13,6 +13,7 @@ class BackfillConversationWorkShiftsCommand extends Command
 
     protected $description = 'Attach missing owner and queue shifts to unassigned waiting conversations.';
 
+    /** Gán ca trực phù hợp cho các hội thoại cũ chưa có owner/queue shift. */
     public function handle(WorkShiftService $shifts): int
     {
         $shift = $shifts->currentShift();

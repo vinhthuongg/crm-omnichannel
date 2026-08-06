@@ -12,11 +12,13 @@ use Illuminate\View\View;
 
 class AuthController extends Controller
 {
+    /** Hiển thị biểu mẫu đăng nhập cho người dùng chưa xác thực. */
     public function create(): View
     {
         return view('auth.login');
     }
 
+    /** Xác thực email/mật khẩu, tạo lại session và chuyển người dùng vào dashboard. */
     public function store(LoginRequest $request, LoginUserAction $action): RedirectResponse
     {
         $action->execute($request->validated());
@@ -24,6 +26,7 @@ class AuthController extends Controller
         return redirect()->intended(route('dashboard'));
     }
 
+    /** Đăng xuất, hủy session hiện tại, tạo CSRF token mới và chuyển về trang đăng nhập. */
     public function destroy(Request $request, LogoutUserAction $action): RedirectResponse
     {
         $action->execute($request);

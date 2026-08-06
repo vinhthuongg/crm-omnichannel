@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `conversations`; lưu các trường `unread_messages_count`, `last_message_at`, `last_read_at` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('conversations', function (Blueprint $table): void {
@@ -14,6 +15,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `conversations` đã được migration này tạo. */
     public function down(): void
     {
         Schema::table('conversations', function (Blueprint $table): void {

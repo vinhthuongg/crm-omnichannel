@@ -8,6 +8,7 @@ use Modules\Conversation\Models\Tag;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `tags`; lưu các trường `is_default`, `color`, `Dang tu van`, `Khach dang doi tu van`, `name`, `tag_id`, `conversation_id` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('tags', function (Blueprint $table): void {
@@ -32,6 +33,7 @@ return new class extends Migration
         $this->moveLegacyTag('Khach dang doi tu van', Tag::DEFAULT_WAITING);
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `tags` đã được migration này tạo. */
     public function down(): void
     {
         Schema::table('tags', function (Blueprint $table): void {
@@ -41,6 +43,7 @@ return new class extends Migration
         });
     }
 
+    /** Chuyển liên kết từ nhãn cũ sang nhãn chuẩn rồi xóa nhãn trùng nếu không còn sử dụng. */
     private function moveLegacyTag(string $legacyName, string $targetName): void
     {
         $legacy = DB::table('tags')->where('name', $legacyName)->first();

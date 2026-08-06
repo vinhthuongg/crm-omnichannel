@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureOmnichannelConnected
 {
+    /** Chỉ cho request tiếp tục khi hệ thống có ít nhất một kết nối Facebook hoặc Zalo hợp lệ. */
     public function handle(Request $request, Closure $next): Response
     {
         if ($this->hasConnectedFacebook() || $this->hasConnectedZalo()) {
@@ -32,6 +33,7 @@ class EnsureOmnichannelConnected
         ]);
     }
 
+    /** Kiểm tra tồn tại Facebook Page đang kết nối và có access token. */
     private function hasConnectedFacebook(): bool
     {
         return FacebookPage::query()
@@ -39,6 +41,7 @@ class EnsureOmnichannelConnected
             ->exists();
     }
 
+    /** Kiểm tra Zalo OA đã được bật và có access token trong cấu hình. */
     private function hasConnectedZalo(): bool
     {
         return trim((string) config('services.zalo.access_token')) !== '';

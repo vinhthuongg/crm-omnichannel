@@ -8,10 +8,12 @@ use Modules\Facebook\Services\FacebookOAuthService;
 
 class RedirectToFacebookLoginAction
 {
+    /** Nhận FacebookOAuthService để tạo URL đăng nhập, đổi code và lấy danh sách Page. */
     public function __construct(private readonly FacebookOAuthService $facebook)
     {
     }
 
+    /** Tạo OAuth state trong session và chuyển người dùng đến trang cấp quyền Facebook. */
     public function execute(): string
     {
         $state = Str::random(40);

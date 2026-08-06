@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `customer_notes`, `customer_tags`, `customer_customer_tag`; lưu các trường `customer_id`, `user_id`, `body`, `name`, `color`, `customer_tag_id` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::create('customer_notes', function (Blueprint $table): void {
@@ -30,6 +31,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `customer_notes`, `customer_tags`, `customer_customer_tag` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('customer_customer_tag');

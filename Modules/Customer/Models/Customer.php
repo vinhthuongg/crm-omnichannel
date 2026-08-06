@@ -28,6 +28,7 @@ class Customer extends Model
         'potential_marked_at' => 'datetime',
     ];
 
+    /** Đăng ký các hook model sau khi Customer hoàn tất khởi động. */
     protected static function booted(): void
     {
         static::saving(function (Customer $customer): void {
@@ -45,26 +46,31 @@ class Customer extends Model
         });
     }
 
+    /** Liên kết khách hàng với các định danh liên hệ Facebook và Zalo. */
     public function channels(): HasMany
     {
         return $this->hasMany(CustomerChannel::class);
     }
 
+    /** Liên kết toàn bộ hội thoại thuộc khách hàng. */
     public function conversations(): HasMany
     {
         return $this->hasMany(Conversation::class);
     }
 
+    /** Liên kết các ghi chú nội bộ đã lưu cho khách hàng. */
     public function notes(): HasMany
     {
         return $this->hasMany(CustomerNote::class);
     }
 
+    /** Liên kết nhiều-nhiều các nhãn phân loại khách hàng. */
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(CustomerTag::class, 'customer_customer_tag');
     }
 
+    /** Liên kết người dùng đã đánh dấu khách hàng là tiềm năng. */
     public function potentialMarkedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'potential_marked_by');

@@ -18,6 +18,7 @@ class ConversationActivity extends Model
         'performed_by',
     ];
 
+    /** Chuyển metadata và snapshot trước/sau thành mảng để lưu lịch sử trạng thái. */
     protected function casts(): array
     {
         return [
@@ -26,11 +27,13 @@ class ConversationActivity extends Model
         ];
     }
 
+    /** Liên kết activity với hội thoại bị thay đổi. */
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
     }
 
+    /** Liên kết activity với người dùng thực hiện thao tác. */
     public function performer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'performed_by');

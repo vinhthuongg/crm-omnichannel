@@ -11,6 +11,7 @@ use Modules\Facebook\Models\FacebookPage;
 
 class FacebookPageRepository
 {
+    /** Tạo mới hoặc cập nhật bản ghi theo người dùng và định danh từ hệ thống ngoài. */
     public function upsertForUser(User $user, FacebookPageData $data): FacebookPage
     {
         return FacebookPage::query()->updateOrCreate(
@@ -24,6 +25,7 @@ class FacebookPageRepository
         );
     }
 
+    /** Lưu metadata debug token và đánh dấu kết nối Page đang hợp lệ. */
     public function markValid(FacebookPage $page, array $debugToken): FacebookPage
     {
         $expiresAt = (int) Arr::get($debugToken, 'expires_at');
@@ -39,6 +41,7 @@ class FacebookPageRepository
         return $page;
     }
 
+    /** Đánh dấu Page mất kết nối và lưu thông báo lỗi token gần nhất. */
     public function markInvalid(FacebookPage $page, string $error): FacebookPage
     {
         $page->forceFill([
@@ -50,6 +53,7 @@ class FacebookPageRepository
         return $page;
     }
 
+    /** Lấy các Facebook Page thuộc tài khoản của người dùng cùng trạng thái kết nối. */
     public function forUser(User $user): Collection
     {
         return FacebookPage::query()
@@ -58,13 +62,4 @@ class FacebookPageRepository
             ->get();
     }
 
-    public function pageIdsForUser(User $user): array
-    {
-        return $this->forUser($user)->pluck('page_id')->all();
-    }
-
-    public function findByPageId(string $pageId): ?FacebookPage
-    {
-        return FacebookPage::query()->where('page_id', $pageId)->first();
-    }
 }

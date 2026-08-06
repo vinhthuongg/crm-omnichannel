@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 
 class MessengerAttachmentStorage
 {
+    /** Lưu file upload vào public storage và trả URL, MIME, tên cùng loại attachment. */
     public function store(UploadedFile $file): array
     {
         $mimeType = (string) $file->getMimeType();
@@ -27,6 +28,7 @@ class MessengerAttachmentStorage
         ];
     }
 
+    /** Ánh xạ MIME type sang loại image, video, audio hoặc file của Messenger. */
     private function attachmentType(string $mimeType): string
     {
         return match (true) {
@@ -37,6 +39,7 @@ class MessengerAttachmentStorage
         };
     }
 
+    /** Tạo URL công khai cho attachment đã lưu trong storage. */
     private function publicUrl(string $path): string
     {
         $path = ltrim($path, '/');

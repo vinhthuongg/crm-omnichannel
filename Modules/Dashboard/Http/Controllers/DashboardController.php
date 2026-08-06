@@ -8,6 +8,7 @@ use Modules\Shared\Http\Controllers\ApiController;
 
 class DashboardController extends ApiController
 {
+    /** Kiểm tra quyền báo cáo rồi trả dữ liệu tổng quan dashboard theo bộ lọc ngày. */
     public function overview(Request $request, GetDashboardOverviewAction $action)
     {
         abort_unless($request->user()->can('report.view'), 403);

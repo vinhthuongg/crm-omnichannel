@@ -8,11 +8,13 @@ use Illuminate\Validation\Rules\Password;
 
 class UpdateUserRequest extends FormRequest
 {
+    /** Chỉ cho người có quyền quản lý người dùng cập nhật tài khoản. */
     public function authorize(): bool
     {
         return $this->user()?->can('user.manage') ?? false;
     }
 
+    /** Kiểm tra trường cập nhật và giữ email duy nhất ngoại trừ chính tài khoản này. */
     public function rules(): array
     {
         $userId = $this->route('user')?->id;

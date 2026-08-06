@@ -13,6 +13,7 @@ class SendFcmPushNotificationJob implements ShouldQueue
     use DispatchableQueueable;
     use Queueable;
 
+    /** Đóng gói người nhận, tiêu đề, nội dung và data payload để queue gửi FCM nền. */
     public function __construct(
         private readonly array $userIds,
         private readonly string $title,
@@ -22,6 +23,7 @@ class SendFcmPushNotificationJob implements ShouldQueue
     {
     }
 
+    /** Nạp người nhận và gửi title/body/data tới tất cả FCM token của họ. */
     public function handle(FirebaseCloudMessagingService $fcm): void
     {
         User::query()

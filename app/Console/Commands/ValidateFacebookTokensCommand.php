@@ -13,6 +13,7 @@ class ValidateFacebookTokensCommand extends Command
 
     protected $description = 'Validate all connected Facebook page access tokens.';
 
+    /** Kiểm tra token của từng Facebook Page, cập nhật trạng thái hợp lệ và in kết quả. */
     public function handle(FacebookTokenValidationService $tokens, FacebookPageRepository $pages): int
     {
         $valid = 0;

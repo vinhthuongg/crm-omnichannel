@@ -32,6 +32,7 @@ class FacebookPage extends Model
         'token_invalid_at' => 'datetime',
     ];
 
+    /** Trả về người dùng đã kết nối và quản lý Facebook Page này. */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

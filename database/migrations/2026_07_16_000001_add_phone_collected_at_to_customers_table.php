@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `customers`; lưu các trường `phone_collected_at`, `phone` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table): void {
@@ -26,6 +27,7 @@ return new class extends Migration
         }
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `customers` đã được migration này tạo. */
     public function down(): void
     {
         Schema::table('customers', function (Blueprint $table): void {

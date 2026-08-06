@@ -8,10 +8,7 @@ use Modules\Conversation\Models\Conversation;
 
 class ConversationVisibilityService
 {
-    public function __construct(private readonly WorkShiftService $shifts)
-    {
-    }
-
+    /** Tạo truy vấn hội thoại người dùng được xem dựa trên quyền, phân công, lịch sử xử lý và ca trực. */
     public function visibleFor(User $user): Builder
     {
         $query = Conversation::query();
@@ -20,61 +17,32 @@ class ConversationVisibilityService
             return $query;
         }
 
-        $currentShift = $this->shifts->currentShiftFor($user);
-
-        if (! $currentShift) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function (Builder $query) use ($user, $currentShift): void {
-            $query->where(function (Builder $query) use ($user, $currentShift): void {
-                $query->where('assigned_to', $user->id)
-                    ->where(function (Builder $shiftQuery) use ($currentShift): void {
-                        $shiftQuery->where('owner_shift_id', $currentShift->id)
-                            ->orWhere('queue_shift_id', $currentShift->id);
-                    });
-            });
-            $query->orWhere(function (Builder $query) use ($user, $currentShift): void {
-                $query->whereHas('handledUsers', fn (Builder $handlers) => $handlers->whereKey($user->id))
-                    ->where(function (Builder $shiftQuery) use ($currentShift): void {
-                        $shiftQuery->where('owner_shift_id', $currentShift->id)
-                            ->orWhere('queue_shift_id', $currentShift->id);
-                    });
-            });
-            $query->orWhere(function (Builder $query) use ($user, $currentShift): void {
+        return $query->where(function (Builder $query) use ($user): void {
+            $query->where('assigned_to', $user->id);
+            $query->orWhereHas('handledUsers', fn (Builder $handlers) => $handlers->whereKey($user->id));
+            $query->orWhere(function (Builder $query) use ($user): void {
                 $query->whereNull('assigned_to')
-                    ->where('queue_shift_id', $currentShift->id)
                     ->whereHas('queueShift.agents', fn (Builder $agents) => $agents->whereKey($user->id));
             });
         });
     }
 
+    /** Kiểm tra một hội thoại có xuất hiện trong phạm vi truy vấn của người dùng hay không. */
     public function canView(User $user, Conversation $conversation): bool
     {
         if ($user->can('conversation.view_all')) {
             return true;
         }
 
-        $currentShift = $this->shifts->currentShiftFor($user);
-
-        if (! $currentShift) {
-            return false;
-        }
-
-        $belongsToConversationShift = in_array((int) $currentShift->id, array_filter([
-            $conversation->owner_shift_id ? (int) $conversation->owner_shift_id : null,
-            $conversation->queue_shift_id ? (int) $conversation->queue_shift_id : null,
-        ]), true);
-
-        if ($belongsToConversationShift && (int) $conversation->assigned_to === (int) $user->id) {
+        if ((int) $conversation->assigned_to === (int) $user->id) {
             return true;
         }
 
-        if ($belongsToConversationShift && $conversation->handledUsers()->whereKey($user->id)->exists()) {
+        if ($conversation->handledUsers()->whereKey($user->id)->exists()) {
             return true;
         }
 
         return ! $conversation->assigned_to
-            && $this->shifts->userIsInCurrentShift($user, $conversation->queue_shift_id);
+            && $conversation->queueShift()->whereHas('agents', fn (Builder $agents) => $agents->whereKey($user->id))->exists();
     }
 }

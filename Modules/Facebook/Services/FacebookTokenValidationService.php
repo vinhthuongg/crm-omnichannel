@@ -2,140 +2,35 @@
 
 namespace Modules\Facebook\Services;
 
-use Illuminate\Http\Client\Factory as Http;
 use Illuminate\Support\Arr;
 use RuntimeException;
 
 class FacebookTokenValidationService
 {
-    public function __construct(private readonly Http $http)
+    /** Khởi tạo dịch vụ xác thực token với cấu hình App và debug client. */
+    public function __construct(private readonly FacebookAppConfig $config, private readonly FacebookTokenDebugClient $client) {}
+    /** Xác thực user token thuộc đúng ứng dụng Facebook Login. */
+    public function validateUserToken(string $token): array { return $this->validate($token, 'user', $this->config->loginId(), $this->config->loginAccessToken()); }
+    /** Xác thực page token thuộc đúng ứng dụng Messenger. */
+    public function validatePageToken(string $token): array { return $this->validate($token, 'page', $this->config->messengerId(), $this->config->messengerAccessToken()); }
+    /** Đọc metadata token bằng app token truyền vào hoặc app token mặc định. */
+    public function debugToken(string $token, ?string $appToken = null): array { return $this->client->debug($token, $appToken ?: $this->config->loginAccessToken()); }
+
+    /** Bảo đảm Page token được phát hành cho Messenger App đang cấu hình. */
+    public function ensurePageBelongsToMessengerApp(?string $appId): void
     {
+        if ((string) $appId !== $this->config->messengerId()) throw new \InvalidArgumentException('Page belongs to different Messenger App');
     }
 
-    public function validateUserToken(string $accessToken): array
+    /** Kiểm tra token còn hiệu lực và App ID khớp với loại token mong đợi. */
+    private function validate(string $token, string $label, string $expectedId, string $appToken): array
     {
-        return $this->validateToken(
-            $accessToken,
-            'user',
-            $this->loginAppId(),
-            $this->loginAppAccessToken(),
-        );
-    }
-
-    public function validatePageToken(string $accessToken): array
-    {
-        return $this->validateToken(
-            $accessToken,
-            'page',
-            $this->messengerAppId(),
-            $this->messengerAppAccessToken(),
-        );
-    }
-
-    public function validateMessengerUserToken(string $accessToken): array
-    {
-        return $this->validateToken(
-            $accessToken,
-            'messenger user',
-            $this->messengerAppId(),
-            $this->messengerAppAccessToken(),
-        );
-    }
-
-    public function debugToken(string $accessToken, ?string $appAccessToken = null): array
-    {
-        $response = $this->http
-            ->connectTimeout(5)
-            ->timeout(12)
-            ->get($this->graphUrl('/debug_token'), [
-                'input_token' => $accessToken,
-                'access_token' => $appAccessToken ?: $this->loginAppAccessToken(),
-            ]);
-
-        $response->throw();
-
-        return (array) Arr::get($response->json(), 'data', []);
-    }
-
-    public function ensurePageBelongsToMessengerApp(?string $messengerAppId): void
-    {
-        $expectedAppId = $this->messengerAppId();
-
-        if ((string) $messengerAppId !== $expectedAppId) {
-            throw new \InvalidArgumentException('Page belongs to different Messenger App');
-        }
-    }
-
-    private function validateToken(string $accessToken, string $label, string $expectedAppId, string $appAccessToken): array
-    {
-        if ($accessToken === '') {
-            throw new RuntimeException("Facebook {$label} access token is empty.");
-        }
-
-        if ($expectedAppId === '') {
-            throw new RuntimeException("Expected Facebook {$label} app id is missing in .env.");
-        }
-
-        $data = $this->debugToken($accessToken, $appAccessToken);
-
-        if (! (bool) Arr::get($data, 'is_valid')) {
-            throw new RuntimeException("Invalid Facebook {$label} access token.");
-        }
-
-        $tokenAppId = (string) Arr::get($data, 'app_id');
-
-        if ($tokenAppId !== $expectedAppId) {
-            throw new RuntimeException("Facebook {$label} token app_id mismatch. Expected {$expectedAppId}, got {$tokenAppId}.");
-        }
-
+        if ($token === '') throw new RuntimeException("Facebook {$label} access token is empty.");
+        if ($expectedId === '') throw new RuntimeException("Expected Facebook {$label} app id is missing in .env.");
+        $data = $this->client->debug($token, $appToken);
+        if (! (bool) Arr::get($data, 'is_valid')) throw new RuntimeException("Invalid Facebook {$label} access token.");
+        $actual = (string) Arr::get($data, 'app_id');
+        if ($actual !== $expectedId) throw new RuntimeException("Facebook {$label} token app_id mismatch. Expected {$expectedId}, got {$actual}.");
         return $data;
-    }
-
-    private function graphUrl(string $path): string
-    {
-        return 'https://graph.facebook.com/'.$this->graphVersion().$path;
-    }
-
-    private function graphVersion(): string
-    {
-        return (string) config('services.facebook.graph_version', 'v25.0');
-    }
-
-    private function loginAppAccessToken(): string
-    {
-        if ($this->loginAppId() === '' || $this->loginAppSecret() === '') {
-            throw new RuntimeException('FACEBOOK_CLIENT_ID or FACEBOOK_CLIENT_SECRET is missing in .env.');
-        }
-
-        return $this->loginAppId().'|'.$this->loginAppSecret();
-    }
-
-    private function messengerAppAccessToken(): string
-    {
-        if ($this->messengerAppId() === '' || $this->messengerAppSecret() === '') {
-            throw new RuntimeException('MESSENGER_APP_ID or MESSENGER_APP_SECRET is missing in .env.');
-        }
-
-        return $this->messengerAppId().'|'.$this->messengerAppSecret();
-    }
-
-    private function loginAppId(): string
-    {
-        return (string) config('services.facebook.client_id');
-    }
-
-    private function loginAppSecret(): string
-    {
-        return (string) config('services.facebook.client_secret');
-    }
-
-    private function messengerAppId(): string
-    {
-        return (string) config('services.facebook.messenger_app_id');
-    }
-
-    private function messengerAppSecret(): string
-    {
-        return (string) config('services.facebook.messenger_app_secret');
     }
 }

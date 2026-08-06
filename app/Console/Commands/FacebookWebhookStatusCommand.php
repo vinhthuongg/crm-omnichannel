@@ -11,6 +11,7 @@ class FacebookWebhookStatusCommand extends Command
 
     protected $description = 'Show Facebook webhook callback URL and connected page subscription status.';
 
+    /** Hiển thị callback URL, subscription và các field webhook Facebook hiện tại. */
     public function handle(): int
     {
         $appUrl = rtrim((string) config('app.url'), '/');

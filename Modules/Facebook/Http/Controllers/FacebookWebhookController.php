@@ -12,6 +12,7 @@ use Modules\Shared\Http\Controllers\ApiController;
 
 class FacebookWebhookController extends ApiController
 {
+    /** Xác minh chữ ký hoặc token của request đến từ hệ thống bên ngoài. */
     public function verify(Request $request): Response
     {
         $mode = $request->query('hub.mode') ?? $request->query('hub_mode');
@@ -29,6 +30,7 @@ class FacebookWebhookController extends ApiController
         return response((string) $challenge, 200)->header('Content-Type', 'text/plain');
     }
 
+    /** Tách các messaging event Facebook và chuyển từng event sang bộ xử lý webhook. */
     public function __invoke(Request $request, HandleFacebookWebhookAction $action): JsonResponse
     {
         $events = collect((array) $request->input('entry', []))

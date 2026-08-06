@@ -16,6 +16,7 @@ class FacebookResubscribePagesCommand extends Command
 
     protected $description = 'Resubscribe connected Facebook pages to Messenger webhook fields.';
 
+    /** Đăng ký lại webhook cho mọi Facebook Page đang kết nối và báo từng kết quả. */
     public function handle(
         FacebookOAuthService $facebook,
         FacebookTokenValidationService $tokens,

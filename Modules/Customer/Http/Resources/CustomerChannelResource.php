@@ -7,6 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class CustomerChannelResource extends JsonResource
 {
+    /** Trả loại kênh, định danh bên ngoài và metadata liên hệ của khách hàng. */
     public function toArray(Request $request): array
     {
         return [

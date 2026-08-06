@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+    /** Tạo hoặc bổ sung bảng `messages`; lưu các trường `outbound_status`, `external_message_id`, `outbound_error`, `sent_at` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('messages', function (Blueprint $table): void {
@@ -22,6 +23,7 @@ return new class extends Migration {
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `messages` đã được migration này tạo. */
     public function down(): void
     {
         Schema::table('messages', function (Blueprint $table): void {

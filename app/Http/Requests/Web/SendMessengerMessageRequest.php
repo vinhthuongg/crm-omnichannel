@@ -7,6 +7,7 @@ use Modules\Conversation\Models\Conversation;
 
 class SendMessengerMessageRequest extends FormRequest
 {
+    /** Kiểm tra người dùng hiện tại có được phép thực hiện request hay không. */
     public function authorize(): bool
     {
         $user = $this->user();
@@ -29,6 +30,7 @@ class SendMessengerMessageRequest extends FormRequest
             && (int) $conversation->assigned_to === (int) $user->id;
     }
 
+    /** Kiểm tra chế độ gửi, kênh, nội dung, file và mã client của tin Messenger. */
     public function rules(): array
     {
         return [

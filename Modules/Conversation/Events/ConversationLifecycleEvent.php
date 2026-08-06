@@ -15,11 +15,13 @@ abstract class ConversationLifecycleEvent implements ShouldBroadcastNow
     use Dispatchable;
     use SerializesModels;
 
+    /** Giữ hội thoại và người thao tác, đồng thời nạp dữ liệu khách hàng, người phụ trách và nhãn để broadcast. */
     public function __construct(public Conversation $conversation, public ?User $actor = null)
     {
         $this->conversation->loadMissing(['customer.channels', 'assignee', 'tags']);
     }
 
+    /** Phát thay đổi tới channel riêng của hội thoại và các channel inbox của người dùng liên quan. */
     public function broadcastOn(): array
     {
         $channels = [
@@ -36,6 +38,7 @@ abstract class ConversationLifecycleEvent implements ShouldBroadcastNow
 
     abstract public function broadcastAs(): string;
 
+    /** Tạo payload realtime chứa hội thoại đã cập nhật và ID người thực hiện. */
     public function broadcastWith(): array
     {
         return [

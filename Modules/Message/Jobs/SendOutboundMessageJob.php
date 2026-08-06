@@ -5,208 +5,24 @@ namespace Modules\Message\Jobs;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Log;
-use Modules\Message\Events\MessageUpdatedEvent;
-use Modules\Message\Models\Message;
-use Modules\Message\Services\OutboundMessageService;
+use Modules\Message\Services\OutboundMessageProcessor;
 
 class SendOutboundMessageJob implements ShouldQueue
 {
-    use Dispatchable;
-    use InteractsWithQueue;
-    use Queueable;
-    use SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-
     public int $timeout = 120;
-
     public array $backoff = [2, 5, 15];
 
-    public function __construct(public readonly int $messageId)
+    /** Lưu ID tin nhắn cần gửi để queue có thể nạp lại message khi thực thi. */
+    public function __construct(public readonly int $messageId) { $this->onQueue('outbound'); }
+
+    /** Nạp message theo ID và chuyển cho processor gửi sang kênh ngoài. */
+    public function handle(OutboundMessageProcessor $processor): void
     {
-        $this->onQueue('outbound');
-    }
-
-    public function handle(OutboundMessageService $outbound): void
-    {
-        $message = Message::query()
-            ->with('conversation.customer.channels')
-            ->find($this->messageId);
-
-        if (! $message) {
-            Log::warning('Outbound job skipped because message was not found', [
-                'message_id' => $this->messageId,
-            ]);
-
-            return;
-        }
-
-        if (! $message->conversation) {
-            Log::warning('Outbound job skipped because conversation was not found', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'channel' => $message->channel,
-                'sender_type' => $message->sender_type,
-                'outbound_status' => $message->outbound_status,
-            ]);
-
-            return;
-        }
-
-        if ($message->recalled_at || $message->trashed()) {
-            Log::info('Outbound job skipped because message is no longer sendable', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'channel' => $message->channel,
-                'sender_type' => $message->sender_type,
-                'outbound_status' => $message->outbound_status,
-                'recalled_at' => $message->recalled_at?->toISOString(),
-                'trashed' => $message->trashed(),
-            ]);
-
-            return;
-        }
-
-        $retryingInterruptedSend = $message->outbound_status === 'sending' && $this->attempts() > 1;
-
-        if ($message->outbound_status !== 'queued' && ! $retryingInterruptedSend) {
-            Log::info('Outbound job skipped because message is not queued', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'channel' => $message->channel,
-                'sender_type' => $message->sender_type,
-                'outbound_status' => $message->outbound_status,
-                'external_message_id' => $message->external_message_id,
-            ]);
-
-            return;
-        }
-
-        try {
-            Log::info('Outbound job sending message', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'channel' => $message->channel,
-                'sender_type' => $message->sender_type,
-                'attachments_count' => count($message->attachments ?? []),
-                'content_preview' => mb_substr((string) $message->content, 0, 240),
-            ]);
-
-            $message->forceFill([
-                'outbound_status' => 'sending',
-                'outbound_error' => null,
-            ])->save();
-            event(new MessageUpdatedEvent($message));
-
-            $message->refresh();
-
-            if ($message->recalled_at || $message->trashed()) {
-                $message->forceFill([
-                    'outbound_status' => 'cancelled',
-                    'outbound_error' => 'Tin nhan da duoc thu hoi truoc khi gui sang Facebook.',
-                ])->save();
-                event(new MessageUpdatedEvent($message));
-
-                return;
-            }
-
-            $externalMessageId = $outbound->send(
-                $message->conversation,
-                $message->channel,
-                (string) $message->content,
-                $message->attachments ?? [],
-            );
-            $sentAttachments = $outbound->lastResponse()['_sent_attachments'] ?? [];
-            $failedAttachments = $outbound->lastResponse()['_failed_attachments'] ?? [];
-            $attachments = $message->attachments ?? [];
-            $isPartial = $failedAttachments !== [];
-
-            $message->forceFill([
-                'external_message_id' => $externalMessageId,
-                'attachments' => $this->mergeSentAttachments($attachments, $sentAttachments),
-                'outbound_status' => $isPartial ? 'sent_partial' : 'sent',
-                'outbound_error' => $isPartial
-                    ? 'Mot so tep dinh kem khong gui duoc: '.collect($failedAttachments)->pluck('error')->filter()->implode(' | ')
-                    : null,
-                'sent_at' => now(),
-            ])->save();
-            event(new MessageUpdatedEvent($message));
-
-            Log::info('Outbound job marked message as sent', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'channel' => $message->channel,
-                'sender_type' => $message->sender_type,
-                'external_message_id' => $externalMessageId,
-                'failed_attachments_count' => count($failedAttachments),
-            ]);
-
-            if ($message->sender_type === 'system') {
-                $outbound->stopTyping($message->conversation, $message->channel);
-            }
-
-        } catch (\Throwable $exception) {
-            $error = $this->errorMessage($exception);
-
-            $message->forceFill($this->attempts() >= $this->tries
-                ? [
-                    'outbound_status' => 'failed',
-                    'outbound_error' => $error,
-                ]
-                : [
-                    'outbound_status' => 'queued',
-                    'outbound_error' => $error,
-                ])->save();
-            event(new MessageUpdatedEvent($message));
-
-            Log::warning('Queued outbound message failed', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'channel' => $message->channel,
-                'attempt' => $this->attempts(),
-                'max_tries' => $this->tries,
-                'error' => $error,
-            ]);
-
-            throw $exception;
-        }
-    }
-
-    private function errorMessage(\Throwable $exception): string
-    {
-        if (! $exception instanceof RequestException || ! $exception->response) {
-            return $exception->getMessage();
-        }
-
-        $payload = $exception->response->json();
-        $error = is_array($payload) ? (array) Arr::get($payload, 'error', []) : [];
-
-        if ($error === []) {
-            return $exception->response->body() ?: $exception->getMessage();
-        }
-
-        return trim(collect([
-            Arr::get($error, 'message'),
-            Arr::get($error, 'type') ? 'type='.Arr::get($error, 'type') : null,
-            Arr::get($error, 'code') !== null ? 'code='.Arr::get($error, 'code') : null,
-            Arr::get($error, 'error_subcode') !== null ? 'subcode='.Arr::get($error, 'error_subcode') : null,
-            Arr::get($error, 'fbtrace_id') ? 'fbtrace_id='.Arr::get($error, 'fbtrace_id') : null,
-        ])->filter()->implode(' | '));
-    }
-
-    private function mergeSentAttachments(array $attachments, array $sentAttachments): array
-    {
-        foreach ($sentAttachments as $index => $updates) {
-            if (isset($attachments[$index]) && is_array($attachments[$index])) {
-                $attachments[$index] = array_merge($attachments[$index], $updates);
-            }
-        }
-
-        return $attachments;
+        $processor->process($this->messageId, $this->attempts(), $this->tries);
     }
 }

@@ -12,12 +12,14 @@ use RuntimeException;
 
 class HandleFacebookLoginCallbackAction
 {
+    /** Nhận FacebookOAuthService để tạo URL đăng nhập, đổi code và lấy danh sách Page; FacebookAccountRepository để đọc và lưu dữ liệu. */
     public function __construct(
         private readonly FacebookOAuthService $facebook,
         private readonly FacebookAccountRepository $accounts,
     ) {
     }
 
+    /** Kiểm tra OAuth state, đổi code, đồng bộ tài khoản Facebook và đăng nhập người dùng CRM. */
     public function execute(string $code, string $state): User
     {
         $sessionState = session('facebook_oauth_state');
@@ -42,6 +44,7 @@ class HandleFacebookLoginCallbackAction
         return $user;
     }
 
+    /** Tìm user theo Facebook account/email hoặc tạo tài khoản CRM mới từ hồ sơ OAuth. */
     private function resolveUser(?string $email, string $name): User
     {
         if ($email) {

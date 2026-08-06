@@ -6,6 +6,7 @@ use Modules\Conversation\Models\Tag;
 
 return new class extends Migration
 {
+    /** Đồng bộ bộ nhãn sở thích mặc định và xóa nhãn ngoài danh sách khỏi khách hàng, hội thoại. */
     public function up(): void
     {
         $defaults = Tag::DEFAULTS;
@@ -58,6 +59,7 @@ return new class extends Migration
             ->update(['is_default' => true, 'updated_at' => now()]);
     }
 
+    /** Không khôi phục các nhãn tùy chỉnh đã bị xóa vì migration không lưu dữ liệu cũ. */
     public function down(): void
     {
         //

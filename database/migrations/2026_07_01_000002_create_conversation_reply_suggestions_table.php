@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `conversation_reply_suggestions`; lưu các trường `conversation_id`, `message_id`, `provider`, `nvidia-nim`, `suggestions`, `generated_at` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::dropIfExists('conversation_reply_suggestions');
@@ -24,6 +25,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `conversation_reply_suggestions` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('conversation_reply_suggestions');

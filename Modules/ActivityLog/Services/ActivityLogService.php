@@ -8,6 +8,7 @@ use Modules\ActivityLog\Models\ActivityLog;
 
 class ActivityLogService
 {
+    /** Ghi nhận sự kiện hoặc thay đổi trạng thái vào lịch sử hệ thống. */
     public function record(?User $user, string $action, Model $subject, array $metadata = []): ActivityLog
     {
         return ActivityLog::query()->create(['user_id' => $user?->id, 'action' => $action, 'subject_type' => $subject->getMorphClass(), 'subject_id' => $subject->getKey(), 'metadata' => $metadata ?: null]);

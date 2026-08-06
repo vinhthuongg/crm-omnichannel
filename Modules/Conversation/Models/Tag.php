@@ -27,13 +27,14 @@ class Tag extends Model
     public const LEGACY_STATUS_TAGS = [
         self::DEFAULT_CONSULTING,
         self::DEFAULT_WAITING,
-        'Dang tu van',
-        'Khach dang doi tu van',
-        'Khách đang đợi tư vấn',
+        'Đang Tư Vấn',
+        'Khách Đang Đợi Tư Vấn',
+        'Khách Đang Đợi Tư Vấn',
     ];
 
     protected $fillable = ['name', 'color', 'is_default'];
 
+    /** Chuyển is_default thành boolean để bảo vệ nhãn mặc định. */
     protected function casts(): array
     {
         return [
@@ -41,6 +42,7 @@ class Tag extends Model
         ];
     }
 
+    /** Tạo hoặc cập nhật các nhãn mặc định bắt buộc và đánh dấu chúng không thể xóa. */
     public static function ensureDefaults(): void
     {
         foreach (self::DEFAULTS as $name => $color) {
@@ -58,6 +60,7 @@ class Tag extends Model
         }
     }
 
+    /** Liên kết nhiều-nhiều nhãn với các hội thoại được phân loại. */
     public function conversations(): BelongsToMany
     {
         return $this->belongsToMany(Conversation::class);

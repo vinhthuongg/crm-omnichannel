@@ -9,6 +9,7 @@ use Modules\Conversation\Models\WorkShift;
 
 class SampleCskhUsersSeeder extends Seeder
 {
+    /** Tạo các tài khoản nhân viên chăm sóc khách hàng mẫu và gán vai trò CSKH. */
     public function run(): void
     {
         $this->call(RolesAndPermissionsSeeder::class);

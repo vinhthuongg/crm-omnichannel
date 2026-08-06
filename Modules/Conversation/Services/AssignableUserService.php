@@ -6,6 +6,7 @@ use App\Models\User;
 
 class AssignableUserService
 {
+    /** Tìm người dùng đang hoạt động, có quyền trả lời và thuộc ca trực phù hợp để nhận hội thoại. */
     public function findAssignable(int $userId): User
     {
         $user = User::query()->whereKey($userId)->first();

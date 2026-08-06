@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+    /** Tạo hoặc bổ sung bảng `users`, `customers`, `customer_channels`, `conversations`, `messages`, `tags`, `conversation_tag`, `activity_logs`, `notifications`; lưu các trường `is_active`, `password`, `name`, `avatar`, `phone`, `email`, `customer_id`, `channel`, `external_id`, `metadata` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {
@@ -91,6 +92,7 @@ return new class extends Migration {
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `users`, `customers`, `customer_channels`, `conversations`, `messages`, `tags`, `conversation_tag`, `activity_logs`, `notifications` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('notifications');

@@ -20,6 +20,7 @@ class VectorSearchDocument extends Model
         'indexed_at',
     ];
 
+    /** Chuyển vector embedding thành mảng và thời điểm lập chỉ mục thành datetime. */
     protected function casts(): array
     {
         return [
@@ -28,6 +29,7 @@ class VectorSearchDocument extends Model
         ];
     }
 
+    /** Trả về bản ghi nguồn đa hình đã được chuyển thành tài liệu tìm kiếm vector. */
     public function searchable(): MorphTo
     {
         return $this->morphTo();

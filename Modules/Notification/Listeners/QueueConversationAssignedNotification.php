@@ -8,6 +8,7 @@ use Modules\Notification\Notifications\ConversationAssignedNotification;
 
 class QueueConversationAssignedNotification
 {
+    /** Xếp notification cho nhân viên mới khi hội thoại được phân công. */
     public function handle(ConversationLifecycleEvent $event): void
     {
         $assignee = $event->conversation->assignee;

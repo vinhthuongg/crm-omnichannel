@@ -1,5 +1,5 @@
 @php($navLabels = [
-    'dashboard' => 'Dashboard',
+    'dashboard' => 'Trang chủ',
     'conversations' => 'Hội thoại',
     'customers' => 'Khách hàng',
     'agents' => 'Nhân viên',
@@ -8,7 +8,7 @@
     'activity' => 'Hoạt động',
     'activity_log' => 'Thông báo',
     'notifications' => 'Thông báo',
-    'settings' => 'Cài đặt',
+    'settings' => 'Cài Đặt',
 ])
 
 <aside class="crm-sidebar">

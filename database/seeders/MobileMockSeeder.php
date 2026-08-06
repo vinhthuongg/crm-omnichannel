@@ -21,6 +21,7 @@ use Spatie\Permission\Models\Role;
 
 class MobileMockSeeder extends Seeder
 {
+    /** Tạo người dùng, ca trực, khách hàng, hội thoại và notification mẫu cho ứng dụng mobile. */
     public function run(): void
     {
         $agent = $this->ensureAgent();
@@ -39,6 +40,7 @@ class MobileMockSeeder extends Seeder
         );
     }
 
+    /** Tạo hoặc cập nhật nhân viên mobile mẫu, gán vai trò CSKH và quyền cần thiết. */
     private function ensureAgent(): User
     {
         $role = Role::findOrCreate('Admin', 'web');
@@ -76,10 +78,10 @@ class MobileMockSeeder extends Seeder
         return $tags;
     }
 
+    /** Xóa dữ liệu hội thoại/khách hàng mẫu cũ để seeder có thể chạy lại ổn định. */
     private function clearConversationData(): void
     {
         $tables = [
-            'botpress_conversation_links',
             'conversation_reply_suggestions',
             'conversation_user_access',
             'conversation_activities',
@@ -175,7 +177,6 @@ class MobileMockSeeder extends Seeder
             'status' => $row['status'],
             'last_message_at' => $now->subMinutes($row['last_message_minutes_ago']),
             'unread_messages_count' => $row['unread_count'],
-            'automation_state' => $row['automation_state'] ?? null,
             'last_read_at' => $row['unread_count'] > 0 ? $now->subMinutes($row['last_message_minutes_ago'] + 2) : $now->subMinutes(max(1, $row['last_message_minutes_ago'] - 1)),
             'resolved_at' => $row['status'] === ConversationStatus::CLOSED ? $now->subMinutes($row['last_message_minutes_ago']) : null,
             'first_response_at' => $row['first_response_minutes_ago'] !== null ? $now->subMinutes($row['first_response_minutes_ago']) : null,
@@ -259,29 +260,13 @@ class MobileMockSeeder extends Seeder
                 ConversationReplySuggestion::query()->create([
                     'conversation_id' => $conversation->id,
                     'message_id' => $lastCustomerMessage->id,
-                    'provider' => 'groq',
+                    'provider' => 'mock',
                     'suggestions' => $row['reply_suggestions'],
                     'generated_at' => $now->subMinutes($row['last_message_minutes_ago'])->addSeconds(10),
                 ]);
             }
         }
 
-        DB::table('botpress_conversation_links')->updateOrInsert(
-            ['conversation_id' => $conversation->id],
-            [
-                'botpress_user_id' => $row['botpress_user_id'],
-                'botpress_user_key' => $row['botpress_user_key'],
-                'botpress_conversation_id' => $row['botpress_conversation_id'],
-                'last_botpress_message_id' => $row['botpress_last_message_id'],
-                'last_payload' => json_encode([
-                    'mock' => true,
-                    'conversation_id' => $conversation->id,
-                    'customer_id' => $customer->id,
-                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-        );
     }
 
     /**
@@ -368,10 +353,6 @@ class MobileMockSeeder extends Seeder
                     'facebook_page_id' => $facebookPageId,
                     'facebook_page_name' => $facebookPageName,
                     'external_conversation_id' => 'mock_conv_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
-                    'botpress_user_id' => 'mock_bp_user_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
-                    'botpress_user_key' => 'mock_bp_key_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
-                    'botpress_conversation_id' => 'mock_bp_conv_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
-                    'botpress_last_message_id' => 'mock_bp_msg_'.str_pad((string) $seed, 4, '0', STR_PAD_LEFT),
                 ],
                 $this->buildScenario($scenario, $seed, $topic, $agent),
             );
@@ -397,8 +378,6 @@ class MobileMockSeeder extends Seeder
      *     note_by: bool,
      *     messages: array<int, array<string, mixed>>,
      *     reply_suggestions: array<int, string>,
-     *     botpress_last_message_id: string,
-     *     automation_state: array<string, mixed>|null,
      *     last_message_minutes_ago: int
      * }
      */
@@ -414,6 +393,7 @@ class MobileMockSeeder extends Seeder
         };
     }
 
+    /** Tạo kịch bản khách hỏi báo giá và đang chờ nhân viên phản hồi. */
     private function scenarioQuoteWaiting(int $seed, string $topic): array
     {
         $lastAgo = random_int(4, 24);
@@ -453,12 +433,11 @@ class MobileMockSeeder extends Seeder
                 'Tư vấn trả góp',
                 'Gửi ưu đãi',
             ],
-            'botpress_last_message_id' => 'mock_quote_'.$seed.'_bot_a',
-            'automation_state' => null,
             'last_message_minutes_ago' => $lastAgo,
         ];
     }
 
+    /** Tạo kịch bản nhân viên đã trả lời và đang chờ phản hồi từ khách hàng. */
     private function scenarioWaitingCustomer(int $seed, string $topic, User $agent): array
     {
         $lastAgo = random_int(8, 60);
@@ -493,12 +472,11 @@ class MobileMockSeeder extends Seeder
                 'Gửi địa chỉ showroom',
                 'Cần em gọi xác nhận không?',
             ],
-            'botpress_last_message_id' => 'mock_wait_'.$seed.'_agent_a',
-            'automation_state' => null,
             'last_message_minutes_ago' => $lastAgo,
         ];
     }
 
+    /** Tạo kịch bản bot đang tư vấn tự động trước khi chuyển cho nhân viên. */
     private function scenarioBotConsulting(int $seed, string $topic): array
     {
         $lastAgo = random_int(3, 18);
@@ -553,12 +531,11 @@ class MobileMockSeeder extends Seeder
                 'Gửi brochure',
                 'So sánh các mẫu',
             ],
-            'botpress_last_message_id' => 'mock_bot_'.$seed.'_bot_b',
-            'automation_state' => null,
             'last_message_minutes_ago' => $lastAgo,
         ];
     }
 
+    /** Tạo kịch bản hội thoại đã xử lý xong và đóng bởi nhân viên. */
     private function scenarioClosed(int $seed, string $topic, User $agent): array
     {
         $lastAgo = random_int(30, 180);
@@ -610,12 +587,11 @@ class MobileMockSeeder extends Seeder
                 'Gửi địa chỉ',
                 'Đóng hội thoại',
             ],
-            'botpress_last_message_id' => 'mock_closed_'.$seed.'_bot_a',
-            'automation_state' => null,
             'last_message_minutes_ago' => $lastAgo,
         ];
     }
 
+    /** Tạo kịch bản hội thoại có ảnh hoặc tệp đính kèm để kiểm tra mobile timeline. */
     private function scenarioAttachment(int $seed, string $topic): array
     {
         $lastAgo = random_int(5, 36);
@@ -688,12 +664,11 @@ class MobileMockSeeder extends Seeder
                 'So sánh các phiên bản',
                 'Gửi thêm hình',
             ],
-            'botpress_last_message_id' => 'mock_attach_'.$seed.'_bot_b',
-            'automation_state' => null,
             'last_message_minutes_ago' => $lastAgo,
         ];
     }
 
+    /** Tạo kịch bản có ghi chú whisper nội bộ giữa các nhân viên. */
     private function scenarioWhisper(int $seed, string $topic, User $agent): array
     {
         $lastAgo = random_int(6, 72);
@@ -736,12 +711,11 @@ class MobileMockSeeder extends Seeder
                 'Ghi chú nội bộ',
                 'Đợi khách',
             ],
-            'botpress_last_message_id' => 'mock_whisper_'.$seed.'_user_a',
-            'automation_state' => null,
             'last_message_minutes_ago' => $lastAgo,
         ];
     }
 
+    /** Sinh số điện thoại mẫu duy nhất và tránh trùng với các số đã tạo. */
     private function generatePhone(array &$usedPhones): string
     {
         do {

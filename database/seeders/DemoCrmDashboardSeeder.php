@@ -16,6 +16,7 @@ use Modules\Message\Models\Message;
 
 class DemoCrmDashboardSeeder extends Seeder
 {
+    /** Tạo khách hàng, hội thoại, tin nhắn và hoạt động mẫu để hiển thị dashboard CRM. */
     public function run(): void
     {
         $this->call(RolesAndPermissionsSeeder::class);

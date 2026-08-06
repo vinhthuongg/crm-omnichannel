@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `facebook_pages`; lưu các trường `facebook_user_id`, `user_id`, `messenger_app_id`, `meta_app_id` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::table('facebook_pages', function (Blueprint $table): void {
@@ -19,6 +20,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `facebook_pages` đã được migration này tạo. */
     public function down(): void
     {
         Schema::table('facebook_pages', function (Blueprint $table): void {

@@ -3,329 +3,66 @@
 namespace Modules\Message\Services;
 
 use App\Models\User;
-use App\Services\ConversationReplySuggestionService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
-use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Services\ConversationIntentService;
-use Modules\Customer\Models\Customer;
-use Modules\Customer\Models\CustomerChannel;
+use Modules\Conversation\Services\ConversationService;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\DTO\InboundMessageData;
-use Modules\Message\Events\NewMessageEvent;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Repositories\MessageRepository;
-use Modules\Conversation\Services\WorkShiftService;
-use Modules\Search\Services\VectorSearchService;
-use Modules\Botpress\Jobs\RelayInboundMessageToBotpressJob;
-use Modules\Botpress\Jobs\ResumeBotAfterIdleJob;
 
 class MessageService
 {
-    public function __construct(
-        private readonly MessageRepository $repository,
-        private readonly WorkShiftService $shifts,
-        private readonly ConversationService $conversations,
-        private readonly ConversationIntentService $intents,
-    ) {
-    }
+    /** Nhận MessageRepository để đọc và lưu dữ liệu; ConversationService để phân công, đổi trạng thái và đồng bộ nhãn hội thoại; ConversationIntentService để phân loại ý định từ nội dung tin nhắn; InboundMessageContextService để tìm khách hàng, hội thoại và ca trực cho tin đến; FacebookEchoMessageService để ghi nhận và gửi tin nhắn trong hội thoại; MessagePostProcessor để cập nhật vector tìm kiếm và tạo gợi ý trả lời. */
+    public function __construct(private readonly MessageRepository $repository, private readonly ConversationService $conversations,
+        private readonly ConversationIntentService $intents, private readonly InboundMessageContextService $contexts,
+        private readonly FacebookEchoMessageService $echoes, private readonly MessagePostProcessor $post) {}
 
+    /** Tìm hoặc tạo khách hàng/hội thoại, lưu tin đến và chạy hậu xử lý tìm kiếm/gợi ý. */
     public function storeInbound(InboundMessageData $data): Message
     {
-        if ($data->externalMessageId) {
-            $existing = Message::query()
-                ->where('channel', $data->channel)
-                ->where('external_message_id', $data->externalMessageId)
-                ->with(['conversation.customer.channels', 'sender'])
-                ->first();
-
-            if ($existing) {
-                return $existing;
-            }
-        }
-
+        if ($data->externalMessageId && ($existing = Message::query()->where('channel', $data->channel)
+            ->where('external_message_id', $data->externalMessageId)->with(['conversation.customer.channels', 'sender'])->first())) return $existing;
         [$message, $conversation, $customer] = DB::transaction(function () use ($data): array {
-            $facebookPageId = (string) data_get($data->metadata, 'facebook_page_id', '');
-            $channel = CustomerChannel::query()->where('channel', $data->channel)->where('external_id', $data->externalCustomerId)->first();
-            $customer = $channel?->customer ?? Customer::query()->create(['name' => $data->customerName, 'avatar' => $data->customerAvatar]);
-            $this->refreshCustomerProfile($customer, $data);
-            $customer->channels()->updateOrCreate(['channel' => $data->channel, 'external_id' => $data->externalCustomerId], ['metadata' => $data->metadata]);
-            $currentShift = $this->shifts->currentShift();
-            $conversation = Conversation::query()
-                ->where('customer_id', $customer->id)
-                ->where('facebook_page_id', $facebookPageId !== '' ? $facebookPageId : null)
-                ->whereIn('status', ConversationStatus::ACTIVE)
-                ->latest('last_message_at')
-                ->first();
-
-            if (! $conversation) {
-                $conversation = Conversation::query()->create([
-                    'customer_id' => $customer->id,
-                    'facebook_page_id' => $facebookPageId !== '' ? $facebookPageId : null,
-                    'status' => ConversationStatus::CUSTOMER_WAITING,
-                    'last_message_at' => now(),
-                    'work_shift_id' => $currentShift?->id,
-                    'owner_shift_id' => $currentShift?->id,
-                    'queue_shift_id' => $currentShift?->id,
-                ]);
-            }
-            $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id, 'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType, 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
-            $conversation->forceFill(['last_message_at' => $message->created_at])->save();
+            [$customer, $conversation] = $this->contexts->resolve($data);
+            $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id,
+                'channel' => $data->channel, 'content' => $data->content, 'message_type' => $data->messageType,
+                'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
+            $conversation->forceFill(['last_message_at' => $message->created_at, 'status' => ConversationStatus::CUSTOMER_WAITING])->save();
             $conversation->incrementUnreadMessages();
-            $this->markConversationAsWaitingForConsulting($conversation);
-
             return [$message, $conversation, $customer];
         });
-
         $this->intents->classifyMessage($message);
-        $this->broadcastNewMessage($message);
-        $this->queueCustomerVectorRefresh($customer);
-        $this->queueReplySuggestions($conversation, $message);
-
-        if (filled(data_get($conversation->automation_state ?? [], 'paused_by_user_at'))) {
-            ResumeBotAfterIdleJob::dispatchFor($message, 'customer_message');
-        }
-
-        RelayInboundMessageToBotpressJob::dispatch($message->id);
-
+        $this->post->broadcast($message);
+        $this->post->refreshVector($customer);
+        $this->post->queueSuggestions($conversation, $message);
         return $message;
     }
 
+    /** Lưu hoặc đồng bộ tin echo do Facebook trả về mà không tạo bản ghi trùng. */
     public function storeFacebookEcho(array $event): ?Message
     {
-        $message = (array) data_get($event, 'message', []);
-        $externalMessageId = (string) data_get($message, 'mid', '');
-
-        if ($externalMessageId !== '') {
-            $existing = Message::query()
-                ->where('channel', 'facebook')
-                ->where('external_message_id', $externalMessageId)
-                ->with(['conversation.customer.channels', 'sender'])
-                ->first();
-
-            if ($existing) {
-                return $existing;
-            }
-        }
-
-        $pageId = (string) data_get($event, 'sender.id');
-        $customerExternalId = (string) data_get($event, 'recipient.id');
-
-        if ($pageId === '' || $customerExternalId === '') {
-            return null;
-        }
-
-        $customer = CustomerChannel::query()
-            ->where('channel', 'facebook')
-            ->where('external_id', $customerExternalId)
-            ->value('customer_id');
-
-        if (! $customer) {
-            return null;
-        }
-
-        $conversation = Conversation::query()
-            ->where('customer_id', $customer)
-            ->where('facebook_page_id', $pageId)
-            ->whereIn('status', ConversationStatus::ACTIVE)
-            ->latest('last_message_at')
-            ->first();
-
-        if (! $conversation) {
-            return null;
-        }
-
-        $attachments = $this->normalizeFacebookEchoAttachments((array) data_get($message, 'attachments', []));
-        $metadataAttachment = [
-            'type' => 'metadata',
-            'name' => 'facebook_echo',
-            'payload' => [
-                'is_echo' => true,
-                'app_id' => data_get($message, 'app_id'),
-                'raw' => $event,
-            ],
-        ];
-
-        $stored = DB::transaction(function () use ($conversation, $message, $externalMessageId, $attachments, $metadataAttachment): Message {
-            $stored = $this->repository->create([
-                'conversation_id' => $conversation->id,
-                'sender_type' => 'system',
-                'sender_id' => null,
-                'channel' => 'facebook',
-                'content' => data_get($message, 'text'),
-                'message_type' => $attachments ? 'attachment' : 'text',
-                'attachments' => [...$attachments, $metadataAttachment],
-                'external_message_id' => $externalMessageId !== '' ? $externalMessageId : null,
-                'outbound_status' => 'sent',
-                'sent_at' => now(),
-            ]);
-
-            $conversation->forceFill([
-                'last_message_at' => $stored->created_at,
-                'status' => ConversationStatus::BOT_CONSULTING,
-            ])->save();
-            $conversation->markAsRead();
-
-            return $stored;
-        });
-
-        $this->conversations->pauseAutomationForFacebookEcho($conversation, $stored);
-        $this->intents->classifyMessage($stored);
-        $this->broadcastNewMessage($stored);
-        $this->queueCustomerVectorRefresh($conversation->customer);
-
-        return $stored;
+        return $this->echoes->store($event);
     }
 
-    private function refreshCustomerProfile(Customer $customer, InboundMessageData $data): void
-    {
-        $updates = [];
-
-        if ($data->customerName && ($customer->name === $data->externalCustomerId || blank($customer->name))) {
-            $updates['name'] = $data->customerName;
-        }
-
-        if ($data->customerAvatar && $customer->avatar !== $data->customerAvatar) {
-            $updates['avatar'] = $data->customerAvatar;
-        }
-
-        $sharedPhone = (string) data_get($data->metadata, 'shared_phone_number', '');
-
-        if ($sharedPhone !== '' && $customer->phone !== $sharedPhone) {
-            $updates['phone'] = $sharedPhone;
-        } elseif (blank($customer->phone) && $phone = $this->extractPhoneNumber((string) $data->content)) {
-            $updates['phone'] = $phone;
-        }
-
-        if ($updates) {
-            $customer->forceFill($updates)->save();
-        }
-    }
-
-    private function normalizeFacebookEchoAttachments(array $attachments): array
-    {
-        return collect($attachments)
-            ->map(function (array $attachment): array {
-                $type = (string) data_get($attachment, 'type', 'file');
-                $url = (string) (data_get($attachment, 'payload.url') ?: data_get($attachment, 'url', ''));
-                $name = $url ? basename((string) parse_url($url, PHP_URL_PATH)) : ucfirst($type);
-
-                return [
-                    'name' => $name ?: ucfirst($type),
-                    'url' => $url,
-                    'type' => $type,
-                    'mime_type' => (string) data_get($attachment, 'mime_type', ''),
-                    'payload' => data_get($attachment, 'payload', []),
-                ];
-            })
-            ->filter(fn (array $attachment): bool => $attachment['url'] !== '')
-            ->unique('url')
-            ->values()
-            ->all();
-    }
-
-    private function extractPhoneNumber(string $content): ?string
-    {
-        if ($content === '') {
-            return null;
-        }
-
-        preg_match_all('/(?:\+?84|0)(?:[\s.\-()]?\d){8,10}/', $content, $matches);
-
-        foreach ($matches[0] ?? [] as $candidate) {
-            $normalized = preg_replace('/\D+/', '', $candidate) ?: '';
-
-            if (str_starts_with($normalized, '84')) {
-                $normalized = '0'.substr($normalized, 2);
-            }
-
-            if (preg_match('/^0\d{8,10}$/', $normalized)) {
-                return $normalized;
-            }
-        }
-
-        return null;
-    }
-
+    /** Lưu tin do nhân viên gửi, cập nhật hội thoại và xếp hàng gửi sang kênh ngoài. */
     public function sendFromUser(Conversation $conversation, User $user, array $data): Message
     {
         $message = DB::transaction(function () use ($conversation, $user, $data): Message {
             $attachments = array_values((array) ($data['attachments'] ?? []));
-            $message = $this->repository->create([
-                'conversation_id' => $conversation->id,
-                'sender_type' => 'user',
-                'sender_id' => $user->id,
-                'channel' => $data['channel'],
-                'content' => $data['content'] ?? null,
-                'message_type' => $data['message_type'] ?? ($attachments !== [] ? 'attachment' : 'text'),
-                'attachments' => $attachments,
-                'external_message_id' => null,
-                'outbound_status' => 'queued',
-                'outbound_error' => null,
-            ]);
+            $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'user', 'sender_id' => $user->id,
+                'channel' => $data['channel'], 'content' => $data['content'] ?? null,
+                'message_type' => $data['message_type'] ?? ($attachments !== [] ? 'attachment' : 'text'), 'attachments' => $attachments,
+                'external_message_id' => null, 'outbound_status' => 'queued', 'outbound_error' => null]);
             $this->conversations->recordOutboundMessage($conversation, $message);
-            $this->markConversationAsConsulting($conversation);
-
+            $conversation->forceFill(['status' => ConversationStatus::WAITING_CUSTOMER])->save();
             return $message;
         });
-
-        $this->broadcastNewMessage($message);
+        $this->post->broadcast($message);
         SendOutboundMessageJob::dispatch((int) $message->id);
-        $this->queueCustomerVectorRefresh($conversation->customer);
-
+        $this->post->refreshVector($conversation->customer);
         return $message;
-    }
-
-    private function broadcastNewMessage(Message $message): void
-    {
-        try {
-            event(new NewMessageEvent($message));
-        } catch (\Throwable) {
-        }
-    }
-
-    private function queueCustomerVectorRefresh(?Customer $customer): void
-    {
-        if (! $customer || ! config('search.vector.enabled', true)) {
-            return;
-        }
-
-        app()->terminating(function () use ($customer): void {
-            try {
-                app(VectorSearchService::class)->indexCustomer($customer->fresh() ?: $customer);
-            } catch (\Throwable $exception) {
-                Log::warning('Customer vector index refresh failed', [
-                    'customer_id' => $customer->id,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        });
-    }
-
-    private function queueReplySuggestions(Conversation $conversation, Message $message): void
-    {
-        app()->terminating(function () use ($conversation, $message): void {
-            try {
-                app(ConversationReplySuggestionService::class)->queue($conversation, (int) $message->id);
-            } catch (\Throwable $exception) {
-                Log::warning('Reply suggestion queue failed', [
-                    'conversation_id' => $conversation->id,
-                    'message_id' => $message->id,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        });
-    }
-
-    private function markConversationAsWaitingForConsulting(Conversation $conversation): void
-    {
-        $conversation->forceFill(['status' => ConversationStatus::CUSTOMER_WAITING])->save();
-    }
-
-    private function markConversationAsConsulting(Conversation $conversation): void
-    {
-        $conversation->forceFill(['status' => ConversationStatus::WAITING_CUSTOMER])->save();
     }
 }

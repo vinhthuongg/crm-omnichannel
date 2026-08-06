@@ -8,6 +8,7 @@ use Spatie\Permission\Models\Role;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
+    /** Tạo các quyền CRM và đồng bộ chúng cho vai trò Admin, CSKH và User. */
     public function run(): void
     {
         $permissions = [

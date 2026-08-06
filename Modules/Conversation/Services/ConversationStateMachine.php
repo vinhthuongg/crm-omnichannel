@@ -27,6 +27,7 @@ class ConversationStateMachine
         ],
     ];
 
+    /** Bảo đảm hội thoại được phép chuyển sang trạng thái đích. */
     public function assertCanTransition(?string $from, string $to): void
     {
         $from = ConversationStatus::normalize($from);

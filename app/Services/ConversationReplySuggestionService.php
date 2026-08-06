@@ -8,15 +8,18 @@ use Modules\Message\Jobs\GenerateReplySuggestionsJob;
 
 class ConversationReplySuggestionService
 {
+    /** Nhận NimReplySuggestionService để tạo câu trả lời gợi ý từ ngữ cảnh hội thoại. */
     public function __construct(private readonly NimReplySuggestionService $nim)
     {
     }
 
+    /** Kiểm tra NIM đã có API key và model để có thể sinh gợi ý hay chưa. */
     public function hasProvider(): bool
     {
         return trim((string) config('services.nim.api_key')) !== '';
     }
 
+    /** Lấy ID tin nhắn mới nhất dùng để kiểm tra cache gợi ý. */
     public function latestMessageId(Conversation $conversation): ?int
     {
         $messageId = (int) $conversation->messages()->max('id');
@@ -24,6 +27,7 @@ class ConversationReplySuggestionService
         return $messageId > 0 ? $messageId : null;
     }
 
+    /** Lấy kết quả đã lưu trong cache nếu vẫn còn hợp lệ. */
     public function cached(Conversation $conversation, ?int $messageId = null): ?ConversationReplySuggestion
     {
         $messageId ??= $this->latestMessageId($conversation);
@@ -39,6 +43,7 @@ class ConversationReplySuggestionService
             ->first();
     }
 
+    /** Xếp job sinh gợi ý cho tin khách hàng mới nhất và tránh xếp trùng cache key. */
     public function queue(Conversation $conversation, ?int $messageId = null, bool $force = false): void
     {
         if (! $this->hasProvider()) {

@@ -9,6 +9,7 @@ use Modules\Shared\Http\Controllers\ApiController;
 
 class ActivityLogController extends ApiController
 {
+    /** Trả activity log phân trang theo người dùng, hành động, subject và khoảng ngày. */
     public function index(Request $request, ListActivityLogsAction $action)
     {
         abort_unless($request->user()->can('report.view'), 403);

@@ -14,6 +14,7 @@ use Modules\Message\Models\Message;
 
 class ConversationStatusMockSeeder extends Seeder
 {
+    /** Tạo hội thoại mẫu ở từng trạng thái để kiểm tra bộ lọc và dashboard trạng thái. */
     public function run(): void
     {
         $agent = User::query()->firstOrCreate(

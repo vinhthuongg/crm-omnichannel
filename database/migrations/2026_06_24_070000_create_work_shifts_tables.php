@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `work_shifts`, `work_shift_user`, `conversations`; lưu các trường `name`, `starts_at`, `ends_at`, `is_active`, `work_shift_id`, `work_shifts`, `user_id`, `users`, `assigned_to`, `claimed_at` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::create('work_shifts', function (Blueprint $table): void {
@@ -36,6 +37,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `work_shifts`, `work_shift_user`, `conversations` đã được migration này tạo. */
     public function down(): void
     {
         Schema::table('conversations', function (Blueprint $table): void {

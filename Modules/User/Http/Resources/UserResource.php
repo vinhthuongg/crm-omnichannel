@@ -7,6 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class UserResource extends JsonResource
 {
+    /** Trả thông tin tài khoản, trạng thái hoạt động và tên các vai trò đã được nạp. */
     public function toArray(Request $request): array
     {
         return [

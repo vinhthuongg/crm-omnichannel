@@ -16,6 +16,7 @@ use Modules\Shared\Http\Controllers\ApiController;
 
 class AuthController extends ApiController
 {
+    /** Xác thực thông tin đăng nhập và tạo phiên hoặc token cho người dùng. */
     public function login(LoginRequest $request, LoginAction $action): JsonResponse
     {
         $payload = $action->execute(new LoginData($request->string('email')->toString(), $request->string('password')->toString(), $request->string('device_name', 'api')->toString()));
@@ -23,11 +24,13 @@ class AuthController extends ApiController
         return response()->json(['data' => ['token_type' => $payload['token_type'], 'access_token' => $payload['access_token'], 'user' => new UserResource($payload['user'])]]);
     }
 
+    /** Trả hồ sơ tài khoản đang đăng nhập cùng danh sách vai trò. */
     public function profile(Request $request): UserResource
     {
         return new UserResource($request->user()->load('roles'));
     }
 
+    /** Làm mới token xác thực cho phiên người dùng hiện tại. */
     public function refresh(Request $request, RefreshTokenAction $action): JsonResponse
     {
         $payload = $action->execute($request->user(), $request->string('device_name', 'api')->toString());
@@ -35,6 +38,7 @@ class AuthController extends ApiController
         return response()->json(['data' => ['token_type' => $payload['token_type'], 'access_token' => $payload['access_token'], 'user' => new UserResource($payload['user'])]]);
     }
 
+    /** Thu hồi phiên hoặc token đăng nhập hiện tại của người dùng. */
     public function logout(Request $request, LogoutAction $action): JsonResponse
     {
         $action->execute($request->user());
@@ -42,6 +46,7 @@ class AuthController extends ApiController
         return response()->json(status: 204);
     }
 
+    /** Xác minh và cập nhật mật khẩu mới cho người dùng. */
     public function changePassword(ChangePasswordRequest $request, ChangePasswordAction $action): JsonResponse
     {
         $action->execute($request->user(), $request->string('password')->toString());

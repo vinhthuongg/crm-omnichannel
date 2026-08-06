@@ -27,6 +27,7 @@ final class ConversationStatus
         self::CUSTOMER_WAITING,
     ];
 
+    /** Ánh xạ trạng thái cũ hoặc alias đầu vào về trạng thái hội thoại chuẩn của hệ thống. */
     public static function normalize(?string $status): string
     {
         return match ($status) {
@@ -44,6 +45,7 @@ final class ConversationStatus
         };
     }
 
+    /** Chuyển giá trị bộ lọc đầu vào thành trạng thái hội thoại hợp lệ. */
     public static function fromFilter(?string $status): ?string
     {
         return match ($status) {
@@ -61,6 +63,7 @@ final class ConversationStatus
         };
     }
 
+    /** Trả về nhãn hiển thị tương ứng với trạng thái hiện tại. */
     public static function label(?string $status): string
     {
         return match (self::normalize($status)) {
@@ -71,6 +74,7 @@ final class ConversationStatus
         };
     }
 
+    /** Trả về mã màu giao diện tương ứng với trạng thái hiện tại. */
     public static function color(?string $status): string
     {
         return match (self::normalize($status)) {

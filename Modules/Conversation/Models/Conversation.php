@@ -26,13 +26,13 @@ class Conversation extends Model
         'status',
         'last_message_at',
         'unread_messages_count',
-        'automation_state',
         'last_read_at',
         'resolved_at',
         'first_response_at',
         'closed_at',
     ];
 
+    /** Chuyển các mốc đọc, phân công, phản hồi, giải quyết và đóng thành datetime. */
     protected function casts(): array
     {
         return [
@@ -42,60 +42,58 @@ class Conversation extends Model
             'resolved_at' => 'datetime',
             'first_response_at' => 'datetime',
             'closed_at' => 'datetime',
-            'automation_state' => 'array',
         ];
     }
 
+    /** Liên kết hội thoại với khách hàng sở hữu cuộc trao đổi. */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /** Liên kết hội thoại với người dùng đang được giao xử lý. */
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
-    public function assignedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'assigned_by');
-    }
-
+    /** Liên kết hội thoại với ca trực đã tiếp nhận ban đầu. */
     public function workShift(): BelongsTo
     {
         return $this->belongsTo(WorkShift::class);
     }
 
-    public function ownerShift(): BelongsTo
-    {
-        return $this->belongsTo(WorkShift::class, 'owner_shift_id');
-    }
-
+    /** Liên kết hội thoại đang chờ với ca trực chịu trách nhiệm tiếp theo. */
     public function queueShift(): BelongsTo
     {
         return $this->belongsTo(WorkShift::class, 'queue_shift_id');
     }
 
+    /** Liên kết toàn bộ tin nhắn thuộc hội thoại. */
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
     }
 
+    /** Liên kết các gợi ý trả lời đã sinh cho hội thoại. */
     public function replySuggestions(): HasMany
     {
         return $this->hasMany(ConversationReplySuggestion::class);
     }
 
+    /** Liên kết nhiều-nhiều các nhãn phân loại hội thoại. */
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class);
     }
 
+    /** Liên kết lịch sử phân công và thay đổi trạng thái của hội thoại. */
     public function activities(): HasMany
     {
         return $this->hasMany(ConversationActivity::class);
     }
 
+    /** Liên kết những người dùng đã từng tham gia xử lý hội thoại. */
     public function handledUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'conversation_user_access')
@@ -103,6 +101,7 @@ class Conversation extends Model
             ->withTimestamps();
     }
 
+    /** Đặt bộ đếm chưa đọc về 0 và lưu thời điểm đọc cho hội thoại/tin nhắn. */
     public function markAsRead(): void
     {
         $this->messages()
@@ -116,6 +115,7 @@ class Conversation extends Model
         ])->save();
     }
 
+    /** Tăng bộ đếm tin chưa đọc của hội thoại khi có tin mới. */
     public function incrementUnreadMessages(): void
     {
         $this->increment('unread_messages_count');

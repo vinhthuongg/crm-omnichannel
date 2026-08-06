@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `vector_search_documents`; lưu các trường `searchable_type`, `searchable_id`, `scope`, `default`, `title`, `content`, `embedding`, `embedding_provider`, `local`, `embedding_model` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::create('vector_search_documents', function (Blueprint $table): void {
@@ -28,6 +29,7 @@ return new class extends Migration
         });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `vector_search_documents` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('vector_search_documents');

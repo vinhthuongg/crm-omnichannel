@@ -11,6 +11,7 @@ use RuntimeException;
 
 class FacebookAuthController extends Controller
 {
+    /** Chuyển người dùng sang Facebook để cấp quyền OAuth. */
     public function redirect(RedirectToFacebookLoginAction $action): RedirectResponse
     {
         try {
@@ -22,6 +23,7 @@ class FacebookAuthController extends Controller
         }
     }
 
+    /** Xử lý OAuth callback, đăng nhập tài khoản CRM và chuyển về danh sách Page. */
     public function callback(Request $request, HandleFacebookLoginCallbackAction $action): RedirectResponse
     {
         if ($request->filled('error')) {

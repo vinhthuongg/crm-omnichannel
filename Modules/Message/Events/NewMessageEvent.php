@@ -15,12 +15,14 @@ class NewMessageEvent implements ShouldBroadcastNow
     use Dispatchable;
     use SerializesModels;
 
+    /** Nạp người gửi, khách hàng và nhãn để chuẩn bị broadcast tin nhắn vừa tạo. */
     public function __construct(public Message $message)
     {
         $this->message->unsetRelation('conversation');
         $this->message->loadMissing(['sender', 'conversation.customer', 'conversation.tags']);
     }
 
+    /** Phát tin mới tới channel hội thoại và inbox của những người có quyền nhận. */
     public function broadcastOn(): array
     {
         $channels = [
@@ -35,11 +37,13 @@ class NewMessageEvent implements ShouldBroadcastNow
         return $channels;
     }
 
+    /** Đặt tên sự kiện realtime là message.created để client nhận biết tin mới. */
     public function broadcastAs(): string
     {
         return 'message.created';
     }
 
+    /** Chuyển tin nhắn và thông tin hội thoại liên quan thành payload realtime. */
     public function broadcastWith(): array
     {
         return ['message' => (new MessageResource($this->message))->resolve()];

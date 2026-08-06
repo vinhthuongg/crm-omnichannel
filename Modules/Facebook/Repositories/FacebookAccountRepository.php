@@ -8,6 +8,7 @@ use Modules\Facebook\Models\FacebookAccount;
 
 class FacebookAccountRepository
 {
+    /** Tạo mới hoặc cập nhật bản ghi theo người dùng và định danh từ hệ thống ngoài. */
     public function upsertForUser(User $user, FacebookUserData $data): FacebookAccount
     {
         return FacebookAccount::query()->updateOrCreate(
@@ -22,6 +23,7 @@ class FacebookAccountRepository
         );
     }
 
+    /** Tìm tài khoản Facebook đã liên kết theo Facebook user ID. */
     public function findByFacebookUserId(string $facebookUserId): ?FacebookAccount
     {
         return FacebookAccount::query()->where('facebook_user_id', $facebookUserId)->first();

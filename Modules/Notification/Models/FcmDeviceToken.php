@@ -17,6 +17,7 @@ class FcmDeviceToken extends Model
         'last_used_at',
     ];
 
+    /** Chuyển thời điểm thiết bị dùng token gần nhất thành đối tượng datetime. */
     protected function casts(): array
     {
         return [
@@ -24,6 +25,7 @@ class FcmDeviceToken extends Model
         ];
     }
 
+    /** Trả về người dùng sở hữu token FCM của thiết bị này. */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

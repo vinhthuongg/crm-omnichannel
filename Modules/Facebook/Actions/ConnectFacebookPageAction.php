@@ -14,6 +14,7 @@ use Modules\Facebook\Services\FacebookWebhookSubscriptionService;
 
 class ConnectFacebookPageAction
 {
+    /** Nhận kho Page, OAuth, kiểm tra token và đăng ký webhook để kết nối Page hoàn chỉnh. */
     public function __construct(
         private readonly FacebookPageRepository $pages,
         private readonly FacebookOAuthService $facebook,
@@ -22,6 +23,7 @@ class ConnectFacebookPageAction
     ) {
     }
 
+    /** Kiểm tra Page token, lưu Page, đăng ký webhook và xác nhận kết nối thành công. */
     public function execute(User $user, FacebookPageData $page): FacebookPage
     {
         $debugToken = $this->tokens->validatePageToken($page->accessToken);

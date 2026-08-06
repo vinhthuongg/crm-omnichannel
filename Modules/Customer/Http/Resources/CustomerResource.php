@@ -7,6 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class CustomerResource extends JsonResource
 {
+    /** Trả hồ sơ khách hàng cùng các kênh liên hệ đã được nạp cho API. */
     public function toArray(Request $request): array
     {
         return [

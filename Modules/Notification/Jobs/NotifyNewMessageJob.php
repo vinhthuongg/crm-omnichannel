@@ -15,10 +15,12 @@ class NotifyNewMessageJob implements ShouldQueue
     use DispatchableQueueable;
     use Queueable;
 
+    /** Lưu ID tin nhắn mới để job nạp quan hệ và gửi notification cho người nhận. */
     public function __construct(private readonly int $messageId)
     {
     }
 
+    /** Nạp tin mới, xác định người nhận và gửi database/push notification. */
     public function handle(): void
     {
         $message = Message::query()->with(['conversation.customer', 'sender'])->findOrFail($this->messageId);
@@ -45,6 +47,7 @@ class NotifyNewMessageJob implements ShouldQueue
         }
     }
 
+    /** Tạo nội dung ngắn dùng trong push notification tin nhắn mới. */
     private function pushBody(Message $message): string
     {
         $content = trim((string) $message->content);

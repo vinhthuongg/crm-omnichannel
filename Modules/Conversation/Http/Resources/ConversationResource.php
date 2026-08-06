@@ -11,6 +11,7 @@ use Modules\User\Http\Resources\UserResource;
 
 class ConversationResource extends JsonResource
 {
+    /** Trả trạng thái, phân công, khách hàng, tin nhắn và nhãn đã nạp của hội thoại. */
     public function toArray(Request $request): array
     {
         return [

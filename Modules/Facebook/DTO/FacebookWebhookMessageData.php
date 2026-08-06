@@ -6,11 +6,13 @@ use Modules\Message\DTO\InboundMessageData;
 
 final readonly class FacebookWebhookMessageData
 {
+    /** Lấy messaging event đầu tiên trong payload Facebook để tạo dữ liệu tin đến. */
     public static function fromPayload(array $payload, array $profile = []): InboundMessageData
     {
         return self::fromMessagingEvent($payload['entry'][0]['messaging'][0] ?? [], $profile);
     }
 
+    /** Chuẩn hóa sender, Page, nội dung, quick reply và attachment của một messaging event. */
     public static function fromMessagingEvent(array $entry, array $profile = []): InboundMessageData
     {
         $senderId = (string) data_get($entry, 'sender.id');
@@ -42,6 +44,7 @@ final readonly class FacebookWebhookMessageData
         return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, $content, $hasMessageAttachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId, 'shared_phone_number' => self::phoneFromQuickReply($quickReplyPayload), 'quick_reply_title' => $quickReplyTitle, 'quick_reply_payload' => $quickReplyPayload]);
     }
 
+    /** Trích số điện thoại khách chia sẻ trong quick reply của Facebook. */
     private static function phoneFromQuickReply(string $payload): ?string
     {
         if ($payload === '') {
@@ -57,6 +60,7 @@ final readonly class FacebookWebhookMessageData
         return preg_match('/^0\d{8,10}$/', $normalized) ? $normalized : null;
     }
 
+    /** Chuẩn hóa attachment webhook thành URL, loại, tên và payload có thể lưu. */
     private static function normalizeAttachments(array $attachments): array
     {
         return collect($attachments)

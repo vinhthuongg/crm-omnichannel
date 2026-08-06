@@ -14,6 +14,7 @@ class Message extends Model
 
     protected $fillable = ['conversation_id', 'sender_type', 'sender_id', 'channel', 'content', 'message_type', 'attachments', 'external_message_id', 'client_message_id', 'outbound_status', 'outbound_error', 'sent_at', 'read_at', 'recalled_at', 'recalled_by_user_id', 'deleted_by_user_id'];
 
+    /** Chuyển attachment thành mảng và các mốc gửi, đọc, thu hồi, xóa thành datetime. */
     protected function casts(): array
     {
         return [
@@ -25,16 +26,19 @@ class Message extends Model
         ];
     }
 
+    /** Liên kết tin nhắn với hội thoại chứa nó. */
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
     }
 
+    /** Liên kết đa hình tới người dùng, khách hàng hoặc system đã gửi tin. */
     public function sender(): MorphTo
     {
         return $this->morphTo(__FUNCTION__, 'sender_type', 'sender_id');
     }
 
+    /** Trả tên hiển thị của sender hoặc nhãn hệ thống khi không có model sender. */
     public function senderName(): string
     {
         if ($this->sender_type === 'system') {
@@ -44,6 +48,7 @@ class Message extends Model
         return (string) ($this->sender?->name ?? 'Unknown');
     }
 
+    /** Tạo nội dung xem trước ngắn gọn cho tin nhắn trong danh sách hội thoại. */
     public function conversationPreviewText(): string
     {
         $content = trim((string) $this->content);
@@ -71,6 +76,7 @@ class Message extends Model
         return $content;
     }
 
+    /** Tạo nhãn xem trước theo loại attachment đầu tiên khi tin không có text. */
     private function attachmentPreviewText(): ?string
     {
         $attachment = collect($this->attachments ?? [])->first();

@@ -25,6 +25,7 @@ class KeepTypingUntilBotReplyJob implements ShouldQueue
 
     public int $timeout = 20;
 
+    /** Lưu ID hội thoại, người nhận, Page token và thời hạn để duy trì trạng thái đang nhập. */
     public function __construct(
         public readonly int $conversationId,
         public readonly int $inboundMessageId,
@@ -35,12 +36,14 @@ class KeepTypingUntilBotReplyJob implements ShouldQueue
         $this->onQueue('default');
     }
 
+    /** Khởi tạo chu kỳ gửi typing action trong lúc chờ bot phản hồi. */
     public static function start(Conversation $conversation, int $inboundMessageId, string $recipientId, string $pageId): void
     {
         self::dispatch((int) $conversation->id, $inboundMessageId, $recipientId, $pageId)
             ->onQueue('default');
     }
 
+    /** Gửi typing_on định kỳ cho đến khi bot trả lời hoặc hết thời hạn. */
     public function handle(FacebookMessengerService $facebook): void
     {
         if ($this->tick > self::MAX_TICKS || $this->recipientId === '' || $this->pageId === '') {
@@ -72,6 +75,7 @@ class KeepTypingUntilBotReplyJob implements ShouldQueue
         )->delay(now()->addSeconds(self::INTERVAL_SECONDS));
     }
 
+    /** Kiểm tra hội thoại đã có tin outbound mới hơn tin inbound đang chờ hay chưa. */
     private function hasReplyAfterInbound(Conversation $conversation): bool
     {
         return $conversation->messages()

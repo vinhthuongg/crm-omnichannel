@@ -6,6 +6,7 @@ use Modules\Conversation\Models\Tag;
 
 return new class extends Migration
 {
+    /** Giữ nhãn sở thích mặc định và loại nhãn trạng thái cũ khỏi hội thoại, khách hàng. */
     public function up(): void
     {
         foreach (Tag::DEFAULTS as $name => $color) {
@@ -46,6 +47,7 @@ return new class extends Migration
             ->update(['is_default' => false, 'updated_at' => now()]);
     }
 
+    /** Khôi phục hai nhãn trạng thái Tư vấn và Chờ đợi vào bảng `tags`. */
     public function down(): void
     {
         foreach ([

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /** Tạo hoặc bổ sung bảng `conversation_user_access`; lưu các trường `conversation_id`, `conversations`, `user_id`, `users`, `first_handled_at`, `assigned_to` và các khóa/index cần thiết. */
     public function up(): void
     {
         Schema::create('conversation_user_access', function (Blueprint $table): void {
@@ -39,6 +40,7 @@ return new class extends Migration
             });
     }
 
+    /** Hoàn tác các cột, khóa hoặc bảng `conversation_user_access` đã được migration này tạo. */
     public function down(): void
     {
         Schema::dropIfExists('conversation_user_access');

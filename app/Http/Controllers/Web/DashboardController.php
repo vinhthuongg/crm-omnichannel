@@ -8,13 +8,17 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Modules\Notification\Services\NotificationManagementService;
 
 class DashboardController extends Controller
 {
+    /** Nhận NotificationManagementService để đánh dấu notification đã đọc. */
+    public function __construct(private readonly NotificationManagementService $notifications) {}
+
+    /** Kiểm tra quyền khu vực rồi hiển thị dashboard với dữ liệu đã lọc. */
     public function __invoke(Request $request, GetDashboardViewDataAction $action): View|RedirectResponse
     {
         $section = (string) $request->route('section', 'dashboard');
@@ -35,6 +39,7 @@ class DashboardController extends Controller
         ]));
     }
 
+    /** Trả dữ liệu biểu đồ hội thoại, kênh, nhãn và hoạt động khách hàng theo kỳ lọc. */
     public function charts(Request $request, GetDashboardChartDataAction $action): JsonResponse
     {
         return response()->json($action->execute($request->user(), [
@@ -42,6 +47,7 @@ class DashboardController extends Controller
         ]));
     }
 
+    /** Xác thực mật khẩu hiện tại rồi băm và lưu mật khẩu mới cho tài khoản web. */
     public function updatePassword(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -56,20 +62,18 @@ class DashboardController extends Controller
         return back()->with('settings_status', 'Đã đổi mật khẩu thành công.');
     }
 
+    /** Đánh dấu một notification thuộc người dùng hiện tại là đã đọc. */
     public function markNotificationRead(Request $request, string $notification): RedirectResponse
     {
-        $request->user()->notifications()->whereKey($notification)->firstOrFail()->markAsRead();
+        $this->notifications->markRead($request->user(), $notification);
 
         return back()->with('notification_status', 'Đã đánh dấu thông báo là đã đọc.');
     }
 
+    /** Đánh dấu toàn bộ notification chưa đọc của người dùng hiện tại là đã đọc. */
     public function markAllNotificationsRead(Request $request): RedirectResponse
     {
-        DatabaseNotification::query()
-            ->where('notifiable_type', $request->user()->getMorphClass())
-            ->where('notifiable_id', $request->user()->getKey())
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $this->notifications->markAllRead($request->user());
 
         return back()->with('notification_status', 'Đã đánh dấu tất cả thông báo là đã đọc.');
     }

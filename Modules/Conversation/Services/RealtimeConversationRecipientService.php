@@ -8,10 +8,12 @@ use Modules\Conversation\Models\Conversation;
 
 class RealtimeConversationRecipientService
 {
+    /** Nhận ConversationVisibilityService để kiểm tra phạm vi truy cập. */
     public function __construct(private readonly ConversationVisibilityService $visibility)
     {
     }
 
+    /** Xác định danh sách người dùng cần nhận sự kiện realtime. */
     public function recipientUserIds(Conversation $conversation): Collection
     {
         return User::query()
@@ -24,6 +26,7 @@ class RealtimeConversationRecipientService
             ->values();
     }
 
+    /** Tạo danh sách kênh realtime người dùng được phép đăng ký. */
     public function channelsFor(Conversation $conversation): array
     {
         return $this->recipientUserIds($conversation)

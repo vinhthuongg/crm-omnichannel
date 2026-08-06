@@ -12,6 +12,7 @@ class FacebookAccount extends Model
 
     protected $hidden = ['access_token', 'refresh_token'];
 
+    /** Trả về người dùng CRM sở hữu thông tin đăng nhập Facebook này. */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

@@ -16,6 +16,7 @@ class FacebookDiagnosePageCommand extends Command
 
     protected $description = 'Diagnose Facebook page token, app subscription, webhook and latest outbound errors.';
 
+    /** Chẩn đoán Page token, App subscription, Page subscription và lỗi outbound gần đây. */
     public function handle(Http $http, FacebookWebhookSubscriptionService $webhooks): int
     {
         $page = $this->page();
@@ -51,6 +52,7 @@ class FacebookDiagnosePageCommand extends Command
         return self::SUCCESS;
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước page. */
     private function page(): ?FacebookPage
     {
         $query = FacebookPage::query()->latest('id');
@@ -62,6 +64,7 @@ class FacebookDiagnosePageCommand extends Command
         return $query->first();
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước diagnoseToken. */
     private function diagnoseToken(Http $http, FacebookPage $page): void
     {
         $this->info('Page token debug');
@@ -93,6 +96,7 @@ class FacebookDiagnosePageCommand extends Command
         }
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước diagnoseAppSubscriptions. */
     private function diagnoseAppSubscriptions(FacebookWebhookSubscriptionService $webhooks): void
     {
         $this->info('App page webhook subscription');
@@ -115,6 +119,7 @@ class FacebookDiagnosePageCommand extends Command
         }
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước diagnosePageSubscriptions. */
     private function diagnosePageSubscriptions(Http $http, FacebookPage $page): void
     {
         $this->info('Page subscribed apps');
@@ -141,6 +146,7 @@ class FacebookDiagnosePageCommand extends Command
         }
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước latestOutboundErrors. */
     private function latestOutboundErrors(FacebookPage $page): void
     {
         $this->info('Latest failed outbound messages');
@@ -170,6 +176,7 @@ class FacebookDiagnosePageCommand extends Command
         $this->table(['message_id', 'conversation_id', 'content', 'outbound_error', 'created_at'], $rows ?: [['(none)', '(none)', '(none)', '(none)', '(none)']]);
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước messengerAppAccessToken. */
     private function messengerAppAccessToken(): string
     {
         $appId = (string) config('services.facebook.messenger_app_id');
@@ -182,11 +189,13 @@ class FacebookDiagnosePageCommand extends Command
         return $appId.'|'.$appSecret;
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước graphUrl. */
     private function graphUrl(string $path): string
     {
         return 'https://graph.facebook.com/'.config('services.facebook.graph_version', 'v25.0').$path;
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước timestampLabel. */
     private function timestampLabel(mixed $timestamp): string
     {
         $value = (int) $timestamp;
@@ -194,6 +203,7 @@ class FacebookDiagnosePageCommand extends Command
         return $value > 0 ? Carbon::createFromTimestamp($value)->toDateTimeString() : '(none)';
     }
 
+    /** Thu thập và hiển thị dữ liệu chẩn đoán Facebook cho bước granularScopes. */
     private function granularScopes(array $data): string
     {
         return collect((array) Arr::get($data, 'granular_scopes', []))
