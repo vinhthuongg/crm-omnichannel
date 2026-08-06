@@ -27,6 +27,10 @@
                     </a>
                 </header>
 
+                @if(session('channels_status'))
+                    <div class="channel-connections-alert" role="status">{{ session('channels_status') }}</div>
+                @endif
+
                 @if($channelManagement['cards']->isEmpty())
                     <section class="channel-empty-state">
                         <span class="material-symbols-outlined" aria-hidden="true">hub</span>
@@ -75,6 +79,16 @@
                             </dl>
 
                             <footer>
+                                @if($channel['disconnect_url'])
+                                    <form method="POST" action="{{ $channel['disconnect_url'] }}" onsubmit="return confirm('Bạn có chắc muốn xóa kết nối {{ addslashes($channel['title']) }}? Lịch sử khách hàng, hội thoại và tin nhắn vẫn được giữ lại.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="channel-connection-danger">
+                                            <span class="material-symbols-outlined" aria-hidden="true">link_off</span>
+                                            Xóa kết nối
+                                        </button>
+                                    </form>
+                                @endif
                                 @if($channel['sync_url'])
                                     <form method="POST" action="{{ $channel['sync_url'] }}">
                                         @csrf

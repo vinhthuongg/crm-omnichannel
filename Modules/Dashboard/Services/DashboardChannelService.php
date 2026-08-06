@@ -70,6 +70,7 @@ class DashboardChannelService
                     'webhook_tone' => $webhookHealthy ? 'healthy' : 'failed',
                     'connect_url' => route('facebook.redirect'),
                     'sync_url' => route('facebook.pages.sync-messages', $page),
+                    'disconnect_url' => route('facebook.pages.destroy', $page),
                 ];
             })->values();
 
@@ -82,6 +83,7 @@ class DashboardChannelService
                 'last_sync' => $this->lastChannelSync('zalo') ?: 'Chưa có',
                 'webhook' => 'Hoạt động', 'webhook_tone' => 'healthy',
                 'connect_url' => route('crm.settings', ['panel' => 'zalo']), 'sync_url' => null,
+                'disconnect_url' => null,
             ]);
         }
 

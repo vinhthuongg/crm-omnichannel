@@ -38,4 +38,14 @@ class FacebookOAuthGraphClient
             ['subscribed_fields' => $fields, 'access_token' => $token]);
         $response->throw();
     }
+
+    /** Hủy đăng ký Page khỏi ứng dụng để Facebook ngừng gửi webhook cho kết nối đã xóa. */
+    public function unsubscribe(string $pageId, string $token): void
+    {
+        $response = $this->http->connectTimeout(5)->timeout(15)->delete(
+            $this->config->graphUrl("/{$pageId}/subscribed_apps"),
+            ['access_token' => $token],
+        );
+        $response->throw();
+    }
 }

@@ -28,6 +28,15 @@
     font-size: 14px;
 }
 
+.channel-connections-alert {
+    border: 1px solid #a7f3d0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 13px;
+}
+
 .channel-add-button {
     width: 44px;
     height: 44px;
@@ -172,6 +181,8 @@
 .channel-connection-card footer {
     display: flex;
     justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .channel-connection-card footer form {
@@ -194,6 +205,30 @@
 }
 
 .channel-connection-primary .material-symbols-outlined {
+    font-size: 17px;
+}
+
+.channel-connection-danger {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 0 14px;
+    background: #fff;
+    color: #b91c1c;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.channel-connection-danger:hover {
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+
+.channel-connection-danger .material-symbols-outlined {
     font-size: 17px;
 }
 

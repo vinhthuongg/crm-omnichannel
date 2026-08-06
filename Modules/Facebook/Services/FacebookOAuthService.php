@@ -67,4 +67,10 @@ class FacebookOAuthService
             $this->graph->subscribe($pageId, $pageAccessToken, 'messages,messaging_postbacks,message_deliveries,message_reads');
         }
     }
+
+    /** Hủy Page khỏi ứng dụng Facebook bằng Page access token đang lưu trong kết nối. */
+    public function unsubscribePage(string $pageId, string $pageAccessToken): void
+    {
+        $this->graph->unsubscribe($pageId, $pageAccessToken);
+    }
 }

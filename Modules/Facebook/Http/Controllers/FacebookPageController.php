@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Modules\Facebook\Actions\ConnectFacebookPageAction;
+use Modules\Facebook\Actions\DisconnectFacebookPageAction;
 use Modules\Facebook\Actions\ImportFacebookPageMessagesAction;
 use Modules\Facebook\Actions\ListFacebookPagesAction;
 use Modules\Facebook\DTO\FacebookPageData;
@@ -117,6 +118,28 @@ class FacebookPageController extends Controller
         }
 
         return response()->json(['data' => $stats]);
+    }
+
+    /** Hủy webhook và xóa kết nối Facebook Page, nhưng giữ nguyên khách hàng, hội thoại và tin nhắn đã nhập. */
+    public function destroy(Request $request, FacebookPage $facebookPage, DisconnectFacebookPageAction $action): RedirectResponse|JsonResponse
+    {
+        $pageName = $facebookPage->page_name;
+        $unsubscribed = $action->execute($facebookPage);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'data' => [
+                    'disconnected' => true,
+                    'facebook_unsubscribed' => $unsubscribed,
+                ],
+            ]);
+        }
+
+        $message = $unsubscribed
+            ? "Đã xóa kết nối Facebook Page {$pageName}."
+            : "Đã xóa kết nối {$pageName} khỏi CRM; Facebook không thể hủy webhook do token đã hết hiệu lực.";
+
+        return redirect()->route('crm.channels')->with('channels_status', $message);
     }
 
 }

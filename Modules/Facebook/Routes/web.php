@@ -12,4 +12,6 @@ Route::middleware(['auth', 'can:user.manage'])->group(function (): void {
     Route::post('facebook/pages/{facebookPage}/sync-messages', [FacebookPageController::class, 'sync'])
         ->middleware('facebook.page.connected')
         ->name('facebook.pages.sync-messages');
+    Route::delete('facebook/pages/{facebookPage}', [FacebookPageController::class, 'destroy'])
+        ->name('facebook.pages.destroy');
 });
