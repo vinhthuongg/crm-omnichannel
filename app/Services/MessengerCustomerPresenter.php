@@ -40,9 +40,22 @@ class MessengerCustomerPresenter
     {
         $customer = $conversation->customer;
         $channel = $customer?->channels?->first();
+        $gender = strtolower((string) data_get($channel?->metadata, 'profile.gender', ''));
+        $genderLabel = match ($gender) {
+            'male' => 'Nam',
+            'female' => 'Nữ',
+            default => null,
+        };
+        $salutation = match ($gender) {
+            'male' => 'Anh',
+            'female' => 'Chị',
+            default => 'Quý khách',
+        };
 
         return collect([
             ['label' => 'Ten cong khai', 'value' => $customer?->name],
+            ['label' => 'Giới tính Facebook', 'value' => $genderLabel],
+            ['label' => 'Cách xưng hô', 'value' => $salutation],
             ['label' => 'So dien thoai', 'value' => $customer?->phone],
             ['label' => 'Email', 'value' => $customer?->email],
             ['label' => 'Kenh', 'value' => $channel?->channel ? ucfirst($channel->channel) : null],

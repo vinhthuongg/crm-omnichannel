@@ -63,14 +63,26 @@ class FacebookMessengerService
     {
         if ($psid === '') return [];
         try {
+            $token = $this->token($pageAccessToken);
             $response = $this->http->connectTimeout(1)->timeout(3)->get($this->url("/{$psid}"), [
-                'fields' => 'name,first_name,last_name,profile_pic', 'access_token' => $this->token($pageAccessToken),
+                'fields' => 'name,first_name,last_name,profile_pic', 'access_token' => $token,
             ]);
             if (! $response->successful()) {
                 Log::warning('Facebook profile lookup failed', ['psid' => $psid, 'status' => $response->status(), 'body' => $response->body()]);
                 return [];
             }
-            return $response->json();
+            $profile = $response->json();
+            $genderResponse = $this->http->connectTimeout(1)->timeout(3)->get($this->url("/{$psid}"), [
+                'fields' => 'gender', 'access_token' => $token,
+            ]);
+            if ($genderResponse->successful() && filled($genderResponse->json('gender'))) {
+                $profile['gender'] = $genderResponse->json('gender');
+            } elseif (! $genderResponse->successful()) {
+                Log::info('Facebook gender lookup is unavailable', ['psid' => $psid, 'status' => $genderResponse->status()]);
+            }
+            $profile['gender_lookup_completed'] = true;
+
+            return $profile;
         } catch (\Throwable $exception) {
             Log::warning('Facebook profile lookup exception', ['psid' => $psid, 'error' => $exception->getMessage()]);
             return [];

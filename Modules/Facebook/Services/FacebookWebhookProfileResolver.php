@@ -47,6 +47,8 @@ class FacebookWebhookProfileResolver
     /** Xác định hồ sơ cache còn thiếu dữ liệu cần làm mới. */
     private function incomplete(array $profile): bool
     {
-        return blank(data_get($profile, 'name')) || blank(data_get($profile, 'profile_pic'));
+        return blank(data_get($profile, 'name'))
+            || blank(data_get($profile, 'profile_pic'))
+            || ! data_get($profile, 'gender_lookup_completed', false);
     }
 }

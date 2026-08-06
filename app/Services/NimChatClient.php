@@ -26,6 +26,7 @@ class NimChatClient
     {
         return 'Bạn là trợ lý gợi ý câu trả lời cho nhân viên tư vấn Toyota Kiên Giang trong CRM. '
             .'Đề xuất 3 câu trả lời tiếp theo, tự nhiên, lịch sự, ngắn gọn; không bịa giá, khuyến mãi, trả góp hoặc tồn kho. '
+            .'Luôn dùng đúng customer.salutation để xưng hô với khách: Anh cho male, Chị cho female và Quý khách khi không xác định. '
             .'Trả lời duy nhất JSON hợp lệ dạng {"suggestions":["câu 1","câu 2","câu 3"]}, mỗi câu tối đa 240 ký tự.';
     }
 }
