@@ -21,14 +21,15 @@ class OutboundMessageService
         private readonly FacebookOutboundDispatcher $facebookDispatcher,
         private readonly FacebookPageTokenProvider $facebookTokens,
         private readonly ZaloOaService $zalo,
-    ) {
-    }
+    ) {}
 
     /** Chọn adapter Facebook hoặc Zalo từ channel của message và trả external ID kết quả. */
     public function send(Conversation $conversation, string $channel, string $content, array $attachments = []): ?string
     {
         $customerChannel = $conversation->customer?->channels()->where('channel', $channel)->first();
-        if (! $customerChannel?->external_id) throw new RuntimeException("Customer does not have a {$channel} external id.");
+        if (! $customerChannel?->external_id) {
+            throw new RuntimeException("Customer does not have a {$channel} external id.");
+        }
 
         $response = match ($channel) {
             'facebook' => $this->facebookDispatcher->send($customerChannel->external_id, $content, $attachments, $this->facebookTokens->forConversation($conversation)),
@@ -57,15 +58,22 @@ class OutboundMessageService
     /** Xử lý trạng thái gửi tin outbound tại bước stopTyping. */
     public function stopTyping(Conversation $conversation, string $channel): void
     {
-        if ($channel !== 'facebook') return;
+        if ($channel !== 'facebook') {
+            return;
+        }
         $customerChannel = $conversation->customer?->channels()->where('channel', $channel)->first();
-        if ($customerChannel?->external_id) $this->facebook->sendTypingOff($customerChannel->external_id, $this->facebookTokens->forConversation($conversation));
+        if ($customerChannel?->external_id) {
+            $this->facebook->sendTypingOff($customerChannel->external_id, $this->facebookTokens->forConversation($conversation));
+        }
     }
 
     /** Gửi text/attachment qua Zalo OA và lấy message ID từ phản hồi cuối. */
     private function sendZalo(string $userId, string $content, array $attachments): array
     {
-        $links = collect($attachments)->map(fn (array $item): string => ($item['name'] ?? 'File').': '.$item['url'])->implode("\n");
+        $links = collect($attachments)->reject(fn (array $item): bool => ($item['type'] ?? '') === 'quick_reply')
+            ->filter(fn (array $item): bool => filled($item['url'] ?? null))
+            ->map(fn (array $item): string => ($item['name'] ?? 'File').': '.$item['url'])->implode("\n");
+
         return $this->zalo->sendText($userId, trim($content."\n".$links));
     }
 
@@ -77,6 +85,7 @@ class OutboundMessageService
             'zalo' => Arr::get($response, 'data.message_id') ?? Arr::get($response, 'data.msg_id') ?? Arr::get($response, 'message_id'),
             default => null,
         };
+
         return $id ? (string) $id : null;
     }
 }

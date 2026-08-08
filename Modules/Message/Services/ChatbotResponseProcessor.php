@@ -40,6 +40,7 @@ class ChatbotResponseProcessor
 
         $segments = [''];
         $media = [[]];
+        $quickReplies = [];
         $completed = false;
         $response->forceFill([
             'status' => 'streaming',
@@ -62,7 +63,7 @@ class ChatbotResponseProcessor
             ],
         ];
 
-        $this->client->stream($payload, function (array $event, ?string $requestId) use ($response, &$segments, &$media, &$completed): void {
+        $this->client->stream($payload, function (array $event, ?string $requestId) use ($response, &$segments, &$media, &$quickReplies, &$completed): void {
             if ($requestId && $response->request_id !== $requestId) {
                 $response->forceFill(['request_id' => $requestId])->save();
             }
@@ -70,11 +71,11 @@ class ChatbotResponseProcessor
             $data = (array) ($event['data'] ?? []);
 
             match ((string) ($event['event'] ?? '')) {
-                'message.start', 'message.meta' => $this->captureMetadata($response, $data),
+                'message.start', 'message.meta' => $this->captureContext($response, $quickReplies, $data),
                 'message.delta' => $this->appendDelta($response, $segments, $data),
                 'message.media' => $this->appendMedia($response, $media, $data),
                 'message.break' => $this->breakSegment($response, $segments, $media),
-                'message.completed' => $completed = $this->complete($response, $segments, $media, $data),
+                'message.completed' => $completed = $this->complete($response, $segments, $media, $quickReplies, $data),
                 'message.error' => throw new ChatbotException($this->safeError($data), null, false, $requestId),
                 default => null,
             };
@@ -82,6 +83,17 @@ class ChatbotResponseProcessor
 
         if (! $completed) {
             throw new ChatbotException('Luồng chatbot kết thúc trước event completed.', null, true, $response->request_id);
+        }
+    }
+
+    /** Ghi metadata audit và thu nhận quick reply theo ngữ cảnh nếu chatbot cung cấp. */
+    private function captureContext(ChatbotResponse $response, array &$quickReplies, array $data): void
+    {
+        $this->captureMetadata($response, $data);
+        $provided = $this->quickReplies($data);
+
+        if ($provided !== []) {
+            $quickReplies = $provided;
         }
     }
 
@@ -144,7 +156,7 @@ class ChatbotResponseProcessor
     }
 
     /** Hoàn tất đúng một lần, lưu từng bubble thành message system rồi đưa ra queue gửi kênh ngoài. */
-    private function complete(ChatbotResponse $response, array $segments, array $media, array $data): bool
+    private function complete(ChatbotResponse $response, array $segments, array $media, array $quickReplies, array $data): bool
     {
         $response->refresh();
 
@@ -153,6 +165,7 @@ class ChatbotResponseProcessor
         }
 
         $this->captureMetadata($response, $data);
+        $quickReplies = $this->quickReplies($data) ?: $quickReplies;
 
         if (count(array_filter($segments, fn (string $text): bool => trim($text) !== '')) === 0) {
             $segments[0] = trim($this->text($data));
@@ -173,6 +186,15 @@ class ChatbotResponseProcessor
             ->filter(fn (array $bubble): bool => $bubble['content'] !== '' || $bubble['attachments'] !== [])
             ->values()
             ->all();
+
+        if ($response->sourceMessage?->channel === 'facebook' && config('chatbot.quick_replies_enabled', true)) {
+            $quickReplies = $quickReplies ?: (array) config('chatbot.default_quick_replies', []);
+            $target = collect($bubbles)->keys()->reverse()->first(fn (int $index): bool => $bubbles[$index]['content'] !== '');
+
+            if ($target !== null && $quickReplies !== []) {
+                $bubbles[$target]['attachments'][] = ['type' => 'quick_reply', 'quick_replies' => $quickReplies];
+            }
+        }
 
         if ($bubbles === []) {
             throw new ChatbotException('Chatbot completed nhưng không có nội dung.', null, true, $response->request_id);
@@ -277,6 +299,38 @@ class ChatbotResponseProcessor
                 'size' => is_numeric(data_get($item, 'size')) ? (int) data_get($item, 'size') : null,
             ], fn ($value): bool => $value !== null && $value !== '');
         })->filter()->unique('url')->values()->all();
+    }
+
+    /** Chuẩn hóa quickReplies động của chatbot về payload Facebook Messenger hợp lệ. */
+    private function quickReplies(array $data): array
+    {
+        $items = data_get($data, 'quickReplies')
+            ?? data_get($data, 'quick_replies')
+            ?? data_get($data, 'suggestions')
+            ?? data_get($data, 'message.quickReplies')
+            ?? [];
+
+        return collect((array) $items)->map(function ($item): ?array {
+            if (is_string($item)) {
+                $item = ['title' => $item, 'payload' => $item];
+            }
+
+            if (! is_array($item)) {
+                return null;
+            }
+
+            $title = trim((string) (data_get($item, 'title') ?? data_get($item, 'label') ?? data_get($item, 'text') ?? ''));
+
+            if ($title === '') {
+                return null;
+            }
+
+            return [
+                'content_type' => 'text',
+                'title' => $title,
+                'payload' => trim((string) (data_get($item, 'payload') ?? data_get($item, 'value') ?? $title)),
+            ];
+        })->filter()->unique('title')->take(13)->values()->all();
     }
 
     /** Chuyển lỗi SSE thành thông báo nội bộ ngắn, không chứa stack trace hoặc payload nhạy cảm. */

@@ -87,6 +87,30 @@ class ChatbotIntegrationTest extends TestCase
 
         $this->assertSame(['Xin chào', 'Tôi có thể hỗ trợ gì?'], $response->fresh()->segments);
         $this->assertSame(2, Message::query()->where('sender_type', 'system')->count());
+        $lastMessage = Message::query()->where('sender_type', 'system')->latest('id')->firstOrFail();
+        $quickReply = collect($lastMessage->attachments)->firstWhere('type', 'quick_reply');
+        $this->assertCount(3, $quickReply['quick_replies']);
+        $this->assertSame('Xem bảng giá', $quickReply['quick_replies'][0]['title']);
+    }
+
+    /** Xác nhận quickReplies do chatbot sinh sẽ thay bộ nút mặc định trên câu trả lời cuối. */
+    public function test_dynamic_quick_replies_are_attached_to_each_bot_response(): void
+    {
+        Queue::fake();
+        Event::fake();
+        [$conversation, $message] = $this->conversation('Khách', 'facebook', 'quick-replies');
+        $response = $this->response($conversation, $message);
+        $client = new FakeChatbotClient;
+        $client->quickRepliesNext = true;
+
+        $this->processor($client)->process($response);
+
+        $lastMessage = Message::query()->where('sender_type', 'system')->latest('id')->firstOrFail();
+        $quickReply = collect($lastMessage->attachments)->firstWhere('type', 'quick_reply');
+        $this->assertSame([
+            ['content_type' => 'text', 'title' => 'Xem màu xe', 'payload' => 'Tôi muốn xem các màu xe hiện có'],
+            ['content_type' => 'text', 'title' => 'Gọi tư vấn', 'payload' => 'Vui lòng gọi lại tư vấn cho tôi'],
+        ], $quickReply['quick_replies']);
     }
 
     /** Xác nhận message.media được lưu đúng bubble và sẵn sàng cho outbound Facebook/Zalo. */
@@ -282,6 +306,8 @@ class FakeChatbotClient extends ChatbotClient
 
     public bool $mediaNext = false;
 
+    public bool $quickRepliesNext = false;
+
     /** Phát một stream giả có delta, break và completed để kiểm thử integration không gọi mạng. */
     public function stream(array $payload, callable $onEvent): void
     {
@@ -300,6 +326,15 @@ class FakeChatbotClient extends ChatbotClient
         }
 
         $onEvent(['event' => 'message.start', 'data' => ['messageId' => 'bot-1']], 'request-1');
+
+        if ($this->quickRepliesNext) {
+            $this->quickRepliesNext = false;
+            $onEvent(['event' => 'message.meta', 'data' => ['quickReplies' => [
+                ['title' => 'Xem màu xe', 'payload' => 'Tôi muốn xem các màu xe hiện có'],
+                ['label' => 'Gọi tư vấn', 'value' => 'Vui lòng gọi lại tư vấn cho tôi'],
+            ]]], 'request-1');
+        }
+
         $onEvent(['event' => 'message.delta', 'data' => ['delta' => 'Xin chào']], 'request-1');
 
         if ($this->mediaNext) {
