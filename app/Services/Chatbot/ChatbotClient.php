@@ -58,6 +58,87 @@ class ChatbotClient
         }
     }
 
+    /** Đọc body 409 idempotency và phát lại kết quả đã hoàn tất; 409 mapping sai vẫn được giữ là lỗi. */
+    private function replayProcessedResult(string $body, callable $onEvent, ?string $requestId): bool
+    {
+        $decoded = json_decode($body, true);
+
+        if (! is_array($decoded)) {
+            return false;
+        }
+
+        $errorCode = strtoupper((string) (data_get($decoded, 'error.code') ?? data_get($decoded, 'code') ?? ''));
+
+        if (str_contains($errorCode, 'MISMATCH') || str_contains($errorCode, 'INVALID_CUSTOMER')) {
+            return false;
+        }
+
+        $result = data_get($decoded, 'result')
+            ?? data_get($decoded, 'data.result')
+            ?? data_get($decoded, 'existingResult')
+            ?? data_get($decoded, 'existingResponse')
+            ?? data_get($decoded, 'processedResult')
+            ?? data_get($decoded, 'error.details.result')
+            ?? data_get($decoded, 'data')
+            ?? $decoded;
+        $events = data_get($result, 'events');
+
+        if (is_array($events) && $events !== []) {
+            $hasCompleted = collect($events)->contains(fn ($event): bool => (data_get($event, 'event') ?? data_get($event, 'type') ?? data_get($event, 'name')) === 'message.completed');
+
+            if (! $hasCompleted) {
+                return false;
+            }
+
+            foreach ($events as $event) {
+                $name = (string) (data_get($event, 'event') ?? data_get($event, 'type') ?? data_get($event, 'name') ?? '');
+
+                if ($name !== '') {
+                    $onEvent(['event' => $name, 'data' => (array) (data_get($event, 'data') ?? $event)], $requestId);
+                }
+            }
+
+            return true;
+        }
+
+        $messages = data_get($result, 'segments') ?? data_get($result, 'messages') ?? data_get($result, 'output.segments');
+
+        if (! is_array($messages) || $messages === []) {
+            $text = data_get($result, 'text') ?? data_get($result, 'content') ?? data_get($result, 'message.content');
+            $media = data_get($result, 'attachments') ?? data_get($result, 'media');
+
+            if (blank($text) && empty($media)) {
+                return false;
+            }
+
+            $messages = [['content' => $text, 'attachments' => $media]];
+        }
+
+        $onEvent(['event' => 'message.start', 'data' => (array) $result], $requestId);
+
+        foreach (array_values($messages) as $index => $message) {
+            $message = is_array($message) ? $message : ['content' => (string) $message];
+            $text = (string) (data_get($message, 'text') ?? data_get($message, 'content') ?? '');
+            $media = data_get($message, 'attachments') ?? data_get($message, 'media');
+
+            if ($text !== '') {
+                $onEvent(['event' => 'message.delta', 'data' => ['delta' => $text]], $requestId);
+            }
+
+            if (! empty($media)) {
+                $onEvent(['event' => 'message.media', 'data' => ['attachments' => $media]], $requestId);
+            }
+
+            if ($index < count($messages) - 1) {
+                $onEvent(['event' => 'message.break', 'data' => []], $requestId);
+            }
+        }
+
+        $onEvent(['event' => 'message.completed', 'data' => (array) $result], $requestId);
+
+        return true;
+    }
+
     /** Mở POST SSE tới chatbot nội bộ và chuyển từng event cho callback mà không buffer toàn bộ response. */
     public function stream(array $payload, callable $onEvent): void
     {
@@ -83,6 +164,12 @@ class ChatbotClient
             $requestId = $response->getHeaderLine('x-request-id') ?: null;
 
             Log::info('Chatbot stream opened', compact('conversationId', 'messageId', 'requestId', 'status'));
+
+            if ($status === 409 && $this->replayProcessedResult((string) $response->getBody(), $onEvent, $requestId)) {
+                Log::info('Chatbot stream recovered processed result', compact('conversationId', 'messageId', 'requestId', 'status'));
+
+                return;
+            }
 
             if ($status < 200 || $status >= 300) {
                 throw $this->httpException($status, $requestId);

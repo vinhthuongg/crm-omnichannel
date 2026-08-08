@@ -19,6 +19,7 @@ use Modules\Conversation\Services\ConversationVisibilityService;
 use Modules\Customer\Models\Customer;
 use Modules\Message\Events\ChatbotResponseDelta;
 use Modules\Message\Jobs\GenerateChatbotResponseJob;
+use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\ChatbotResponse;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\ChatbotResponseProcessor;
@@ -86,6 +87,53 @@ class ChatbotIntegrationTest extends TestCase
 
         $this->assertSame(['Xin chào', 'Tôi có thể hỗ trợ gì?'], $response->fresh()->segments);
         $this->assertSame(2, Message::query()->where('sender_type', 'system')->count());
+    }
+
+    /** Xác nhận message.media được lưu đúng bubble và sẵn sàng cho outbound Facebook/Zalo. */
+    public function test_media_event_is_persisted_as_outbound_attachment(): void
+    {
+        Queue::fake();
+        Event::fake();
+        [$conversation, $message] = $this->conversation('Khách', 'facebook', 'media');
+        $response = $this->response($conversation, $message);
+        $client = new FakeChatbotClient;
+        $client->mediaNext = true;
+
+        $this->processor($client)->process($response);
+
+        $botMessage = Message::query()->where('sender_type', 'system')->firstOrFail();
+        $this->assertSame('attachment', $botMessage->message_type);
+        $this->assertSame('image', $botMessage->attachments[0]['type']);
+        $this->assertSame('https://cdn.test/toyota.jpg', $botMessage->attachments[0]['url']);
+        $this->assertSame('queued', $botMessage->outbound_status);
+        Queue::assertPushed(SendOutboundMessageJob::class, 2);
+    }
+
+    /** Xác nhận HTTP 409 do externalMessageId đã xử lý sẽ đọc lại kết quả thay vì đánh dấu thất bại. */
+    public function test_409_processed_result_is_replayed_without_duplicate_generation(): void
+    {
+        Queue::fake();
+        Event::fake();
+        config()->set('chatbot.base_url', 'http://127.0.0.1:3000/api/v1');
+        config()->set('chatbot.api_key', 'server-only-key');
+        [$conversation, $message] = $this->conversation('Khách', 'facebook', 'processed-409');
+        $response = $this->response($conversation, $message);
+        $body = json_encode(['result' => [
+            'messageId' => 'existing-bot-message',
+            'segments' => [
+                ['content' => 'Kết quả đã xử lý'],
+                ['content' => '', 'attachments' => [['url' => 'https://cdn.test/result.jpg', 'type' => 'image']]],
+            ],
+        ]], JSON_THROW_ON_ERROR);
+        $mock = new MockHandler([new GuzzleResponse(409, ['x-request-id' => 'request-existing'], $body)]);
+        $client = new ChatbotClient(new GuzzleClient(['handler' => HandlerStack::create($mock)]));
+
+        $this->processor($client)->process($response);
+
+        $this->assertSame('completed', $response->fresh()->status);
+        $this->assertSame('existing-bot-message', $response->fresh()->chatbot_message_id);
+        $this->assertSame(2, Message::query()->where('sender_type', 'system')->count());
+        $this->assertSame('https://cdn.test/result.jpg', Message::query()->where('sender_type', 'system')->latest('id')->first()->attachments[0]['url']);
     }
 
     /** Xác nhận reconnect sau timeout dùng lại response/external ID và không tạo hai câu trả lời. */
@@ -232,6 +280,8 @@ class FakeChatbotClient extends ChatbotClient
 
     public bool $errorNext = false;
 
+    public bool $mediaNext = false;
+
     /** Phát một stream giả có delta, break và completed để kiểm thử integration không gọi mạng. */
     public function stream(array $payload, callable $onEvent): void
     {
@@ -251,6 +301,17 @@ class FakeChatbotClient extends ChatbotClient
 
         $onEvent(['event' => 'message.start', 'data' => ['messageId' => 'bot-1']], 'request-1');
         $onEvent(['event' => 'message.delta', 'data' => ['delta' => 'Xin chào']], 'request-1');
+
+        if ($this->mediaNext) {
+            $this->mediaNext = false;
+            $onEvent(['event' => 'message.media', 'data' => [
+                'url' => 'https://cdn.test/toyota.jpg',
+                'type' => 'image',
+                'mimeType' => 'image/jpeg',
+                'name' => 'toyota.jpg',
+            ]], 'request-1');
+        }
+
         $onEvent(['event' => 'message.break', 'data' => []], 'request-1');
         $onEvent(['event' => 'message.delta', 'data' => ['delta' => 'Tôi có thể hỗ trợ gì?']], 'request-1');
         $onEvent(['event' => 'message.completed', 'data' => ['messageId' => 'bot-1']], 'request-1');

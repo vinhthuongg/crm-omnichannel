@@ -69,4 +69,14 @@ class ChatbotStreamParserTest extends TestCase
 
         $this->assertSame('MODEL_TIMEOUT', $events[0]['data']['code']);
     }
+
+    /** Xác nhận parser giữ nguyên payload message.media để processor chuẩn hóa attachment. */
+    public function test_it_parses_media_event(): void
+    {
+        $parser = new ChatbotStreamParser;
+        $events = $parser->push("event: message.media\ndata: {\"url\":\"https://cdn.test/car.jpg\",\"type\":\"image\"}\n\n");
+
+        $this->assertSame('message.media', $events[0]['event']);
+        $this->assertSame('https://cdn.test/car.jpg', $events[0]['data']['url']);
+    }
 }

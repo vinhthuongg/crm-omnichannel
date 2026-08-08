@@ -9,6 +9,7 @@ use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Events\ChatbotMessageBreak;
 use Modules\Message\Events\ChatbotResponseCompleted;
 use Modules\Message\Events\ChatbotResponseDelta;
+use Modules\Message\Events\ChatbotResponseMedia;
 use Modules\Message\Events\ChatbotResponseStarted;
 use Modules\Message\Http\Resources\MessageResource;
 use Modules\Message\Jobs\SendOutboundMessageJob;
@@ -38,6 +39,7 @@ class ChatbotResponseProcessor
         }
 
         $segments = [''];
+        $media = [[]];
         $completed = false;
         $response->forceFill([
             'status' => 'streaming',
@@ -60,7 +62,7 @@ class ChatbotResponseProcessor
             ],
         ];
 
-        $this->client->stream($payload, function (array $event, ?string $requestId) use ($response, &$segments, &$completed): void {
+        $this->client->stream($payload, function (array $event, ?string $requestId) use ($response, &$segments, &$media, &$completed): void {
             if ($requestId && $response->request_id !== $requestId) {
                 $response->forceFill(['request_id' => $requestId])->save();
             }
@@ -70,8 +72,9 @@ class ChatbotResponseProcessor
             match ((string) ($event['event'] ?? '')) {
                 'message.start', 'message.meta' => $this->captureMetadata($response, $data),
                 'message.delta' => $this->appendDelta($response, $segments, $data),
-                'message.break' => $this->breakSegment($response, $segments),
-                'message.completed' => $completed = $this->complete($response, $segments, $data),
+                'message.media' => $this->appendMedia($response, $media, $data),
+                'message.break' => $this->breakSegment($response, $segments, $media),
+                'message.completed' => $completed = $this->complete($response, $segments, $media, $data),
                 'message.error' => throw new ChatbotException($this->safeError($data), null, false, $requestId),
                 default => null,
             };
@@ -80,6 +83,23 @@ class ChatbotResponseProcessor
         if (! $completed) {
             throw new ChatbotException('Luồng chatbot kết thúc trước event completed.', null, true, $response->request_id);
         }
+    }
+
+    /** Chuẩn hóa media từ chatbot thành attachment CRM rồi broadcast bản an toàn để xem ngay. */
+    private function appendMedia(ChatbotResponse $response, array &$media, array $data): void
+    {
+        $attachments = $this->attachments($data);
+
+        if ($attachments === []) {
+            return;
+        }
+
+        $index = count($media) - 1;
+        $media[$index] = array_values(array_merge($media[$index] ?? [], $attachments));
+        event(new ChatbotResponseMedia($response->conversation_id, $response->id, [
+            'segment' => $index,
+            'attachments' => $attachments,
+        ]));
     }
 
     /** Ghi mã message/request phục vụ audit nhưng không chuyển metadata thô lên frontend. */
@@ -110,20 +130,21 @@ class ChatbotResponseProcessor
     }
 
     /** Kết thúc bubble có nội dung và báo frontend tạo bubble AI mới. */
-    private function breakSegment(ChatbotResponse $response, array &$segments): void
+    private function breakSegment(ChatbotResponse $response, array &$segments, array &$media): void
     {
-        if (trim((string) end($segments)) === '') {
+        if (trim((string) end($segments)) === '' && ($media[array_key_last($media)] ?? []) === []) {
             return;
         }
 
         $segments[] = '';
+        $media[] = [];
         event(new ChatbotMessageBreak($response->conversation_id, $response->id, [
             'segment' => count($segments) - 1,
         ]));
     }
 
     /** Hoàn tất đúng một lần, lưu từng bubble thành message system rồi đưa ra queue gửi kênh ngoài. */
-    private function complete(ChatbotResponse $response, array $segments, array $data): bool
+    private function complete(ChatbotResponse $response, array $segments, array $media, array $data): bool
     {
         $response->refresh();
 
@@ -132,18 +153,32 @@ class ChatbotResponseProcessor
         }
 
         $this->captureMetadata($response, $data);
-        $segments = array_values(array_filter(array_map('trim', $segments), fn (string $text): bool => $text !== ''));
 
-        if ($segments === []) {
-            $final = trim($this->text($data));
-            $segments = $final !== '' ? [$final] : [];
+        if (count(array_filter($segments, fn (string $text): bool => trim($text) !== '')) === 0) {
+            $segments[0] = trim($this->text($data));
         }
 
-        if ($segments === []) {
+        $completedMedia = $this->attachments($data);
+
+        if ($completedMedia !== []) {
+            $lastIndex = max(count($media) - 1, 0);
+            $media[$lastIndex] = array_values(array_merge($media[$lastIndex] ?? [], $completedMedia));
+        }
+
+        $bubbles = collect(range(0, max(count($segments), count($media)) - 1))
+            ->map(fn (int $index): array => [
+                'content' => trim((string) ($segments[$index] ?? '')),
+                'attachments' => array_values($media[$index] ?? []),
+            ])
+            ->filter(fn (array $bubble): bool => $bubble['content'] !== '' || $bubble['attachments'] !== [])
+            ->values()
+            ->all();
+
+        if ($bubbles === []) {
             throw new ChatbotException('Chatbot completed nhưng không có nội dung.', null, true, $response->request_id);
         }
 
-        $messages = DB::transaction(function () use ($response, $segments): array {
+        $messages = DB::transaction(function () use ($response, $bubbles): array {
             $locked = ChatbotResponse::query()->lockForUpdate()->findOrFail($response->id);
 
             if ($locked->status === 'completed') {
@@ -153,15 +188,15 @@ class ChatbotResponseProcessor
 
             $created = [];
 
-            foreach ($segments as $index => $text) {
+            foreach ($bubbles as $index => $bubble) {
                 $created[] = Message::query()->create([
                     'conversation_id' => $locked->conversation_id,
                     'sender_type' => 'system',
                     'sender_id' => null,
                     'channel' => $locked->sourceMessage->channel,
-                    'content' => $text,
-                    'message_type' => 'text',
-                    'attachments' => [],
+                    'content' => $bubble['content'] !== '' ? $bubble['content'] : null,
+                    'message_type' => $bubble['attachments'] !== [] ? 'attachment' : 'text',
+                    'attachments' => $bubble['attachments'],
                     'client_message_id' => 'chatbot-'.$locked->id.'-'.$index,
                     'outbound_status' => in_array($locked->sourceMessage->channel, ['facebook', 'zalo'], true) ? 'queued' : null,
                 ]);
@@ -169,7 +204,7 @@ class ChatbotResponseProcessor
 
             $locked->forceFill([
                 'status' => 'completed',
-                'segments' => $segments,
+                'segments' => array_column($bubbles, 'content'),
                 'completed_at' => now(),
                 'error_code' => null,
                 'error_message' => null,
@@ -202,6 +237,46 @@ class ChatbotResponseProcessor
     private function text(array $data): string
     {
         return (string) (data_get($data, 'delta') ?? data_get($data, 'text') ?? data_get($data, 'content') ?? data_get($data, 'message.content') ?? '');
+    }
+
+    /** Nhận các biến thể payload message.media và chỉ giữ trường cần để hiển thị/gửi kênh ngoài. */
+    private function attachments(array $data): array
+    {
+        $candidates = data_get($data, 'attachments')
+            ?? data_get($data, 'media')
+            ?? data_get($data, 'items')
+            ?? $data;
+        $candidates = array_is_list((array) $candidates) ? (array) $candidates : [(array) $candidates];
+
+        return collect($candidates)->map(function ($item): ?array {
+            $item = is_array($item) ? $item : [];
+            $url = (string) (data_get($item, 'url') ?? data_get($item, 'src') ?? data_get($item, 'downloadUrl') ?? data_get($item, 'payload.url') ?? '');
+
+            $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+            if ($url === '' || filter_var($url, FILTER_VALIDATE_URL) === false || ! in_array($scheme, ['http', 'https'], true)) {
+                return null;
+            }
+
+            $mime = (string) (data_get($item, 'mime_type') ?? data_get($item, 'mimeType') ?? data_get($item, 'contentType') ?? '');
+            $type = strtolower((string) (data_get($item, 'type') ?? data_get($item, 'mediaType') ?? ''));
+            $type = match (true) {
+                in_array($type, ['image', 'video', 'audio', 'file'], true) => $type,
+                str_starts_with($mime, 'image/') => 'image',
+                str_starts_with($mime, 'video/') => 'video',
+                str_starts_with($mime, 'audio/') => 'audio',
+                default => 'file',
+            };
+            $name = (string) (data_get($item, 'name') ?? data_get($item, 'filename') ?? basename((string) parse_url($url, PHP_URL_PATH)));
+
+            return array_filter([
+                'name' => $name !== '' ? $name : ucfirst($type),
+                'url' => $url,
+                'mime_type' => $mime,
+                'type' => $type,
+                'size' => is_numeric(data_get($item, 'size')) ? (int) data_get($item, 'size') : null,
+            ], fn ($value): bool => $value !== null && $value !== '');
+        })->filter()->unique('url')->values()->all();
     }
 
     /** Chuyển lỗi SSE thành thông báo nội bộ ngắn, không chứa stack trace hoặc payload nhạy cảm. */

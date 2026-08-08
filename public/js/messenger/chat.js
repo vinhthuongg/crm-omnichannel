@@ -2600,6 +2600,45 @@
         timeline.scrollTop = timeline.scrollHeight;
     }
 
+    function handleChatbotMedia(payload) {
+        if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        const row = createChatbotRow(payload.response_id, payload.segment || 0);
+        const stack = row?.querySelector('.message-stack');
+        const attachments = Array.isArray(payload.attachments) ? payload.attachments : [];
+
+        if (!stack || attachments.length === 0) {
+            return;
+        }
+
+        let container = stack.querySelector('.message-attachments');
+
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'message-attachments';
+            stack.appendChild(container);
+        }
+
+        attachments.forEach(function (attachment) {
+            const url = String(attachment?.url || '');
+
+            const exists = Array.from(container.querySelectorAll('[data-chatbot-media-url]'))
+                .some((item) => item.dataset.chatbotMediaUrl === url);
+
+            if (!url || exists) {
+                return;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.dataset.chatbotMediaUrl = url;
+            wrapper.innerHTML = attachmentHtml(attachment);
+            container.appendChild(wrapper);
+        });
+        timeline.scrollTop = timeline.scrollHeight;
+    }
+
     function handleChatbotBreak(payload) {
         if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
             return;
@@ -3019,6 +3058,7 @@
                     const handlers = {
                         'chatbot.response.started': handleChatbotStarted,
                         'chatbot.response.delta': handleChatbotDelta,
+                        'chatbot.response.media': handleChatbotMedia,
                         'chatbot.message.break': handleChatbotBreak,
                         'chatbot.response.completed': handleChatbotCompleted,
                         'chatbot.response.failed': handleChatbotFailed,

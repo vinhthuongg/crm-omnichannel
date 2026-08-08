@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/crm-omnichannel}"
 PHP_BIN="${PHP_BIN:-php}"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+SUPERVISOR_DIR="${SUPERVISOR_DIR:-/etc/supervisor/conf.d}"
 
 cd "$APP_DIR"
 
@@ -26,7 +27,11 @@ echo "==> Restarting queue workers"
 $PHP_BIN artisan queue:restart
 
 if command -v supervisorctl >/dev/null 2>&1; then
-    echo "==> Restarting Supervisor programs"
+    echo "==> Installing and reloading Supervisor programs"
+    sudo install -m 0644 deploy/supervisor/crm-queue.conf "$SUPERVISOR_DIR/crm-queue.conf"
+    sudo install -m 0644 deploy/supervisor/crm-reverb.conf "$SUPERVISOR_DIR/crm-reverb.conf"
+    sudo supervisorctl reread
+    sudo supervisorctl update
     sudo supervisorctl restart crm-reverb:* || true
     sudo supervisorctl restart crm-queue:* || true
 fi
