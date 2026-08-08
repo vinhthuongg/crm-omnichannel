@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Customer\Models\Customer;
+use Modules\Message\Models\ChatbotResponse;
 use Modules\Message\Models\Message;
 
 class Conversation extends Model
@@ -73,6 +74,12 @@ class Conversation extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    /** Liên kết hội thoại với lịch sử các lần chatbot sinh câu trả lời. */
+    public function chatbotResponses(): HasMany
+    {
+        return $this->hasMany(ChatbotResponse::class);
     }
 
     /** Liên kết các gợi ý trả lời đã sinh cho hội thoại. */

@@ -24,7 +24,13 @@ class MessageService
     public function storeInbound(InboundMessageData $data): Message
     {
         if ($data->externalMessageId && ($existing = Message::query()->where('channel', $data->channel)
-            ->where('external_message_id', $data->externalMessageId)->with(['conversation.customer.channels', 'sender'])->first())) return $existing;
+            ->where('external_message_id', $data->externalMessageId)->with(['conversation.customer.channels', 'sender'])->first())) {
+            if ($existing->conversation) {
+                $this->post->queueChatbot($existing->conversation, $existing);
+            }
+
+            return $existing;
+        }
         [$message, $conversation, $customer] = DB::transaction(function () use ($data): array {
             [$customer, $conversation] = $this->contexts->resolve($data);
             $message = $this->repository->create(['conversation_id' => $conversation->id, 'sender_type' => 'customer', 'sender_id' => $customer->id,
@@ -32,12 +38,15 @@ class MessageService
                 'attachments' => $data->attachments, 'external_message_id' => $data->externalMessageId]);
             $conversation->forceFill(['last_message_at' => $message->created_at, 'status' => ConversationStatus::CUSTOMER_WAITING])->save();
             $conversation->incrementUnreadMessages();
+
             return [$message, $conversation, $customer];
         });
         $this->intents->classifyMessage($message);
         $this->post->broadcast($message);
         $this->post->refreshVector($customer);
         $this->post->queueSuggestions($conversation, $message);
+        $this->post->queueChatbot($conversation, $message);
+
         return $message;
     }
 
@@ -58,11 +67,13 @@ class MessageService
                 'external_message_id' => null, 'outbound_status' => 'queued', 'outbound_error' => null]);
             $this->conversations->recordOutboundMessage($conversation, $message);
             $conversation->forceFill(['status' => ConversationStatus::WAITING_CUSTOMER])->save();
+
             return $message;
         });
         $this->post->broadcast($message);
         SendOutboundMessageJob::dispatch((int) $message->id);
         $this->post->refreshVector($conversation->customer);
+
         return $message;
     }
 }

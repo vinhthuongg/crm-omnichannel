@@ -4,6 +4,7 @@ namespace Modules\Message\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Conversation\Models\Conversation;
@@ -30,6 +31,12 @@ class Message extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /** Liên kết tin khách với lần sinh chatbot duy nhất mà nó kích hoạt. */
+    public function chatbotResponse(): HasOne
+    {
+        return $this->hasOne(ChatbotResponse::class, 'source_message_id');
     }
 
     /** Liên kết đa hình tới người dùng, khách hàng hoặc system đã gửi tin. */

@@ -2543,6 +2543,132 @@
         }
     }
 
+    function chatbotRows(responseId) {
+        return Array.from(timeline?.querySelectorAll(`[data-chatbot-response-id="${Number(responseId)}"]`) || []);
+    }
+
+    function chatbotRow(responseId, segment = 0) {
+        return timeline?.querySelector(`[data-chatbot-response-id="${Number(responseId)}"][data-chatbot-segment="${Number(segment)}"]`);
+    }
+
+    function createChatbotRow(responseId, segment = 0) {
+        if (!timeline || chatbotRow(responseId, segment)) {
+            return chatbotRow(responseId, segment);
+        }
+
+        const row = document.createElement('article');
+        row.className = 'message-row mine chatbot-stream-row is-typing';
+        row.dataset.chatbotResponseId = String(responseId);
+        row.dataset.chatbotSegment = String(segment);
+        row.innerHTML = `
+            <div class="message-stack">
+                <div class="message-bubble chatbot-stream-bubble">
+                    <span class="message-sender">Bot</span>
+                    <p data-chatbot-stream-text></p>
+                    <span class="chatbot-typing-dots" aria-label="Chatbot đang trả lời"><i></i><i></i><i></i></span>
+                </div>
+            </div>`;
+        timeline.appendChild(row);
+        timeline.scrollTop = timeline.scrollHeight;
+
+        return row;
+    }
+
+    function handleChatbotStarted(payload) {
+        if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        chatbotRows(payload.response_id).forEach((row) => row.remove());
+        createChatbotRow(payload.response_id, 0);
+    }
+
+    function handleChatbotDelta(payload) {
+        if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        const row = createChatbotRow(payload.response_id, payload.segment || 0);
+        const text = row?.querySelector('[data-chatbot-stream-text]');
+
+        if (!text || !payload.delta) {
+            return;
+        }
+
+        text.textContent += String(payload.delta);
+        row.classList.remove('is-failed');
+        timeline.scrollTop = timeline.scrollHeight;
+    }
+
+    function handleChatbotBreak(payload) {
+        if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        chatbotRows(payload.response_id).forEach((row) => row.classList.remove('is-typing'));
+        createChatbotRow(payload.response_id, payload.segment || chatbotRows(payload.response_id).length);
+    }
+
+    function handleChatbotCompleted(payload) {
+        if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        chatbotRows(payload.response_id).forEach((row) => row.remove());
+        (Array.isArray(payload.messages) ? payload.messages : []).forEach(appendMessage);
+    }
+
+    function handleChatbotFailed(payload) {
+        if (String(payload.conversation_id) !== String(timeline?.dataset.conversationId)) {
+            return;
+        }
+
+        const rows = chatbotRows(payload.response_id);
+        const row = rows.at(-1) || createChatbotRow(payload.response_id, 0);
+        const bubble = row?.querySelector('.chatbot-stream-bubble');
+
+        rows.forEach((item) => item.classList.remove('is-typing'));
+        row?.classList.add('is-failed');
+
+        if (bubble) {
+            bubble.querySelector('.chatbot-stream-error')?.remove();
+            const error = document.createElement('div');
+            error.className = 'chatbot-stream-error';
+            error.innerHTML = `<span>${escapeHtml(payload.message || 'Chatbot chưa thể trả lời.')}</span>${payload.retryable && payload.retry_url ? `<button type="button" data-chatbot-retry-url="${escapeHtml(payload.retry_url)}">Thử lại</button>` : ''}`;
+            bubble.appendChild(error);
+        }
+    }
+
+    document.addEventListener('click', async function (event) {
+        const button = event.target.closest('[data-chatbot-retry-url]');
+
+        if (!button) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            const response = await fetch(button.dataset.chatbotRetryUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? {'X-CSRF-TOKEN': csrfToken} : {}),
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Không thể thử lại chatbot.');
+            }
+
+            button.closest('.chatbot-stream-error')?.remove();
+        } catch (error) {
+            button.disabled = false;
+            window.alert(error.message || 'Không thể thử lại chatbot.');
+        }
+    });
+
     function removeMessageRows(messageIds) {
         (messageIds || []).forEach(function (messageId) {
             timeline?.querySelector(`[data-message-id="${messageId}"]`)?.remove();
@@ -2886,6 +3012,18 @@
                 if (payload.event === 'message.created' || payload.event === 'message.updated') {
                     const data = parsePusherData(payload.data);
                     handleRealtimeMessage(data.message || data);
+                }
+
+                if (String(payload.event || '').startsWith('chatbot.')) {
+                    const data = parsePusherData(payload.data);
+                    const handlers = {
+                        'chatbot.response.started': handleChatbotStarted,
+                        'chatbot.response.delta': handleChatbotDelta,
+                        'chatbot.message.break': handleChatbotBreak,
+                        'chatbot.response.completed': handleChatbotCompleted,
+                        'chatbot.response.failed': handleChatbotFailed,
+                    };
+                    handlers[payload.event]?.(data);
                 }
 
                 if (payload.event === 'message.deleted') {

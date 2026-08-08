@@ -1,16 +1,19 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AuthController;
-use App\Http\Controllers\Web\DashboardController;
-use App\Http\Controllers\Web\ConversationTagController;
+use App\Http\Controllers\Web\ChatbotRetryController;
 use App\Http\Controllers\Web\ConversationAssignmentController;
+use App\Http\Controllers\Web\ConversationTagController;
+use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MessengerController;
 use App\Http\Controllers\Web\MessengerCustomerController;
 use App\Http\Controllers\Web\MessengerMessageController;
 use App\Http\Controllers\Web\MessengerReadController;
 use App\Http\Controllers\Web\MessengerStreamController;
 use App\Http\Controllers\Web\WorkShiftController;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Modules\Customer\Http\Controllers\CustomerPageController;
 
 foreach (glob(base_path('Modules/*/Routes/web.php')) as $routeFile) {
@@ -56,6 +59,7 @@ Route::middleware('auth')->group(function (): void {
         Route::patch('conversation-tags/{tag}', [ConversationTagController::class, 'update'])->name('crm.conversation-tags.update');
         Route::delete('conversation-tags/{tag}', [ConversationTagController::class, 'destroy'])->name('crm.conversation-tags.destroy');
         Route::post('conversations/{conversation}/messages', [MessengerMessageController::class, 'send'])->name('crm.conversations.messages.store');
+        Route::post('conversations/{conversation}/chatbot-responses/{chatbotResponse}/retry', ChatbotRetryController::class)->name('crm.conversations.chatbot.retry');
         Route::patch('conversations/{conversation}/messages/{message}/recall', [MessengerMessageController::class, 'recall'])->name('crm.conversations.messages.recall');
         Route::delete('conversations/{conversation}/messages/{message}', [MessengerMessageController::class, 'destroy'])->name('crm.conversations.messages.delete');
     });
@@ -65,10 +69,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('admin/database', function () {
         abort_unless(request()->user()?->can('user.manage'), 403);
 
-        return redirect(\Illuminate\Support\Facades\URL::temporarySignedRoute(
+        return redirect(URL::temporarySignedRoute(
             'crm.admin.database',
             now()->addMinutes(2),
-            ['nonce' => (string) \Illuminate\Support\Str::uuid()]
+            ['nonce' => (string) Str::uuid()]
         ));
     })->name('crm.admin.database.launch');
     Route::get('admin/database/authorize', function () {
