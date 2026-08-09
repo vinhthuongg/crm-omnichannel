@@ -44,6 +44,7 @@ class ChatbotInboundMediaNormalizer
             ?? data_get($attachment, 'payload.image_data.url')
             ?? ''
         );
+        $mime = $mime !== '' ? $mime : $this->mimeTypeFromUrl($url);
         $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
         $isImage = in_array($type, ['image', 'sticker'], true) || str_starts_with($mime, 'image/');
 
@@ -63,6 +64,20 @@ class ChatbotInboundMediaNormalizer
             'mimeType' => $mime,
             'name' => $name,
         ], fn ($value): bool => $value !== '');
+    }
+
+    /** Suy ra MIME từ phần mở rộng URL Facebook khi webhook không cung cấp mime_type. */
+    private function mimeTypeFromUrl(string $url): string
+    {
+        $extension = strtolower(pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'avif' => 'image/avif',
+            default => '',
+        };
     }
 
     /** Chỉ cho phép URL HTTPS công khai để chatbot không bị lợi dụng truy cập địa chỉ nội bộ. */

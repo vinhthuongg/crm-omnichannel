@@ -86,8 +86,8 @@ class ChatbotIntegrationTest extends TestCase
             'message_type' => 'attachment',
             'attachments' => [[
                 'type' => 'image',
-                'url' => 'https://scontent.example.test/customer-car.jpg',
-                'mime_type' => 'image/jpeg',
+                'url' => 'https://scontent.example.test/customer-car.jpg?token=facebook',
+                'mime_type' => '',
                 'name' => 'customer-car.jpg',
             ]],
         ])->save();
@@ -102,7 +102,7 @@ class ChatbotIntegrationTest extends TestCase
         $this->assertSame('Khách hàng đã gửi một hình ảnh. Hãy phân tích ảnh và phản hồi theo ngữ cảnh hội thoại.', $client->payloads[0]['message']);
         $this->assertSame([[
             'type' => 'image',
-            'url' => 'https://scontent.example.test/customer-car.jpg',
+            'url' => 'https://scontent.example.test/customer-car.jpg?token=facebook',
             'mimeType' => 'image/jpeg',
             'name' => 'customer-car.jpg',
         ]], $client->payloads[0]['attachments']);
