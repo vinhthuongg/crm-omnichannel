@@ -13,7 +13,7 @@ class ChatbotInboundMediaNormalizer
             ->map(fn ($attachment): ?array => $this->normalizeAttachment(is_array($attachment) ? $attachment : []))
             ->filter()
             ->unique('url')
-            ->take((int) config('chatbot.max_inbound_images', 5))
+            ->take(min(3, max(1, (int) config('chatbot.max_inbound_images', 3))))
             ->values()
             ->all();
     }
@@ -44,9 +44,10 @@ class ChatbotInboundMediaNormalizer
             ?? data_get($attachment, 'payload.image_data.url')
             ?? ''
         );
+        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
         $isImage = in_array($type, ['image', 'sticker'], true) || str_starts_with($mime, 'image/');
 
-        if (! $isImage || ! $this->isSafeUrl($url)) {
+        if (! $isImage || ! in_array($mime, $allowedMimeTypes, true) || ! $this->isSafeUrl($url)) {
             return null;
         }
 
@@ -58,7 +59,6 @@ class ChatbotInboundMediaNormalizer
 
         return array_filter([
             'type' => 'image',
-            'kind' => $type === 'sticker' ? 'sticker' : 'image',
             'url' => $url,
             'mimeType' => $mime,
             'name' => $name,

@@ -54,14 +54,14 @@ class ChatbotResponseProcessor
 
         event(new ChatbotResponseStarted($conversation->id, $response->id));
 
-        $inboundMedia = $this->inboundMedia->normalize($source);
+        $attachments = $this->inboundMedia->normalize($source);
         $messageText = trim((string) $source->content);
         $payload = [
             'crmConversationId' => (string) $conversation->id,
             'customerId' => (string) $conversation->customer_id,
             'externalMessageId' => $response->external_message_id,
-            'message' => $messageText !== '' ? $messageText : $this->inboundMedia->fallbackMessage(count($inboundMedia)),
-            ...($inboundMedia !== [] ? ['media' => $inboundMedia] : []),
+            'message' => $messageText !== '' ? $messageText : $this->inboundMedia->fallbackMessage(count($attachments)),
+            ...($attachments !== [] ? ['attachments' => $attachments] : []),
             'userContext' => [
                 'channel' => (string) $source->channel,
                 'displayName' => (string) ($conversation->customer?->name ?? 'Khách hàng'),

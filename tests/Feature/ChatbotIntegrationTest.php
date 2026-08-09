@@ -102,11 +102,12 @@ class ChatbotIntegrationTest extends TestCase
         $this->assertSame('Khách hàng đã gửi một hình ảnh. Hãy phân tích ảnh và phản hồi theo ngữ cảnh hội thoại.', $client->payloads[0]['message']);
         $this->assertSame([[
             'type' => 'image',
-            'kind' => 'image',
             'url' => 'https://scontent.example.test/customer-car.jpg',
             'mimeType' => 'image/jpeg',
             'name' => 'customer-car.jpg',
-        ]], $client->payloads[0]['media']);
+        ]], $client->payloads[0]['attachments']);
+        $this->assertArrayNotHasKey('media', $client->payloads[0]);
+        $this->assertArrayNotHasKey('kind', $client->payloads[0]['attachments'][0]);
         $this->assertSame('attachment', $client->payloads[0]['userContext']['messageType']);
     }
 
@@ -132,8 +133,9 @@ class ChatbotIntegrationTest extends TestCase
         $this->processor($client)->process($response);
 
         $this->assertSame('Xe này bị lỗi gì?', $client->payloads[0]['message']);
-        $this->assertCount(1, $client->payloads[0]['media']);
-        $this->assertSame('https://cdn.example.test/dashboard.jpg', $client->payloads[0]['media'][0]['url']);
+        $this->assertCount(1, $client->payloads[0]['attachments']);
+        $this->assertSame('https://cdn.example.test/dashboard.jpg', $client->payloads[0]['attachments'][0]['url']);
+        $this->assertArrayNotHasKey('media', $client->payloads[0]);
         $this->assertStringNotContainsString('secret', json_encode($client->payloads[0], JSON_THROW_ON_ERROR));
     }
 
