@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\Chatbot\ChatbotClient;
 use App\Services\Chatbot\ChatbotException;
+use App\Services\Chatbot\ChatbotInboundMediaNormalizer;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Handler\MockHandler;
@@ -71,6 +72,69 @@ class ChatbotIntegrationTest extends TestCase
         $this->assertDatabaseCount('chatbot_responses', 1);
         $this->assertSame('crm-message-'.$message->id, ChatbotResponse::query()->value('external_message_id'));
         Queue::assertPushed(GenerateChatbotResponseJob::class, 1);
+    }
+
+    /** Xác nhận tin chỉ có ảnh vẫn được xếp job và payload chatbot chứa media Vision đã chuẩn hóa. */
+    public function test_image_only_message_is_sent_to_chatbot_as_vision_media(): void
+    {
+        Queue::fake();
+        Event::fake();
+        config()->set('chatbot.enabled', true);
+        [$conversation, $message] = $this->conversation('Khách gửi ảnh', 'facebook', 'image-only');
+        $message->forceFill([
+            'content' => null,
+            'message_type' => 'attachment',
+            'attachments' => [[
+                'type' => 'image',
+                'url' => 'https://scontent.example.test/customer-car.jpg',
+                'mime_type' => 'image/jpeg',
+                'name' => 'customer-car.jpg',
+            ]],
+        ])->save();
+
+        app(MessagePostProcessor::class)->queueChatbot($conversation, $message);
+        Queue::assertPushed(GenerateChatbotResponseJob::class, 1);
+
+        $response = ChatbotResponse::query()->where('source_message_id', $message->id)->firstOrFail();
+        $client = new FakeChatbotClient;
+        $this->processor($client)->process($response);
+
+        $this->assertSame('Khách hàng đã gửi một hình ảnh. Hãy phân tích ảnh và phản hồi theo ngữ cảnh hội thoại.', $client->payloads[0]['message']);
+        $this->assertSame([[
+            'type' => 'image',
+            'kind' => 'image',
+            'url' => 'https://scontent.example.test/customer-car.jpg',
+            'mimeType' => 'image/jpeg',
+            'name' => 'customer-car.jpg',
+        ]], $client->payloads[0]['media']);
+        $this->assertSame('attachment', $client->payloads[0]['userContext']['messageType']);
+    }
+
+    /** Xác nhận ảnh kèm caption giữ nguyên text và không chuyển quick reply/metadata thành media Vision. */
+    public function test_captioned_image_preserves_text_and_filters_non_image_attachments(): void
+    {
+        Queue::fake();
+        Event::fake();
+        [$conversation, $message] = $this->conversation('Khách gửi ảnh', 'facebook', 'captioned-image');
+        $message->forceFill([
+            'content' => 'Xe này bị lỗi gì?',
+            'message_type' => 'attachment',
+            'attachments' => [
+                ['type' => 'image', 'url' => 'https://cdn.example.test/dashboard.jpg', 'mime_type' => 'image/jpeg'],
+                ['type' => 'quick_reply', 'payload' => ['raw' => 'secret']],
+                ['type' => 'metadata', 'payload' => ['raw' => 'secret']],
+                ['type' => 'image', 'url' => 'https://127.0.0.1/private.jpg', 'mime_type' => 'image/jpeg'],
+            ],
+        ])->save();
+        $response = $this->response($conversation, $message);
+        $client = new FakeChatbotClient;
+
+        $this->processor($client)->process($response);
+
+        $this->assertSame('Xe này bị lỗi gì?', $client->payloads[0]['message']);
+        $this->assertCount(1, $client->payloads[0]['media']);
+        $this->assertSame('https://cdn.example.test/dashboard.jpg', $client->payloads[0]['media'][0]['url']);
+        $this->assertStringNotContainsString('secret', json_encode($client->payloads[0], JSON_THROW_ON_ERROR));
     }
 
     /** Xác nhận break tạo nhiều bubble, completed lưu một lần và completed lặp không nhân đôi nội dung. */
@@ -261,7 +325,11 @@ class ChatbotIntegrationTest extends TestCase
 
     private function processor(ChatbotClient $client): ChatbotResponseProcessor
     {
-        return new ChatbotResponseProcessor($client, app(MessagePostProcessor::class));
+        return new ChatbotResponseProcessor(
+            $client,
+            app(MessagePostProcessor::class),
+            app(ChatbotInboundMediaNormalizer::class),
+        );
     }
 
     private function conversation(string $name, string $channel, string $externalId, ?Customer $customer = null): array

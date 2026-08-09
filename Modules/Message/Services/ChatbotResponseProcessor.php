@@ -4,6 +4,7 @@ namespace Modules\Message\Services;
 
 use App\Services\Chatbot\ChatbotClient;
 use App\Services\Chatbot\ChatbotException;
+use App\Services\Chatbot\ChatbotInboundMediaNormalizer;
 use Illuminate\Support\Facades\DB;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Events\ChatbotMessageBreak;
@@ -21,6 +22,7 @@ class ChatbotResponseProcessor
     public function __construct(
         private readonly ChatbotClient $client,
         private readonly MessagePostProcessor $post,
+        private readonly ChatbotInboundMediaNormalizer $inboundMedia,
     ) {}
 
     /** Gọi chatbot bằng định danh CRM ổn định, broadcast từng delta và chỉ lưu message AI khi completed. */
@@ -52,14 +54,18 @@ class ChatbotResponseProcessor
 
         event(new ChatbotResponseStarted($conversation->id, $response->id));
 
+        $inboundMedia = $this->inboundMedia->normalize($source);
+        $messageText = trim((string) $source->content);
         $payload = [
             'crmConversationId' => (string) $conversation->id,
             'customerId' => (string) $conversation->customer_id,
             'externalMessageId' => $response->external_message_id,
-            'message' => (string) $source->content,
+            'message' => $messageText !== '' ? $messageText : $this->inboundMedia->fallbackMessage(count($inboundMedia)),
+            ...($inboundMedia !== [] ? ['media' => $inboundMedia] : []),
             'userContext' => [
                 'channel' => (string) $source->channel,
                 'displayName' => (string) ($conversation->customer?->name ?? 'Khách hàng'),
+                'messageType' => (string) $source->message_type,
             ],
         ];
 

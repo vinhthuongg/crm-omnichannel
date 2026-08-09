@@ -2,6 +2,7 @@
 
 namespace Modules\Message\Services;
 
+use App\Services\Chatbot\ChatbotInboundMediaNormalizer;
 use App\Services\ConversationReplySuggestionService;
 use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
@@ -14,6 +15,8 @@ use Modules\Search\Services\VectorSearchService;
 
 class MessagePostProcessor
 {
+    public function __construct(private readonly ChatbotInboundMediaNormalizer $chatbotMedia) {}
+
     /** Phát NewMessageEvent nhưng không làm luồng lưu tin thất bại nếu realtime gặp lỗi. */
     public function broadcast(Message $message): void
     {
@@ -53,7 +56,8 @@ class MessagePostProcessor
     /** Tạo bản ghi idempotency và xếp job chatbot đúng một lần cho mỗi tin nhắn khách. */
     public function queueChatbot(Conversation $conversation, Message $message): void
     {
-        if (! config('chatbot.enabled') || $message->sender_type !== 'customer' || blank($message->content)) {
+        if (! config('chatbot.enabled') || $message->sender_type !== 'customer'
+            || (blank($message->content) && ! $this->chatbotMedia->hasImages($message))) {
             return;
         }
 

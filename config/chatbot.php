@@ -8,6 +8,7 @@ return [
     'stream_timeout' => (int) env('CHATBOT_STREAM_TIMEOUT', 120),
     'lock_seconds' => (int) env('CHATBOT_LOCK_SECONDS', 150),
     'queue' => env('CHATBOT_QUEUE', 'default'),
+    'max_inbound_images' => (int) env('CHATBOT_MAX_INBOUND_IMAGES', 5),
     'quick_replies_enabled' => env('CHATBOT_QUICK_REPLIES_ENABLED', true),
     'default_quick_replies' => [
         ['content_type' => 'text', 'title' => 'Xem bảng giá', 'payload' => 'Khách muốn xem bảng giá và giá lăn bánh của mẫu xe đang được tư vấn.'],
