@@ -28,7 +28,7 @@ class ChatbotResponseProcessor
     /** Gọi chatbot bằng định danh CRM ổn định, broadcast từng delta và chỉ lưu message AI khi completed. */
     public function process(ChatbotResponse $response): void
     {
-        if ($response->status === 'completed') {
+        if (in_array($response->status, ['completed', 'cancelled'], true)) {
             return;
         }
 
@@ -70,6 +70,10 @@ class ChatbotResponseProcessor
         ];
 
         $this->client->stream($payload, function (array $event, ?string $requestId) use ($response, &$segments, &$media, &$quickReplies, &$completed): void {
+            if ($response->fresh()?->status === 'cancelled') {
+                throw new ChatbotException('Nhân viên đã tiếp quản cuộc trò chuyện.', 409, false, $requestId);
+            }
+
             if ($requestId && $response->request_id !== $requestId) {
                 $response->forceFill(['request_id' => $requestId])->save();
             }
@@ -166,7 +170,7 @@ class ChatbotResponseProcessor
     {
         $response->refresh();
 
-        if ($response->status === 'completed') {
+        if (in_array($response->status, ['completed', 'cancelled'], true)) {
             return true;
         }
 
@@ -214,6 +218,10 @@ class ChatbotResponseProcessor
                     ->where('client_message_id', 'like', 'chatbot-'.$locked->id.'-%')->get()->all();
             }
 
+            if ($locked->status === 'cancelled') {
+                return [];
+            }
+
             $created = [];
 
             foreach ($bubbles as $index => $bubble) {
@@ -256,7 +264,9 @@ class ChatbotResponseProcessor
         $payload = collect($messages)->map(fn (Message $message): array => (new MessageResource(
             $message->loadMissing(['sender', 'conversation.customer', 'conversation.tags'])
         ))->resolve())->values()->all();
-        event(new ChatbotResponseCompleted($response->conversation_id, $response->id, ['messages' => $payload]));
+        if ($messages !== []) {
+            event(new ChatbotResponseCompleted($response->conversation_id, $response->id, ['messages' => $payload]));
+        }
 
         return true;
     }

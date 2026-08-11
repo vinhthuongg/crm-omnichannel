@@ -52,7 +52,19 @@ class Message extends Model
             return 'Bot';
         }
 
+        if ($this->isMetaAgent()) {
+            return 'Nhân viên Meta';
+        }
+
         return (string) ($this->sender?->name ?? 'Unknown');
+    }
+
+    /** Xác định tin được nhân viên gửi trực tiếp từ Meta Business Suite dựa trên metadata echo. */
+    public function isMetaAgent(): bool
+    {
+        return $this->sender_type === 'user' && $this->sender_id === null
+            && collect($this->attachments ?? [])->contains(fn (array $attachment): bool => data_get($attachment, 'name') === 'facebook_echo'
+                && (bool) data_get($attachment, 'payload.is_echo'));
     }
 
     /** Tạo nội dung xem trước ngắn gọn cho tin nhắn trong danh sách hội thoại. */

@@ -35,7 +35,7 @@ class GenerateChatbotResponseJob implements ShouldQueue
     {
         $response = ChatbotResponse::query()->find($this->responseId);
 
-        if (! $response || $response->status === 'completed') {
+        if (! $response || in_array($response->status, ['completed', 'cancelled'], true)) {
             return;
         }
 
@@ -70,6 +70,10 @@ class GenerateChatbotResponseJob implements ShouldQueue
     /** Lưu trạng thái failed/retryable, log mã định danh an toàn và thông báo lỗi thân thiện qua Reverb. */
     private function markFailed(ChatbotResponse $response, ChatbotException $exception, ?string $errorType = null): void
     {
+        if ($response->fresh()?->status === 'cancelled') {
+            return;
+        }
+
         $retryable = $exception->retryable && $this->attempts() < $this->tries;
         $response->forceFill([
             'status' => $retryable ? 'retryable' : 'failed',

@@ -15,21 +15,23 @@ class MessengerViewPresenter
     public function __construct(
         private readonly ConversationInsightSummaryService $summaries,
         private readonly MessengerCustomerPresenter $customers,
-    ) {
-    }
+    ) {}
 
     /** Định dạng các tin nhắn thành timeline hiển thị trong Messenger. */
     public function timeline(?Conversation $conversation, User $user): Collection
     {
-        if (! $conversation) return collect();
+        if (! $conversation) {
+            return collect();
+        }
         $messages = $conversation->messages()->latest()->limit(self::MESSAGE_LIMIT)->get()->reverse()->values();
         $users = User::query()->whereIn('id', $messages->where('sender_type', 'user')->pluck('sender_id')->filter()->unique())->get()->keyBy('id');
 
-        return $messages->map(function ($message) use ($conversation, $user, $users): array {
+        return $messages->map(function ($message) use ($conversation, $user): array {
             $name = match ($message->sender_type) {
                 'customer' => $conversation->customer?->name ?? 'Customer',
-                'user' => $users[$message->sender_id]?->name ?? 'Agent', default => 'Bot',
+                'user' => $message->senderName(), default => 'Bot',
             };
+
             return ['id' => $message->id, 'sender_type' => $message->sender_type, 'sender_name' => $name,
                 'sender_avatar' => $message->sender_type === 'customer' ? $conversation->customer?->avatar : null,
                 'is_mine' => $message->sender_type === 'system' || ($message->sender_type === 'user' && (int) $message->sender_id === (int) $user->id),
@@ -43,11 +45,14 @@ class MessengerViewPresenter
     /** Tạo hồ sơ khách hàng của hội thoại gồm liên kết Facebook và các kênh liên hệ. */
     public function profile(?Conversation $conversation): array
     {
-        if (! $conversation?->customer) return ['facebook_profile_url' => '#',
-            'contact' => ['name' => '', 'phone' => '', 'email' => '', 'channel' => ''], 'details' => [], 'notes' => [], 'tags' => [],
-            'conversation_status' => ['key' => '', 'name' => '', 'color' => '#64748b'],
-            'summary' => ['text' => 'Chưa có đủ nội dung để tóm tắt hội thoại.', 'facts' => []]];
+        if (! $conversation?->customer) {
+            return ['facebook_profile_url' => '#',
+                'contact' => ['name' => '', 'phone' => '', 'email' => '', 'channel' => ''], 'details' => [], 'notes' => [], 'tags' => [],
+                'conversation_status' => ['key' => '', 'name' => '', 'color' => '#64748b'],
+                'summary' => ['text' => 'Chưa có đủ nội dung để tóm tắt hội thoại.', 'facts' => []]];
+        }
         $status = ConversationStatus::normalize($conversation->status);
+
         return ['facebook_profile_url' => $this->customers->facebookProfileUrl($conversation),
             'contact' => $this->customers->contact($conversation), 'details' => $this->customers->publicDetails($conversation),
             'notes' => collect($this->customers->notes($conversation))->map(fn (array $note): array => array_diff_key($note, ['id' => true]))->all(),
@@ -71,11 +76,14 @@ class MessengerViewPresenter
                 $mime = (string) data_get($item, 'mime_type', '');
                 $url = (string) (data_get($item, 'payload.image_data.url') ?: data_get($item, 'payload.video_data.url')
                     ?: data_get($item, 'payload.audio_data.url') ?: data_get($item, 'url') ?: data_get($item, 'payload.url') ?: data_get($item, 'payload.file_url'));
-                $type = match (true) { data_get($item, 'payload.image_data.url') !== null, str_starts_with($mime, 'image/') => 'image',
+                $type = match (true) {
+                    data_get($item, 'payload.image_data.url') !== null, str_starts_with($mime, 'image/') => 'image',
                     data_get($item, 'payload.video_data.url') !== null, str_starts_with($mime, 'video/') => 'video',
                     data_get($item, 'payload.audio_data.url') !== null, str_starts_with($mime, 'audio/') => 'audio',
-                    filled($item['type'] ?? '') => $item['type'], default => 'file'};
+                    filled($item['type'] ?? '') => $item['type'], default => 'file'
+                };
                 $name = (string) data_get($item, 'name', '');
+
                 return array_merge($item, ['name' => $name ?: ($url ? basename((string) parse_url($url, PHP_URL_PATH)) : ucfirst($type)), 'url' => $url, 'type' => $type]);
             })->filter(fn (array $item): bool => $item['url'] !== '')->unique('url')->values()->all();
     }
