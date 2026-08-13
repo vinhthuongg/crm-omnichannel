@@ -112,6 +112,8 @@ Route::middleware('auth')->group(function (): void {
     Route::patch('notifications/{notification}/read', [DashboardController::class, 'markNotificationRead'])->name('crm.notifications.read');
     Route::get('settings', DashboardController::class)->defaults('section', 'settings')->name('crm.settings');
     Route::patch('settings/password', [DashboardController::class, 'updatePassword'])->name('crm.settings.password.update');
+    Route::patch('settings/facebook-first-contact-menu', [DashboardController::class, 'updateFacebookFirstContactMenu'])
+        ->name('crm.settings.facebook-first-contact-menu.update');
     Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
     Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
     Route::put('work-shifts/{workShift}', [WorkShiftController::class, 'update'])->name('work-shifts.update');

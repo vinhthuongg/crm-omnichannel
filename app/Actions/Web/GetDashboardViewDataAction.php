@@ -11,6 +11,7 @@ use Modules\Dashboard\Services\DashboardConversationAnalyticsService;
 use Modules\Dashboard\Services\DashboardCustomerService;
 use Modules\Dashboard\Services\DashboardNotificationService;
 use Modules\Dashboard\Services\DashboardTodayOverviewService;
+use Modules\Facebook\Services\FacebookFirstContactMenuSettings;
 
 class GetDashboardViewDataAction
 {
@@ -24,8 +25,8 @@ class GetDashboardViewDataAction
         private readonly DashboardCustomerService $customers,
         private readonly DashboardNotificationService $notifications,
         private readonly DashboardTodayOverviewService $todayOverview,
-    ) {
-    }
+        private readonly FacebookFirstContactMenuSettings $firstContactMenu,
+    ) {}
 
     /** Tạo dữ liệu cho từng khu vực dashboard theo quyền, kỳ báo cáo và từ khóa tìm kiếm. */
     public function execute(User $user, array $filters = []): array
@@ -75,6 +76,7 @@ class GetDashboardViewDataAction
             'activityLogs' => $activity['logs'],
             'notificationDashboard' => $this->notifications->build($user, $notificationFilters),
             'notificationCount' => $conversation['notificationCount'],
+            'facebookFirstContactMenu' => $user->hasRole('Admin') ? $this->firstContactMenu->get() : null,
         ];
     }
 

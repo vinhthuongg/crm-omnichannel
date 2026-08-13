@@ -371,6 +371,126 @@
     gap: 14px;
 }
 
+.messenger-menu-settings-card {
+    grid-column: 1 / -1;
+}
+
+.messenger-menu-settings-card form,
+.messenger-menu-elements {
+    display: grid;
+    gap: 16px;
+}
+
+.messenger-menu-settings-card form {
+    margin-top: 18px;
+}
+
+.messenger-menu-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.messenger-menu-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: #d70616;
+}
+
+.messenger-menu-field {
+    display: grid;
+    gap: 7px;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.messenger-menu-field input,
+.messenger-menu-field textarea {
+    width: 100%;
+    border: 1px solid #f0cfd3;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    color: #111827;
+    font: inherit;
+    outline: none;
+    resize: vertical;
+}
+
+.messenger-menu-field input:focus,
+.messenger-menu-field textarea:focus {
+    border-color: #d70616;
+    box-shadow: 0 0 0 3px rgba(215, 6, 22, .08);
+}
+
+.messenger-menu-elements fieldset {
+    display: grid;
+    gap: 14px;
+    margin: 0;
+    border: 1px solid #f0cfd3;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.messenger-menu-elements legend {
+    padding: 0 8px;
+    color: #d70616;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.messenger-menu-card-grid,
+.messenger-menu-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.messenger-menu-image-field {
+    grid-column: 1 / -1;
+}
+
+.messenger-menu-buttons section {
+    display: grid;
+    gap: 10px;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f8fafc;
+}
+
+.messenger-menu-buttons strong {
+    color: #111827;
+    font-size: 13px;
+}
+
+.messenger-menu-settings-card small {
+    color: #be123c;
+    font-size: 12px;
+}
+
+.messenger-menu-settings-card button {
+    min-height: 44px;
+    justify-self: start;
+    border: 0;
+    border-radius: 8px;
+    padding: 0 18px;
+    background: #d70616;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+@media (max-width: 760px) {
+    .messenger-menu-card-grid,
+    .messenger-menu-buttons {
+        grid-template-columns: 1fr;
+    }
+}
+
 .settings-note-card .material-symbols-outlined {
     width: 48px;
     height: 48px;
@@ -909,4 +1029,3 @@
         grid-template-columns: 1fr;
     }
 }
-

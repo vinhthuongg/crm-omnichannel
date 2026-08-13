@@ -385,6 +385,10 @@
                         </form>
                     </article>
 
+                    @role('Admin')
+                        @include('dashboard.facebook-first-contact-menu')
+                    @endrole
+
                     <article class="settings-card settings-note-card">
                         <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
                         <h2>Bảo mật vận hành</h2>

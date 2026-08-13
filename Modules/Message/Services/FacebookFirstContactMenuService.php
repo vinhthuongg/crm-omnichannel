@@ -3,15 +3,20 @@
 namespace Modules\Message\Services;
 
 use Modules\Conversation\Models\Conversation;
+use Modules\Facebook\Services\FacebookFirstContactMenuSettings;
 use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 
 class FacebookFirstContactMenuService
 {
+    public function __construct(private readonly FacebookFirstContactMenuSettings $settings) {}
+
     /** Tạo và xếp gửi menu carousel đúng một lần khi khách Facebook nhắn lần đầu cho Page. */
     public function queue(Conversation $conversation, Message $source): array
     {
-        if (! config('services.facebook.first_contact_menu.enabled', true) || $source->channel !== 'facebook') {
+        $settings = $this->settings->get();
+
+        if (! ($settings['enabled'] ?? false) || $source->channel !== 'facebook') {
             return [];
         }
 
@@ -34,14 +39,14 @@ class FacebookFirstContactMenuService
             return [];
         }
 
-        $elements = $this->elements();
+        $elements = $this->elements((array) ($settings['elements'] ?? []));
 
         if ($elements === []) {
             return [];
         }
 
         $messages = [];
-        $text = trim((string) config('services.facebook.first_contact_menu.text'));
+        $text = trim((string) ($settings['text'] ?? ''));
 
         if ($text !== '') {
             $messages[] = Message::query()->firstOrCreate(
@@ -82,9 +87,9 @@ class FacebookFirstContactMenuService
     }
 
     /** Chuẩn hóa tối đa 10 thẻ Generic Template và tối đa 3 nút postback trên mỗi thẻ. */
-    private function elements(): array
+    private function elements(array $configured): array
     {
-        return collect((array) config('services.facebook.first_contact_menu.elements', []))
+        return collect($configured)
             ->map(function (array $element): ?array {
                 $title = trim((string) ($element['title'] ?? ''));
                 $buttons = collect((array) ($element['buttons'] ?? []))->map(function (array $button): ?array {

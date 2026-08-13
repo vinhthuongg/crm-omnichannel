@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Actions\Web\GetDashboardViewDataAction;
 use App\Actions\Web\GetDashboardChartDataAction;
+use App\Actions\Web\GetDashboardViewDataAction;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Requests\Web\UpdateFacebookFirstContactMenuRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Modules\Facebook\Services\FacebookFirstContactMenuSettings;
 use Modules\Notification\Services\NotificationManagementService;
 
 class DashboardController extends Controller
@@ -60,6 +62,16 @@ class DashboardController extends Controller
         ])->save();
 
         return back()->with('settings_status', 'Đã đổi mật khẩu thành công.');
+    }
+
+    /** Lưu menu carousel chào khách đầu tiên do Admin tùy chỉnh và áp dụng ngay cho hội thoại mới. */
+    public function updateFacebookFirstContactMenu(
+        UpdateFacebookFirstContactMenuRequest $request,
+        FacebookFirstContactMenuSettings $settings,
+    ): RedirectResponse {
+        $settings->update($request->validated());
+
+        return back()->with('settings_status', 'Đã cập nhật menu Messenger cho khách nhắn tin lần đầu.');
     }
 
     /** Đánh dấu một notification thuộc người dùng hiện tại là đã đọc. */
