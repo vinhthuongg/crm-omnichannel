@@ -25,12 +25,11 @@ class FacebookFirstContactMenuService
         $clientId = 'facebook-first-contact-menu-'.$key;
 
         $existingMenu = Message::query()->where('client_message_id', $clientId)->first();
-        $phoneClientId = 'facebook-first-contact-phone-'.$key;
+        $phoneClientId = 'facebook-first-contact-phone-v2-'.$key;
         $existingPhone = Message::query()->where('client_message_id', $phoneClientId)->first();
         $menuAlreadyQueued = $existingMenu && in_array($existingMenu->outbound_status, ['queued', 'sending', 'sent'], true);
         $phoneAlreadyQueued = $existingPhone && in_array($existingPhone->outbound_status, ['queued', 'sending', 'sent'], true);
-        $phoneRequired = ($settings['phone_enabled'] ?? false) && filled($settings['phone_text'] ?? null)
-            && filled($settings['phone_button_title'] ?? null) && filled($settings['phone_payload'] ?? null);
+        $phoneRequired = ($settings['phone_enabled'] ?? false) && filled($settings['phone_text'] ?? null);
 
         if ($menuAlreadyQueued && (! $phoneRequired || $phoneAlreadyQueued)) {
             return [];
@@ -87,16 +86,8 @@ class FacebookFirstContactMenuService
 
         if ($phoneRequired && ! $phoneAlreadyQueued) {
             $phoneAttachment = [[
-                'type' => 'generic_template',
-                'elements' => [[
-                    'title' => mb_substr(trim((string) $settings['phone_text']), 0, 80),
-                    'subtitle' => 'Toyota Kiên Giang bảo mật thông tin của anh/chị.',
-                    'buttons' => [[
-                        'type' => 'postback',
-                        'title' => mb_substr(trim((string) $settings['phone_button_title']), 0, 20),
-                        'payload' => mb_substr(trim((string) $settings['phone_payload']), 0, 1000),
-                    ]],
-                ]],
+                'type' => 'quick_reply',
+                'quick_replies' => [['content_type' => 'user_phone_number']],
             ]];
             $phoneMessage = $existingPhone ?: Message::query()->create([
                 'channel' => 'facebook',
@@ -104,7 +95,7 @@ class FacebookFirstContactMenuService
                 'conversation_id' => $conversation->id,
                 'sender_type' => 'system',
                 'sender_id' => null,
-                'content' => null,
+                'content' => trim((string) $settings['phone_text']),
                 'message_type' => 'attachment',
                 'attachments' => $phoneAttachment,
                 'outbound_status' => 'queued',
@@ -112,7 +103,7 @@ class FacebookFirstContactMenuService
             if ($existingPhone) {
                 $phoneMessage->forceFill([
                     'conversation_id' => $conversation->id,
-                    'content' => null,
+                    'content' => trim((string) $settings['phone_text']),
                     'attachments' => $phoneAttachment,
                     'outbound_status' => 'queued',
                     'outbound_error' => null,

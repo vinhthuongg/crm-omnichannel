@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Modules\Conversation\Models\Conversation;
 use Modules\Customer\Models\Customer;
@@ -11,6 +13,7 @@ use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\FacebookFirstContactMenuService;
 use Modules\Message\Services\MessagePostProcessor;
+use Modules\Facebook\Services\FacebookMessengerService;
 use Tests\TestCase;
 
 class FacebookFirstContactMenuTest extends TestCase
@@ -33,9 +36,9 @@ class FacebookFirstContactMenuTest extends TestCase
 
         $this->assertNotNull($menu);
         $this->assertNotNull($phone);
-        $this->assertSame('generic_template', $phone->attachments[0]['type']);
-        $this->assertSame('postback', $phone->attachments[0]['elements'][0]['buttons'][0]['type']);
-        $this->assertSame('Chia sẻ SĐT', $phone->attachments[0]['elements'][0]['buttons'][0]['title']);
+        $this->assertSame('quick_reply', $phone->attachments[0]['type']);
+        $this->assertSame('user_phone_number', $phone->attachments[0]['quick_replies'][0]['content_type']);
+        $this->assertSame('Anh/chị có thể chia sẻ số điện thoại để Toyota Kiên Giang liên hệ tư vấn nhanh hơn.', $phone->content);
         $this->assertSame('system', $menu->sender_type);
         $this->assertSame('generic_template', $menu->attachments[0]['type']);
         $this->assertSame('postback', $menu->attachments[0]['elements'][0]['buttons'][0]['type']);
@@ -43,6 +46,30 @@ class FacebookFirstContactMenuTest extends TestCase
         $this->assertDatabaseHas('chatbot_responses', ['source_message_id' => $message->id, 'status' => 'pending']);
         Queue::assertPushed(SendOutboundMessageJob::class, fn ($job): bool => $job->messageId === $menu->id);
         Queue::assertPushed(GenerateChatbotResponseJob::class, 1);
+    }
+
+    /** Xác nhận CRM gửi đúng cấu trúc Phone Number Quick Reply mà Messenger Platform yêu cầu. */
+    public function test_phone_quick_reply_is_sent_with_the_official_payload_shape(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['recipient_id' => 'customer-psid', 'message_id' => 'mid.1'])]);
+
+        app(FacebookMessengerService::class)->sendTextWithQuickReplies(
+            'customer-psid',
+            'Vui lòng chia sẻ số điện thoại.',
+            [['content_type' => 'user_phone_number']],
+            'valid-page-token',
+        );
+
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->url() === 'https://graph.facebook.com/v25.0/me/messages'
+                && data_get($payload, 'recipient.id') === 'customer-psid'
+                && data_get($payload, 'messaging_type') === 'RESPONSE'
+                && data_get($payload, 'message.quick_replies') === [['content_type' => 'user_phone_number']]
+                && ! array_key_exists('title', data_get($payload, 'message.quick_replies.0', []))
+                && ! array_key_exists('payload', data_get($payload, 'message.quick_replies.0', []));
+        });
     }
 
     /** Xác nhận menu không lặp sau khi đã xếp gửi thành công. */

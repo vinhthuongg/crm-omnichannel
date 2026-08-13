@@ -44,8 +44,8 @@ class FacebookFirstContactMenuAdminSettingsTest extends TestCase
         $this->assertSame('Menu chào tùy chỉnh', $stored['text']);
         $this->assertTrue($stored['phone_enabled']);
         $this->assertSame('Vui lòng chia sẻ số điện thoại.', $stored['phone_text']);
-        $this->assertSame('Gửi số điện thoại', $stored['phone_button_title']);
-        $this->assertSame('Khách muốn gửi số điện thoại.', $stored['phone_payload']);
+        $this->assertArrayNotHasKey('phone_button_title', $stored);
+        $this->assertArrayNotHasKey('phone_payload', $stored);
         $this->assertSame('Tư vấn Vios', $stored['elements'][0]['buttons'][0]['title']);
         $this->assertSame($stored, app(FacebookFirstContactMenuSettings::class)->get());
     }
@@ -73,8 +73,6 @@ class FacebookFirstContactMenuAdminSettingsTest extends TestCase
             'text' => 'Menu chào tùy chỉnh',
             'phone_enabled' => '1',
             'phone_text' => 'Vui lòng chia sẻ số điện thoại.',
-            'phone_button_title' => 'Gửi số điện thoại',
-            'phone_payload' => 'Khách muốn gửi số điện thoại.',
             'elements' => [[
                 'title' => 'Các mẫu xe Toyota',
                 'subtitle' => 'Chọn nhu cầu',

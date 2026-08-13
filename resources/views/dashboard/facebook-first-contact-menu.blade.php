@@ -1,4 +1,4 @@
-@php($menu = old('elements') ? ['enabled' => old('enabled'), 'text' => old('text'), 'phone_enabled' => old('phone_enabled'), 'phone_text' => old('phone_text'), 'phone_button_title' => old('phone_button_title'), 'phone_payload' => old('phone_payload'), 'elements' => old('elements')] : $facebookFirstContactMenu)
+@php($menu = old('elements') ? ['enabled' => old('enabled'), 'text' => old('text'), 'phone_enabled' => old('phone_enabled'), 'phone_text' => old('phone_text'), 'elements' => old('elements')] : $facebookFirstContactMenu)
 
 <article class="settings-card messenger-menu-settings-card">
     <header>
@@ -33,16 +33,7 @@
                 <textarea name="phone_text" rows="2" maxlength="1024">{{ data_get($menu, 'phone_text') }}</textarea>
                 @error('phone_text')<small>{{ $message }}</small>@enderror
             </label>
-            <label class="messenger-menu-field">
-                <span>Tên nút chia sẻ số</span>
-                <input name="phone_button_title" value="{{ data_get($menu, 'phone_button_title') }}" maxlength="20">
-                @error('phone_button_title')<small>{{ $message }}</small>@enderror
-            </label>
-            <label class="messenger-menu-field">
-                <span>Payload gửi cho bot khi khách bấm</span>
-                <textarea name="phone_payload" rows="3" maxlength="1000">{{ data_get($menu, 'phone_payload') }}</textarea>
-                @error('phone_payload')<small>{{ $message }}</small>@enderror
-            </label>
+            <small>Messenger sẽ tự hiển thị số điện thoại trong tài khoản của khách để khách xác nhận chia sẻ.</small>
         </section>
 
         <div class="messenger-menu-elements">
