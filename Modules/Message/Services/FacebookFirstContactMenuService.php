@@ -2,6 +2,7 @@
 
 namespace Modules\Message\Services;
 
+use Illuminate\Support\Facades\Log;
 use Modules\Conversation\Models\Conversation;
 use Modules\Facebook\Services\FacebookFirstContactMenuSettings;
 use Modules\Message\Jobs\SendOutboundMessageJob;
@@ -23,19 +24,9 @@ class FacebookFirstContactMenuService
         $key = $conversation->facebook_page_id.'-'.$conversation->customer_id;
         $clientId = 'facebook-first-contact-menu-'.$key;
 
-        if (Message::query()->where('client_message_id', $clientId)->exists()) {
-            return [];
-        }
+        $existingMenu = Message::query()->where('client_message_id', $clientId)->first();
 
-        $isFirstCustomerMessage = Message::query()
-            ->where('channel', 'facebook')
-            ->where('sender_type', 'customer')
-            ->whereHas('conversation', fn ($query) => $query
-                ->where('customer_id', $conversation->customer_id)
-                ->where('facebook_page_id', $conversation->facebook_page_id))
-            ->count() === 1;
-
-        if (! $isFirstCustomerMessage) {
+        if ($existingMenu && in_array($existingMenu->outbound_status, ['queued', 'sending', 'sent'], true)) {
             return [];
         }
 
@@ -63,18 +54,27 @@ class FacebookFirstContactMenuService
             );
         }
 
-        $message = Message::query()->firstOrCreate(
-            ['channel' => 'facebook', 'client_message_id' => $clientId],
-            [
+        $message = $existingMenu ?: Message::query()->create([
+            'channel' => 'facebook',
+            'client_message_id' => $clientId,
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'system',
+            'sender_id' => null,
+            'content' => null,
+            'message_type' => 'attachment',
+            'attachments' => [['type' => 'generic_template', 'elements' => $elements]],
+            'outbound_status' => 'queued',
+        ]);
+
+        if ($existingMenu) {
+            $message->forceFill([
                 'conversation_id' => $conversation->id,
-                'sender_type' => 'system',
-                'sender_id' => null,
-                'content' => null,
-                'message_type' => 'attachment',
                 'attachments' => [['type' => 'generic_template', 'elements' => $elements]],
                 'outbound_status' => 'queued',
-            ],
-        );
+                'outbound_error' => null,
+            ])->save();
+            $message->wasRecentlyCreated = true;
+        }
         $messages[] = $message;
 
         foreach ($messages as $queued) {
@@ -82,6 +82,14 @@ class FacebookFirstContactMenuService
                 SendOutboundMessageJob::dispatch($queued->id);
             }
         }
+
+        Log::info('Facebook first-contact menu queued', [
+            'conversation_id' => $conversation->id,
+            'customer_id' => $conversation->customer_id,
+            'page_id' => $conversation->facebook_page_id,
+            'message_ids' => collect($messages)->pluck('id')->all(),
+            'retry' => (bool) $existingMenu,
+        ]);
 
         return $messages;
     }

@@ -40,8 +40,8 @@ class FacebookFirstContactMenuTest extends TestCase
         Queue::assertPushed(GenerateChatbotResponseJob::class, 1);
     }
 
-    /** Xác nhận webhook lặp hoặc tin tiếp theo không gửi lại menu lần hai. */
-    public function test_menu_is_idempotent_and_only_sent_for_first_message(): void
+    /** Xác nhận menu không lặp sau khi đã xếp gửi thành công. */
+    public function test_menu_is_idempotent_after_it_has_been_queued(): void
     {
         Queue::fake();
         [$conversation, $first] = $this->conversation('first');
@@ -62,6 +62,31 @@ class FacebookFirstContactMenuTest extends TestCase
 
         $this->assertSame([], $service->queue($conversation, $second));
         $this->assertDatabaseCount('messages', 4);
+        Queue::assertPushed(SendOutboundMessageJob::class, 2);
+    }
+
+    /** Xác nhận khách có lịch sử cũ vẫn nhận menu ở tin kế tiếp nếu menu chưa từng được gửi. */
+    public function test_existing_customer_receives_menu_when_no_successful_menu_marker_exists(): void
+    {
+        Queue::fake();
+        [$conversation, $first] = $this->conversation('old-first');
+        $second = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'customer',
+            'sender_id' => $conversation->customer_id,
+            'channel' => 'facebook',
+            'content' => 'Tin mới sau khi bật menu',
+            'message_type' => 'text',
+            'external_message_id' => 'new-after-enabled',
+        ]);
+
+        $messages = app(FacebookFirstContactMenuService::class)->queue($conversation, $second);
+
+        $this->assertCount(2, $messages);
+        $this->assertDatabaseHas('messages', [
+            'client_message_id' => 'facebook-first-contact-menu-page-id-'.$conversation->customer_id,
+            'outbound_status' => 'queued',
+        ]);
         Queue::assertPushed(SendOutboundMessageJob::class, 2);
     }
 
