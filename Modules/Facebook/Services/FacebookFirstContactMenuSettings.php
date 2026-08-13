@@ -39,6 +39,8 @@ class FacebookFirstContactMenuSettings
             'text' => trim((string) ($data['text'] ?? '')),
             'phone_enabled' => filter_var($data['phone_enabled'] ?? true, FILTER_VALIDATE_BOOL),
             'phone_text' => trim((string) ($data['phone_text'] ?? '')),
+            'phone_button_title' => trim((string) ($data['phone_button_title'] ?? '')),
+            'phone_payload' => trim((string) ($data['phone_payload'] ?? '')),
             'elements' => collect((array) ($data['elements'] ?? []))->take(3)->map(fn (array $element): array => [
                 'title' => trim((string) ($element['title'] ?? '')),
                 'subtitle' => trim((string) ($element['subtitle'] ?? '')),

@@ -33,7 +33,9 @@ class FacebookFirstContactMenuTest extends TestCase
 
         $this->assertNotNull($menu);
         $this->assertNotNull($phone);
-        $this->assertSame('user_phone_number', $phone->attachments[0]['quick_replies'][0]['content_type']);
+        $this->assertSame('generic_template', $phone->attachments[0]['type']);
+        $this->assertSame('postback', $phone->attachments[0]['elements'][0]['buttons'][0]['type']);
+        $this->assertSame('Chia sẻ SĐT', $phone->attachments[0]['elements'][0]['buttons'][0]['title']);
         $this->assertSame('system', $menu->sender_type);
         $this->assertSame('generic_template', $menu->attachments[0]['type']);
         $this->assertSame('postback', $menu->attachments[0]['elements'][0]['buttons'][0]['type']);

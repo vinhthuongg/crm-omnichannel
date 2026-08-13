@@ -28,9 +28,11 @@ class FacebookFirstContactMenuService
         $phoneClientId = 'facebook-first-contact-phone-'.$key;
         $existingPhone = Message::query()->where('client_message_id', $phoneClientId)->first();
         $menuAlreadyQueued = $existingMenu && in_array($existingMenu->outbound_status, ['queued', 'sending', 'sent'], true);
-        $phoneRequired = ($settings['phone_enabled'] ?? false) && filled($settings['phone_text'] ?? null);
+        $phoneAlreadyQueued = $existingPhone && in_array($existingPhone->outbound_status, ['queued', 'sending', 'sent'], true);
+        $phoneRequired = ($settings['phone_enabled'] ?? false) && filled($settings['phone_text'] ?? null)
+            && filled($settings['phone_button_title'] ?? null) && filled($settings['phone_payload'] ?? null);
 
-        if ($menuAlreadyQueued && (! $phoneRequired || $existingPhone)) {
+        if ($menuAlreadyQueued && (! $phoneRequired || $phoneAlreadyQueued)) {
             return [];
         }
 
@@ -83,22 +85,40 @@ class FacebookFirstContactMenuService
             $messages[] = $message;
         }
 
-        if ($phoneRequired && ! $existingPhone) {
-            $phoneMessage = Message::query()->firstOrCreate(
-                ['channel' => 'facebook', 'client_message_id' => $phoneClientId],
-                [
-                    'conversation_id' => $conversation->id,
-                    'sender_type' => 'system',
-                    'sender_id' => null,
-                    'content' => trim((string) $settings['phone_text']),
-                    'message_type' => 'attachment',
-                    'attachments' => [[
-                        'type' => 'quick_reply',
-                        'quick_replies' => [['content_type' => 'user_phone_number']],
+        if ($phoneRequired && ! $phoneAlreadyQueued) {
+            $phoneAttachment = [[
+                'type' => 'generic_template',
+                'elements' => [[
+                    'title' => mb_substr(trim((string) $settings['phone_text']), 0, 80),
+                    'subtitle' => 'Toyota Kiên Giang bảo mật thông tin của anh/chị.',
+                    'buttons' => [[
+                        'type' => 'postback',
+                        'title' => mb_substr(trim((string) $settings['phone_button_title']), 0, 20),
+                        'payload' => mb_substr(trim((string) $settings['phone_payload']), 0, 1000),
                     ]],
+                ]],
+            ]];
+            $phoneMessage = $existingPhone ?: Message::query()->create([
+                'channel' => 'facebook',
+                'client_message_id' => $phoneClientId,
+                'conversation_id' => $conversation->id,
+                'sender_type' => 'system',
+                'sender_id' => null,
+                'content' => null,
+                'message_type' => 'attachment',
+                'attachments' => $phoneAttachment,
+                'outbound_status' => 'queued',
+            ]);
+            if ($existingPhone) {
+                $phoneMessage->forceFill([
+                    'conversation_id' => $conversation->id,
+                    'content' => null,
+                    'attachments' => $phoneAttachment,
                     'outbound_status' => 'queued',
-                ],
-            );
+                    'outbound_error' => null,
+                ])->save();
+                $phoneMessage->wasRecentlyCreated = true;
+            }
             $messages[] = $phoneMessage;
         }
 

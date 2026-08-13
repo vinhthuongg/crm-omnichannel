@@ -20,6 +20,8 @@ class UpdateFacebookFirstContactMenuRequest extends FormRequest
             'text' => ['nullable', 'string', 'max:1024'],
             'phone_enabled' => ['nullable', 'boolean'],
             'phone_text' => ['nullable', 'required_if:phone_enabled,1', 'string', 'max:1024'],
+            'phone_button_title' => ['nullable', 'required_if:phone_enabled,1', 'string', 'max:20'],
+            'phone_payload' => ['nullable', 'required_if:phone_enabled,1', 'string', 'max:1000'],
             'elements' => ['required', 'array', 'min:1', 'max:3'],
             'elements.*.title' => ['required', 'string', 'max:80'],
             'elements.*.subtitle' => ['nullable', 'string', 'max:80'],

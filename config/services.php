@@ -24,6 +24,8 @@ return [
             'text' => env('FACEBOOK_FIRST_CONTACT_MENU_TEXT', 'Bạn cần Toyota Kiên Giang hỗ trợ thêm gì không ạ?'),
             'phone_enabled' => true,
             'phone_text' => 'Anh/chị có thể chia sẻ số điện thoại để Toyota Kiên Giang liên hệ tư vấn nhanh hơn.',
+            'phone_button_title' => 'Chia sẻ SĐT',
+            'phone_payload' => 'Khách muốn chia sẻ số điện thoại để nhân viên Toyota Kiên Giang liên hệ tư vấn. Hãy đề nghị khách nhập số điện thoại.',
             'elements' => [
                 [
                     'title' => 'Các mẫu xe Toyota',
