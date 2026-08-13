@@ -22,21 +22,33 @@ class HandleFacebookWebhookAction
         $events = $this->events($payload);
         [$stored, $skipped, $last] = [0, 0, null];
         foreach ($events as $event) {
-            if (! filled(data_get($event, 'message'))) { $skipped++; continue; }
+            if (! filled(data_get($event, 'message')) && ! filled(data_get($event, 'postback'))) {
+                $skipped++;
+
+                continue;
+            }
             if ((bool) data_get($event, 'message.is_echo')) {
                 $last = $this->echoes->handle($event);
                 $last ? $stored++ : $skipped++;
+
                 continue;
             }
             $senderId = (string) data_get($event, 'sender.id');
             $pageId = (string) data_get($event, 'recipient.id');
-            if ($senderId === '') { $skipped++; continue; }
+            if ($senderId === '') {
+                $skipped++;
+
+                continue;
+            }
             $last = $this->messages->storeInbound(FacebookWebhookMessageData::fromMessagingEvent($event, $this->profiles->resolve($senderId, $pageId)));
-            if ($last && $pageId !== '') KeepTypingUntilBotReplyJob::start($last->conversation, (int) $last->id, $senderId, $pageId);
+            if ($last && $pageId !== '') {
+                KeepTypingUntilBotReplyJob::start($last->conversation, (int) $last->id, $senderId, $pageId);
+            }
             $stored++;
         }
         Log::info('Facebook webhook handled', ['events' => count($events), 'stored_messages' => $stored, 'skipped_events' => $skipped,
             'page_ids' => $this->ids($events, 'recipient.id'), 'sender_ids' => $this->ids($events, 'sender.id')]);
+
         return $last;
     }
 
@@ -44,8 +56,14 @@ class HandleFacebookWebhookAction
     private function events(array $payload): array
     {
         $events = [];
-        foreach ((array) data_get($payload, 'entry', []) as $entry)
-            foreach ((array) data_get($entry, 'messaging', []) as $event) if (is_array($event)) $events[] = $event;
+        foreach ((array) data_get($payload, 'entry', []) as $entry) {
+            foreach ((array) data_get($entry, 'messaging', []) as $event) {
+                if (is_array($event)) {
+                    $events[] = $event;
+                }
+            }
+        }
+
         return $events;
     }
 

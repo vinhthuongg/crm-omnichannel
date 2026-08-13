@@ -18,7 +18,8 @@ class MessageService
     /** Nhận MessageRepository để đọc và lưu dữ liệu; ConversationService để phân công, đổi trạng thái và đồng bộ nhãn hội thoại; ConversationIntentService để phân loại ý định từ nội dung tin nhắn; InboundMessageContextService để tìm khách hàng, hội thoại và ca trực cho tin đến; FacebookEchoMessageService để ghi nhận và gửi tin nhắn trong hội thoại; MessagePostProcessor để cập nhật vector tìm kiếm và tạo gợi ý trả lời. */
     public function __construct(private readonly MessageRepository $repository, private readonly ConversationService $conversations,
         private readonly ConversationIntentService $intents, private readonly InboundMessageContextService $contexts,
-        private readonly FacebookEchoMessageService $echoes, private readonly MessagePostProcessor $post) {}
+        private readonly FacebookEchoMessageService $echoes, private readonly MessagePostProcessor $post,
+        private readonly FacebookFirstContactMenuService $firstContactMenu) {}
 
     /** Tìm hoặc tạo khách hàng/hội thoại, lưu tin đến và chạy hậu xử lý tìm kiếm/gợi ý. */
     public function storeInbound(InboundMessageData $data): Message
@@ -43,6 +44,9 @@ class MessageService
         });
         $this->intents->classifyMessage($message);
         $this->post->broadcast($message);
+        foreach ($this->firstContactMenu->queue($conversation, $message) as $menuMessage) {
+            $this->post->broadcast($menuMessage);
+        }
         $this->post->refreshVector($customer);
         $this->post->queueSuggestions($conversation, $message);
         $this->post->queueChatbot($conversation, $message);

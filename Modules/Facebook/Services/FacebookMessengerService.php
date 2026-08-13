@@ -14,8 +14,7 @@ class FacebookMessengerService
         private readonly Http $http,
         private readonly FacebookMessagePayloadNormalizer $normalizer,
         private readonly FacebookAttachmentService $attachments,
-    ) {
-    }
+    ) {}
 
     /** Gửi một tin nhắn văn bản đến người nhận trên Facebook. */
     public function sendText(string $recipientId, string $message, ?string $pageAccessToken = null): array
@@ -27,6 +26,25 @@ class FacebookMessengerService
     public function sendTextWithQuickReplies(string $recipientId, string $message, array $quickReplies, ?string $pageAccessToken = null): array
     {
         return $this->sendTextPayload($recipientId, ['text' => $message, 'quick_replies' => array_values($quickReplies)], $pageAccessToken);
+    }
+
+    /** Gửi Generic Template dạng carousel gồm các thẻ và nút postback đến khách hàng. */
+    public function sendGenericTemplate(string $recipientId, array $elements, ?string $pageAccessToken = null): array
+    {
+        $message = ['attachment' => ['type' => 'template', 'payload' => [
+            'template_type' => 'generic',
+            'elements' => array_values($elements),
+        ]]];
+
+        $response = $this->http->connectTimeout(5)->timeout(15)->withToken($this->token($pageAccessToken))
+            ->post($this->url('/me/messages'), [
+                'messaging_type' => 'RESPONSE',
+                'recipient' => ['id' => $recipientId],
+                'message' => $message,
+            ]);
+        $response->throw();
+
+        return $response->json();
     }
 
     /** Bật trạng thái đang nhập cho cuộc trò chuyện của người nhận. */
@@ -44,8 +62,13 @@ class FacebookMessengerService
     /** Gửi sender action như typing_on hoặc typing_off qua Graph API. */
     public function sendSenderAction(string $recipientId, string $action, ?string $pageAccessToken = null): bool
     {
-        if (! in_array($action, ['typing_on', 'typing_off', 'mark_seen'], true)) throw new RuntimeException("Unsupported Facebook sender action [{$action}].");
-        if ($recipientId === '') return false;
+        if (! in_array($action, ['typing_on', 'typing_off', 'mark_seen'], true)) {
+            throw new RuntimeException("Unsupported Facebook sender action [{$action}].");
+        }
+        if ($recipientId === '') {
+            return false;
+        }
+
         return $this->safeBooleanRequest('/me/messages', ['recipient' => ['id' => $recipientId], 'sender_action' => $action], $this->token($pageAccessToken),
             'Facebook sender action', ['recipient_id' => $recipientId, 'action' => $action]);
     }
@@ -53,7 +76,10 @@ class FacebookMessengerService
     /** Yêu cầu Facebook chuyển quyền điều khiển hội thoại về ứng dụng CRM. */
     public function takeThreadControl(string $recipientId, ?string $pageAccessToken = null, string $metadata = 'CRM agent replied'): bool
     {
-        if ($recipientId === '') return false;
+        if ($recipientId === '') {
+            return false;
+        }
+
         return $this->safeBooleanRequest('/me/take_thread_control', ['recipient' => ['id' => $recipientId], 'metadata' => $metadata],
             $this->token($pageAccessToken), 'Facebook take_thread_control', ['recipient_id' => $recipientId]);
     }
@@ -61,7 +87,9 @@ class FacebookMessengerService
     /** Lấy thông tin hồ sơ công khai của người dùng theo PSID. */
     public function profile(string $psid, ?string $pageAccessToken = null): array
     {
-        if ($psid === '') return [];
+        if ($psid === '') {
+            return [];
+        }
         try {
             $token = $this->token($pageAccessToken);
             $response = $this->http->connectTimeout(1)->timeout(3)->get($this->url("/{$psid}"), [
@@ -69,6 +97,7 @@ class FacebookMessengerService
             ]);
             if (! $response->successful()) {
                 Log::warning('Facebook profile lookup failed', ['psid' => $psid, 'status' => $response->status(), 'body' => $response->body()]);
+
                 return [];
             }
             $profile = $response->json();
@@ -85,6 +114,7 @@ class FacebookMessengerService
             return $profile;
         } catch (\Throwable $exception) {
             Log::warning('Facebook profile lookup exception', ['psid' => $psid, 'error' => $exception->getMessage()]);
+
             return [];
         }
     }
@@ -111,21 +141,29 @@ class FacebookMessengerService
     private function sendTextPayload(string $recipientId, array $message, ?string $pageAccessToken): array
     {
         $message = $this->normalizer->normalize($message);
-        if (isset($message['text'])) $message['text'] = MessengerTextFormatter::format((string) $message['text']);
+        if (isset($message['text'])) {
+            $message['text'] = MessengerTextFormatter::format((string) $message['text']);
+        }
         $quickReplies = (array) ($message['quick_replies'] ?? []);
         if ($quickReplies !== [] && mb_strlen((string) ($message['text'] ?? '')) > FacebookMessagePayloadNormalizer::TEXT_LIMIT) {
             $chunks = $this->normalizer->split((string) $message['text']);
-            foreach (array_slice($chunks, 0, -1) as $chunk) $this->sendTextPayload($recipientId, ['text' => $chunk], $pageAccessToken);
+            foreach (array_slice($chunks, 0, -1) as $chunk) {
+                $this->sendTextPayload($recipientId, ['text' => $chunk], $pageAccessToken);
+            }
+
             return $this->sendTextPayload($recipientId, ['text' => end($chunks) ?: '', 'quick_replies' => $quickReplies], $pageAccessToken);
         }
         try {
             $response = $this->http->connectTimeout(5)->timeout(15)->withToken($this->token($pageAccessToken))
                 ->post($this->url('/me/messages'), ['messaging_type' => 'RESPONSE', 'recipient' => ['id' => $recipientId], 'message' => $message]);
         } catch (ConnectionException $exception) {
-            if (str_contains($exception->getMessage(), 'cURL error 28')) Log::warning('Facebook text send timed out after request was sent', ['recipient_id' => $recipientId, 'error' => $exception->getMessage()]);
+            if (str_contains($exception->getMessage(), 'cURL error 28')) {
+                Log::warning('Facebook text send timed out after request was sent', ['recipient_id' => $recipientId, 'error' => $exception->getMessage()]);
+            }
             throw $exception;
         }
         $response->throw();
+
         return $response->json();
     }
 
@@ -134,16 +172,24 @@ class FacebookMessengerService
     {
         try {
             $response = $this->http->connectTimeout(5)->timeout(10)->withToken($token)->post($this->url($path), $payload);
-            if ($response->successful()) return true;
+            if ($response->successful()) {
+                return true;
+            }
             Log::warning($label.' failed', [...$context, 'status' => $response->status(), 'body' => $response->body()]);
-        } catch (\Throwable $exception) { Log::warning($label.' exception', [...$context, 'error' => $exception->getMessage()]); }
+        } catch (\Throwable $exception) {
+            Log::warning($label.' exception', [...$context, 'error' => $exception->getMessage()]);
+        }
+
         return false;
     }
 
     /** Chọn page access token truyền vào hoặc token mặc định đã cấu hình. */
     private function token(?string $token): string
     {
-        if (! $token) throw new RuntimeException('Facebook page access token is missing for this conversation.');
+        if (! $token) {
+            throw new RuntimeException('Facebook page access token is missing for this conversation.');
+        }
+
         return $token;
     }
 

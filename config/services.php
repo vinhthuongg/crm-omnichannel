@@ -19,6 +19,39 @@ return [
         'messenger_app_secret' => env('MESSENGER_APP_SECRET', env('FACEBOOK_CLIENT_SECRET', env('FACEBOOK_APP_SECRET'))),
         'verify_token' => env('FACEBOOK_VERIFY_TOKEN'),
         'app_secret' => env('FACEBOOK_APP_SECRET'),
+        'first_contact_menu' => [
+            'enabled' => env('FACEBOOK_FIRST_CONTACT_MENU_ENABLED', true),
+            'text' => env('FACEBOOK_FIRST_CONTACT_MENU_TEXT', 'Bạn cần Toyota Kiên Giang hỗ trợ thêm gì không ạ?'),
+            'elements' => [
+                [
+                    'title' => 'Các mẫu xe Toyota',
+                    'subtitle' => 'Nhận thông tin mới nhất',
+                    'image_url' => env('FACEBOOK_MENU_CARS_IMAGE_URL'),
+                    'buttons' => [
+                        ['title' => 'Tư vấn cho tôi', 'payload' => 'Khách muốn được tư vấn các mẫu xe Toyota đang bán và chọn mẫu xe phù hợp.'],
+                        ['title' => 'Dự toán chi phí', 'payload' => 'Khách muốn dự toán giá lăn bánh và chi phí mua xe Toyota.'],
+                    ],
+                ],
+                [
+                    'title' => 'Khám phá xe Toyota',
+                    'subtitle' => 'Giá bán, ưu đãi và màu xe',
+                    'image_url' => env('FACEBOOK_MENU_DISCOVER_IMAGE_URL'),
+                    'buttons' => [
+                        ['title' => 'Xem bảng giá', 'payload' => 'Khách muốn xem bảng giá các mẫu xe Toyota và giá lăn bánh tại Kiên Giang.'],
+                        ['title' => 'Tìm hiểu ưu đãi', 'payload' => 'Khách muốn tìm hiểu ưu đãi và khuyến mãi Toyota đang áp dụng.'],
+                    ],
+                ],
+                [
+                    'title' => 'Đăng ký tư vấn',
+                    'subtitle' => 'Toyota Kiên Giang hỗ trợ trực tiếp',
+                    'image_url' => env('FACEBOOK_MENU_SUPPORT_IMAGE_URL'),
+                    'buttons' => [
+                        ['title' => 'Đặt lịch lái thử', 'payload' => 'Khách muốn đặt lịch lái thử xe Toyota tại Toyota Kiên Giang.'],
+                        ['title' => 'Nhân viên gọi lại', 'payload' => 'Khách muốn để lại số điện thoại để nhân viên Toyota Kiên Giang gọi lại tư vấn.'],
+                    ],
+                ],
+            ],
+        ],
     ],
     'zalo' => ['access_token' => env('ZALO_ACCESS_TOKEN')],
     'customer_idle_follow_up_minutes' => (int) env('CUSTOMER_IDLE_FOLLOW_UP_MINUTES', 3),

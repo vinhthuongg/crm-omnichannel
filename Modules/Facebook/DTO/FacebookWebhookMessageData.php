@@ -18,11 +18,13 @@ final readonly class FacebookWebhookMessageData
         $senderId = (string) data_get($entry, 'sender.id');
         $pageId = (string) data_get($entry, 'recipient.id');
         $message = data_get($entry, 'message', []);
+        $postbackPayload = trim((string) data_get($entry, 'postback.payload', ''));
+        $postbackTitle = trim((string) data_get($entry, 'postback.title', ''));
         $attachments = self::normalizeAttachments((array) data_get($message, 'attachments', []));
         $hasMessageAttachments = $attachments !== [];
         $quickReplyPayload = trim((string) data_get($message, 'quick_reply.payload', ''));
         $quickReplyTitle = trim((string) data_get($message, 'text', ''));
-        $content = $quickReplyPayload !== '' ? $quickReplyPayload : data_get($message, 'text');
+        $content = $postbackPayload !== '' ? $postbackPayload : ($quickReplyPayload !== '' ? $quickReplyPayload : data_get($message, 'text'));
 
         if ($quickReplyPayload !== '') {
             $attachments[] = [
@@ -37,11 +39,25 @@ final readonly class FacebookWebhookMessageData
             ];
         }
 
+        if ($postbackPayload !== '') {
+            $attachments[] = [
+                'name' => 'Postback',
+                'type' => 'postback',
+                'payload' => ['title' => $postbackTitle, 'payload' => $postbackPayload],
+            ];
+        }
+
         $name = trim((string) data_get($profile, 'first_name').' '.(string) data_get($profile, 'last_name'));
         $name = $name !== '' ? $name : (string) data_get($profile, 'name', '');
         $avatar = data_get($profile, 'profile_pic');
 
-        return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, $content, $hasMessageAttachments ? 'attachment' : 'text', $attachments, data_get($message, 'mid'), ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId, 'shared_phone_number' => self::phoneFromQuickReply($quickReplyPayload), 'quick_reply_title' => $quickReplyTitle, 'quick_reply_payload' => $quickReplyPayload]);
+        $externalMessageId = data_get($message, 'mid') ?: data_get($entry, 'postback.mid');
+
+        return new InboundMessageData('facebook', $senderId, $name !== '' ? $name : $senderId, $avatar, $content,
+            $hasMessageAttachments ? 'attachment' : ($postbackPayload !== '' ? 'postback' : 'text'), $attachments, $externalMessageId,
+            ['raw' => $entry, 'profile' => $profile, 'facebook_page_id' => $pageId,
+                'shared_phone_number' => self::phoneFromQuickReply($quickReplyPayload), 'quick_reply_title' => $quickReplyTitle,
+                'quick_reply_payload' => $quickReplyPayload, 'postback_title' => $postbackTitle, 'postback_payload' => $postbackPayload]);
     }
 
     /** Trích số điện thoại khách chia sẻ trong quick reply của Facebook. */
