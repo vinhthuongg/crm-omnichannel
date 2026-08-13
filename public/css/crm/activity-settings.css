@@ -436,6 +436,15 @@
     padding: 16px;
 }
 
+.messenger-phone-settings {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 14px;
+    background: #eff6ff;
+}
+
 .messenger-menu-elements legend {
     padding: 0 8px;
     color: #d70616;

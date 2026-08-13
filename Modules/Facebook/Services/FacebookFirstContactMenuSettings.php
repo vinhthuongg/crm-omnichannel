@@ -14,8 +14,10 @@ class FacebookFirstContactMenuSettings
     {
         return Cache::remember(self::KEY, now()->addMinutes(10), function (): array {
             $stored = ApplicationSetting::query()->find(self::KEY)?->value;
+            $defaults = (array) config('services.facebook.first_contact_menu', []);
+            $data = is_array($stored) ? array_replace($defaults, $stored) : $defaults;
 
-            return $this->normalize(is_array($stored) ? $stored : (array) config('services.facebook.first_contact_menu', []));
+            return $this->normalize($data);
         });
     }
 
@@ -35,6 +37,8 @@ class FacebookFirstContactMenuSettings
         return [
             'enabled' => filter_var($data['enabled'] ?? false, FILTER_VALIDATE_BOOL),
             'text' => trim((string) ($data['text'] ?? '')),
+            'phone_enabled' => filter_var($data['phone_enabled'] ?? true, FILTER_VALIDATE_BOOL),
+            'phone_text' => trim((string) ($data['phone_text'] ?? '')),
             'elements' => collect((array) ($data['elements'] ?? []))->take(3)->map(fn (array $element): array => [
                 'title' => trim((string) ($element['title'] ?? '')),
                 'subtitle' => trim((string) ($element['subtitle'] ?? '')),

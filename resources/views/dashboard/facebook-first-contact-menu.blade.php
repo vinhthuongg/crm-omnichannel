@@ -1,4 +1,4 @@
-@php($menu = old('elements') ? ['enabled' => old('enabled'), 'text' => old('text'), 'elements' => old('elements')] : $facebookFirstContactMenu)
+@php($menu = old('elements') ? ['enabled' => old('enabled'), 'text' => old('text'), 'phone_enabled' => old('phone_enabled'), 'phone_text' => old('phone_text'), 'elements' => old('elements')] : $facebookFirstContactMenu)
 
 <article class="settings-card messenger-menu-settings-card">
     <header>
@@ -22,6 +22,18 @@
             <textarea name="text" rows="2" maxlength="1024">{{ data_get($menu, 'text') }}</textarea>
             @error('text')<small>{{ $message }}</small>@enderror
         </label>
+
+        <section class="messenger-phone-settings">
+            <label class="messenger-menu-toggle">
+                <input type="checkbox" name="phone_enabled" value="1" @checked((bool) data_get($menu, 'phone_enabled', true))>
+                <span>Hiển thị nút chia sẻ số điện thoại dưới carousel</span>
+            </label>
+            <label class="messenger-menu-field">
+                <span>Câu mời chia sẻ số điện thoại</span>
+                <textarea name="phone_text" rows="2" maxlength="1024">{{ data_get($menu, 'phone_text') }}</textarea>
+                @error('phone_text')<small>{{ $message }}</small>@enderror
+            </label>
+        </section>
 
         <div class="messenger-menu-elements">
             @foreach((array) data_get($menu, 'elements', []) as $elementIndex => $element)

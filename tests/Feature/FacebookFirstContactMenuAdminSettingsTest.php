@@ -42,6 +42,8 @@ class FacebookFirstContactMenuAdminSettingsTest extends TestCase
         $stored = ApplicationSetting::query()->findOrFail('facebook.first_contact_menu')->value;
         $this->assertTrue($stored['enabled']);
         $this->assertSame('Menu chào tùy chỉnh', $stored['text']);
+        $this->assertTrue($stored['phone_enabled']);
+        $this->assertSame('Vui lòng chia sẻ số điện thoại.', $stored['phone_text']);
         $this->assertSame('Tư vấn Vios', $stored['elements'][0]['buttons'][0]['title']);
         $this->assertSame($stored, app(FacebookFirstContactMenuSettings::class)->get());
     }
@@ -67,6 +69,8 @@ class FacebookFirstContactMenuAdminSettingsTest extends TestCase
         return [
             'enabled' => '1',
             'text' => 'Menu chào tùy chỉnh',
+            'phone_enabled' => '1',
+            'phone_text' => 'Vui lòng chia sẻ số điện thoại.',
             'elements' => [[
                 'title' => 'Các mẫu xe Toyota',
                 'subtitle' => 'Chọn nhu cầu',

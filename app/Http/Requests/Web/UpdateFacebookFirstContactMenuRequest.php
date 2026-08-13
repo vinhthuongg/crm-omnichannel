@@ -18,6 +18,8 @@ class UpdateFacebookFirstContactMenuRequest extends FormRequest
         return [
             'enabled' => ['nullable', 'boolean'],
             'text' => ['nullable', 'string', 'max:1024'],
+            'phone_enabled' => ['nullable', 'boolean'],
+            'phone_text' => ['nullable', 'required_if:phone_enabled,1', 'string', 'max:1024'],
             'elements' => ['required', 'array', 'min:1', 'max:3'],
             'elements.*.title' => ['required', 'string', 'max:80'],
             'elements.*.subtitle' => ['nullable', 'string', 'max:80'],
@@ -31,6 +33,9 @@ class UpdateFacebookFirstContactMenuRequest extends FormRequest
     /** Chuẩn hóa checkbox không được gửi thành false trước khi validate và lưu. */
     protected function prepareForValidation(): void
     {
-        $this->merge(['enabled' => $this->boolean('enabled')]);
+        $this->merge([
+            'enabled' => $this->boolean('enabled'),
+            'phone_enabled' => $this->boolean('phone_enabled'),
+        ]);
     }
 }

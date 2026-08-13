@@ -25,8 +25,12 @@ class FacebookFirstContactMenuService
         $clientId = 'facebook-first-contact-menu-'.$key;
 
         $existingMenu = Message::query()->where('client_message_id', $clientId)->first();
+        $phoneClientId = 'facebook-first-contact-phone-'.$key;
+        $existingPhone = Message::query()->where('client_message_id', $phoneClientId)->first();
+        $menuAlreadyQueued = $existingMenu && in_array($existingMenu->outbound_status, ['queued', 'sending', 'sent'], true);
+        $phoneRequired = ($settings['phone_enabled'] ?? false) && filled($settings['phone_text'] ?? null);
 
-        if ($existingMenu && in_array($existingMenu->outbound_status, ['queued', 'sending', 'sent'], true)) {
+        if ($menuAlreadyQueued && (! $phoneRequired || $existingPhone)) {
             return [];
         }
 
@@ -39,7 +43,7 @@ class FacebookFirstContactMenuService
         $messages = [];
         $text = trim((string) ($settings['text'] ?? ''));
 
-        if ($text !== '') {
+        if (! $menuAlreadyQueued && $text !== '') {
             $messages[] = Message::query()->firstOrCreate(
                 ['channel' => 'facebook', 'client_message_id' => 'facebook-first-contact-text-'.$key],
                 [
@@ -66,7 +70,7 @@ class FacebookFirstContactMenuService
             'outbound_status' => 'queued',
         ]);
 
-        if ($existingMenu) {
+        if ($existingMenu && ! $menuAlreadyQueued) {
             $message->forceFill([
                 'conversation_id' => $conversation->id,
                 'attachments' => [['type' => 'generic_template', 'elements' => $elements]],
@@ -75,7 +79,28 @@ class FacebookFirstContactMenuService
             ])->save();
             $message->wasRecentlyCreated = true;
         }
-        $messages[] = $message;
+        if (! $menuAlreadyQueued) {
+            $messages[] = $message;
+        }
+
+        if ($phoneRequired && ! $existingPhone) {
+            $phoneMessage = Message::query()->firstOrCreate(
+                ['channel' => 'facebook', 'client_message_id' => $phoneClientId],
+                [
+                    'conversation_id' => $conversation->id,
+                    'sender_type' => 'system',
+                    'sender_id' => null,
+                    'content' => trim((string) $settings['phone_text']),
+                    'message_type' => 'attachment',
+                    'attachments' => [[
+                        'type' => 'quick_reply',
+                        'quick_replies' => [['content_type' => 'user_phone_number']],
+                    ]],
+                    'outbound_status' => 'queued',
+                ],
+            );
+            $messages[] = $phoneMessage;
+        }
 
         foreach ($messages as $queued) {
             if ($queued->wasRecentlyCreated) {
