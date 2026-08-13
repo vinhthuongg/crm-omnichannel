@@ -31,7 +31,7 @@ class FacebookFirstContactMenuTest extends TestCase
 
         $messages = app(FacebookFirstContactMenuService::class)->queue($conversation, $message);
         $menu = collect($messages)->firstWhere('message_type', 'attachment');
-        $phone = collect($messages)->first(fn (Message $item): bool => str_contains((string) $item->client_message_id, '-phone-'));
+        $phone = Message::query()->where('client_message_id', 'like', 'facebook-first-contact-phone-v3-%')->first();
         app(MessagePostProcessor::class)->queueChatbot($conversation, $message);
 
         $this->assertNotNull($menu);
@@ -39,6 +39,7 @@ class FacebookFirstContactMenuTest extends TestCase
         $this->assertSame('quick_reply', $phone->attachments[0]['type']);
         $this->assertSame('user_phone_number', $phone->attachments[0]['quick_replies'][0]['content_type']);
         $this->assertSame('Anh/chị có thể chia sẻ số điện thoại để Toyota Kiên Giang liên hệ tư vấn nhanh hơn.', $phone->content);
+        $this->assertSame('pending', $phone->outbound_status);
         $this->assertSame('system', $menu->sender_type);
         $this->assertSame('generic_template', $menu->attachments[0]['type']);
         $this->assertSame('postback', $menu->attachments[0]['elements'][0]['buttons'][0]['type']);
@@ -79,7 +80,7 @@ class FacebookFirstContactMenuTest extends TestCase
         [$conversation, $first] = $this->conversation('first');
         $service = app(FacebookFirstContactMenuService::class);
 
-        $this->assertCount(3, $service->queue($conversation, $first));
+        $this->assertCount(2, $service->queue($conversation, $first));
         $this->assertSame([], $service->queue($conversation, $first));
 
         $second = Message::query()->create([
@@ -94,7 +95,7 @@ class FacebookFirstContactMenuTest extends TestCase
 
         $this->assertSame([], $service->queue($conversation, $second));
         $this->assertDatabaseCount('messages', 5);
-        Queue::assertPushed(SendOutboundMessageJob::class, 3);
+        Queue::assertPushed(SendOutboundMessageJob::class, 2);
     }
 
     /** Xác nhận khách có lịch sử cũ vẫn nhận menu ở tin kế tiếp nếu menu chưa từng được gửi. */
@@ -114,12 +115,12 @@ class FacebookFirstContactMenuTest extends TestCase
 
         $messages = app(FacebookFirstContactMenuService::class)->queue($conversation, $second);
 
-        $this->assertCount(3, $messages);
+        $this->assertCount(2, $messages);
         $this->assertDatabaseHas('messages', [
             'client_message_id' => 'facebook-first-contact-menu-page-id-'.$conversation->customer_id,
             'outbound_status' => 'queued',
         ]);
-        Queue::assertPushed(SendOutboundMessageJob::class, 3);
+        Queue::assertPushed(SendOutboundMessageJob::class, 2);
     }
 
     private function conversation(string $externalId): array

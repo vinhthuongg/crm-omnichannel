@@ -13,6 +13,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Modules\Conversation\Models\Conversation;
@@ -24,6 +25,7 @@ use Modules\Message\Jobs\SendOutboundMessageJob;
 use Modules\Message\Models\ChatbotResponse;
 use Modules\Message\Models\Message;
 use Modules\Message\Services\ChatbotResponseProcessor;
+use Modules\Message\Services\FacebookFirstContactMenuService;
 use Modules\Message\Services\MessagePostProcessor;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -177,6 +179,31 @@ class ChatbotIntegrationTest extends TestCase
             ['content_type' => 'text', 'title' => 'Xem màu xe', 'payload' => 'Tôi muốn xem các màu xe hiện có'],
             ['content_type' => 'text', 'title' => 'Gọi tư vấn', 'payload' => 'Vui lòng gọi lại tư vấn cho tôi'],
         ], $quickReply['quick_replies']);
+    }
+
+    /** Xác nhận yêu cầu chia sẻ số được xếp sau phản hồi bot để trở thành quick reply mới nhất trên Messenger. */
+    public function test_first_contact_phone_prompt_is_released_after_the_bot_response(): void
+    {
+        Queue::fake();
+        Event::fake();
+        Cache::flush();
+        config()->set('services.facebook.first_contact_menu.enabled', true);
+        [$conversation, $message] = $this->conversation('Khách mới', 'facebook', 'first-contact-phone');
+        $conversation->forceFill(['facebook_page_id' => 'page-id'])->save();
+        app(FacebookFirstContactMenuService::class)->queue($conversation, $message);
+        $pendingPhone = Message::query()->where('client_message_id', 'facebook-first-contact-phone-v3-page-id-'.$conversation->customer_id)->firstOrFail();
+        $this->assertSame('pending', $pendingPhone->outbound_status);
+        $response = $this->response($conversation, $message);
+
+        $this->processor(new FakeChatbotClient)->process($response);
+
+        $phone = $pendingPhone->fresh();
+        $this->assertSame('queued', $phone->outbound_status);
+        $this->assertSame('user_phone_number', data_get($phone->attachments, '0.quick_replies.0.content_type'));
+        Queue::assertPushedWithChain(SendOutboundMessageJob::class, [
+            SendOutboundMessageJob::class,
+            SendOutboundMessageJob::class,
+        ]);
     }
 
     /** Xác nhận message.media được lưu đúng bubble và sẵn sàng cho outbound Facebook/Zalo. */

@@ -6,6 +6,7 @@ use App\Services\Chatbot\ChatbotClient;
 use App\Services\Chatbot\ChatbotException;
 use App\Services\Chatbot\ChatbotInboundMediaNormalizer;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Bus;
 use Modules\Conversation\Support\ConversationStatus;
 use Modules\Message\Events\ChatbotMessageBreak;
 use Modules\Message\Events\ChatbotResponseCompleted;
@@ -253,10 +254,20 @@ class ChatbotResponseProcessor
             return $created;
         });
 
+        $phonePrompt = $this->releaseFirstContactPhonePrompt($response);
+        if ($phonePrompt) {
+            $messages[] = $phonePrompt;
+        }
+
         foreach ($messages as $message) {
             $this->post->broadcast($message);
+        }
 
-            if ($message->outbound_status === 'queued') {
+        $outboundMessages = collect($messages)->filter(fn (Message $message): bool => $message->outbound_status === 'queued')->values();
+        if ($phonePrompt && $outboundMessages->isNotEmpty()) {
+            Bus::chain($outboundMessages->map(fn (Message $message): SendOutboundMessageJob => new SendOutboundMessageJob($message->id))->all())->dispatch();
+        } else {
+            foreach ($outboundMessages as $message) {
                 SendOutboundMessageJob::dispatch($message->id);
             }
         }
@@ -269,6 +280,32 @@ class ChatbotResponseProcessor
         }
 
         return true;
+    }
+
+    /** Đưa câu mời chia sẻ số vào cuối phản hồi bot để Messenger không thay thế nó bằng quick reply khác. */
+    private function releaseFirstContactPhonePrompt(ChatbotResponse $response): ?Message
+    {
+        $conversation = $response->conversation;
+        $source = $response->sourceMessage;
+
+        if (! $conversation || $source?->channel !== 'facebook') {
+            return null;
+        }
+
+        $clientId = 'facebook-first-contact-phone-v3-'.$conversation->facebook_page_id.'-'.$conversation->customer_id;
+        $prompt = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('client_message_id', $clientId)
+            ->where('outbound_status', 'pending')
+            ->first();
+
+        if (! $prompt) {
+            return null;
+        }
+
+        $prompt->forceFill(['outbound_status' => 'queued', 'outbound_error' => null])->save();
+
+        return $prompt;
     }
 
     /** Lấy phần text từ các biến thể payload SSE được chatbot hỗ trợ. */

@@ -25,10 +25,10 @@ class FacebookFirstContactMenuService
         $clientId = 'facebook-first-contact-menu-'.$key;
 
         $existingMenu = Message::query()->where('client_message_id', $clientId)->first();
-        $phoneClientId = 'facebook-first-contact-phone-v2-'.$key;
+        $phoneClientId = 'facebook-first-contact-phone-v3-'.$key;
         $existingPhone = Message::query()->where('client_message_id', $phoneClientId)->first();
         $menuAlreadyQueued = $existingMenu && in_array($existingMenu->outbound_status, ['queued', 'sending', 'sent'], true);
-        $phoneAlreadyQueued = $existingPhone && in_array($existingPhone->outbound_status, ['queued', 'sending', 'sent'], true);
+        $phoneAlreadyQueued = $existingPhone && in_array($existingPhone->outbound_status, ['pending', 'queued', 'sending', 'sent'], true);
         $phoneRequired = ($settings['phone_enabled'] ?? false) && filled($settings['phone_text'] ?? null);
 
         if ($menuAlreadyQueued && (! $phoneRequired || $phoneAlreadyQueued)) {
@@ -98,19 +98,18 @@ class FacebookFirstContactMenuService
                 'content' => trim((string) $settings['phone_text']),
                 'message_type' => 'attachment',
                 'attachments' => $phoneAttachment,
-                'outbound_status' => 'queued',
+                'outbound_status' => 'pending',
             ]);
             if ($existingPhone) {
                 $phoneMessage->forceFill([
                     'conversation_id' => $conversation->id,
                     'content' => trim((string) $settings['phone_text']),
                     'attachments' => $phoneAttachment,
-                    'outbound_status' => 'queued',
+                    'outbound_status' => 'pending',
                     'outbound_error' => null,
                 ])->save();
                 $phoneMessage->wasRecentlyCreated = true;
             }
-            $messages[] = $phoneMessage;
         }
 
         foreach ($messages as $queued) {
